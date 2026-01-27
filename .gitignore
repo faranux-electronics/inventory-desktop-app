@@ -1,0 +1,78 @@
+# Node.js / Electron
+node_modules/
+npm-debug.log
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.yarn/
+dist/
+build/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+target/
+bin/
+out/
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+
+# Logs
+logs/
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Debug and temp files
+*.swp
+*.swo
+*~
+.tmp/
+temp/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build and package files
+package-lock.json
+coverage/
+.nyc_output/
+
+# JVM crash logs
+hs_err_pid*
+replay_pid*
+
+# Maven
+.mvn/
+*.versionsBackup
+*.releaseBackup
+release.properties
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Test coverage reports
+coverage/
+.coverage
+.tox/
