@@ -1,0 +1,1 @@
+# Faranux Inventory Desktop App
