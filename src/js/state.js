@@ -1,4 +1,3 @@
-// src/js/state.js
 const api = require('./api.js');
 
 const state = {
@@ -30,7 +29,7 @@ module.exports = {
     setSearch: (s) => { state.search = s; state.page = 1; },
     setStatus: (s) => { state.status = s; state.page = 1; state.selectedIds.clear(); },
 
-    // NEW: Save Full API Response
+    // Cache Updates
     setInventoryData: (data, totalPages, totalItems) => {
         state.currentInventory = data;
         state.totalPages = totalPages;
