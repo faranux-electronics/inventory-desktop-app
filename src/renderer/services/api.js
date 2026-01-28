@@ -51,6 +51,7 @@ module.exports = {
     approveTransfer: (batchId, approvals, userId, action = 'approve') =>
         request('approve_transfer', 'POST', { batch_id: batchId, approvals, user_id: userId, action }),
 
+    // Updated to strictly include user_id in the query string
     getTransfers: ({ type = 'all', page = 1, search = '', start = '', end = '', branch_id = '', user_id = '' }) => {
         const query = `get_transfers&type=${type}&page=${page}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}&branch_id=${branch_id}&user_id=${user_id}`;
         return request(query);

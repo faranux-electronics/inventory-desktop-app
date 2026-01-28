@@ -7,9 +7,10 @@ class TransfersView {
         this.app = app;
         this.state = app.state;
         this.currentTab = 'incoming';
-        this.filters = { search: '', start: '', end: '', page: 1 };
+        // Added userId to filters state
+        this.filters = { search: '', start: '', end: '', page: 1, userId: '' };
         this.notificationInterval = null;
-        this.lastFetchedData = []; // Store data for export
+        this.lastFetchedData = [];
     }
 
     render() {
@@ -31,10 +32,16 @@ class TransfersView {
 
                 <div class="card p-md mb-md">
                     <div class="flex items-center gap-md flex-wrap">
-                        <div class="search-box flex-1" style="max-width: 300px;">
+                        <div class="search-box flex-1" style="min-width: 200px;">
                             <i class="fa-solid fa-search"></i>
                             <input type="text" id="searchInput" class="search-input" placeholder="Search products...">
                         </div>
+                        
+                        <select id="userFilter" class="form-select" style="width: auto; max-width: 180px;">
+                            <option value="">All Users</option>
+                            <option disabled>Loading...</option>
+                        </select>
+
                         <input type="date" id="startDate" class="form-input" style="width: auto;">
                         <span class="text-muted">to</span>
                         <input type="date" id="endDate" class="form-input" style="width: auto;">
@@ -73,8 +80,34 @@ class TransfersView {
         `;
 
         this.attachEvents();
+        this.loadUserFilterOptions(); // Fetch users to populate dropdown
         this.loadTransfers();
         this.startNotificationPolling();
+    }
+
+    // New helper to populate the User dropdown
+    async loadUserFilterOptions() {
+        try {
+            const currentUser = this.state.getUser();
+            const res = await API.getUsers(currentUser.role);
+
+            if (res.status === 'success') {
+                const select = document.getElementById('userFilter');
+                if (select) {
+                    const currentVal = this.filters.userId;
+                    // Filter out users if needed, or just show all
+                    const options = res.data.map(u =>
+                        `<option value="${u.id}" ${u.id == currentVal ? 'selected' : ''}>${u.name || u.email}</option>`
+                    ).join('');
+                    select.innerHTML = `<option value="">All Users</option>${options}`;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load users for filter", e);
+            // Optionally remove the "Loading..." placeholder or leave "All Users"
+            const select = document.getElementById('userFilter');
+            if(select) select.innerHTML = `<option value="">All Users</option>`;
+        }
     }
 
     attachEvents() {
@@ -94,13 +127,13 @@ class TransfersView {
 
         document.getElementById('applyFilters').addEventListener('click', () => {
             this.filters.search = document.getElementById('searchInput').value;
+            this.filters.userId = document.getElementById('userFilter').value; // Capture selected user
             this.filters.start = document.getElementById('startDate').value;
             this.filters.end = document.getElementById('endDate').value;
             this.filters.page = 1;
             this.loadTransfers();
         });
 
-        // Global Export Event
         document.getElementById('exportAllBtn').addEventListener('click', () => {
             if (!this.lastFetchedData || this.lastFetchedData.length === 0) {
                 Toast.info("No data to export");
@@ -129,9 +162,11 @@ class TransfersView {
         content.innerHTML = '<div class="text-center p-xl text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
 
         try {
+            // Include user_id in the API request
             const res = await API.getTransfers({
                 type: this.currentTab,
                 branch_id: user.branch_id,
+                user_id: this.filters.userId, // Pass the selected user filter
                 search: this.filters.search,
                 start: this.filters.start,
                 end: this.filters.end,
@@ -139,7 +174,7 @@ class TransfersView {
             });
 
             if (res.status === 'success') {
-                this.lastFetchedData = res.data; // Cache for export
+                this.lastFetchedData = res.data;
                 this.renderTransfers(res.data);
 
                 if (this.currentTab === 'incoming') {
@@ -169,7 +204,6 @@ class TransfersView {
             return;
         }
 
-        // Group by batch_id
         const batches = {};
         transfers.forEach(t => {
             if (!batches[t.batch_id]) {
@@ -178,9 +212,9 @@ class TransfersView {
                     created_at: t.created_at,
                     status: t.status,
                     from_loc_name: t.from_loc_name,
-                    from_branch_id: t.from_loc_id, // Ensure API returns this or we infer
+                    from_branch_id: t.from_loc_id,
                     to_loc_name: t.to_loc_name,
-                    to_branch_id: t.to_loc_id, // Ensure API returns this or we infer
+                    to_branch_id: t.to_loc_id,
                     user_name: t.user_name,
                     reviewer_name: t.reviewer_name,
                     items: []
@@ -201,20 +235,11 @@ class TransfersView {
         const date = new Date(batch.created_at).toLocaleString();
         const itemCount = batch.items.length;
 
-        // Determine Logic for Label
-        // If exact IDs aren't available, we rely on the Tab context
         let roleBadge = '';
         if (this.currentTab === 'incoming') {
             roleBadge = `<span class="badge badge-info text-xs"><i class="fa-solid fa-arrow-down"></i> Receiver</span>`;
         } else if (this.currentTab === 'outgoing') {
             roleBadge = `<span class="badge badge-neutral text-xs"><i class="fa-solid fa-arrow-up"></i> Sender</span>`;
-        } else {
-            // Fallback for History tab if user info matches
-            const user = this.state.getUser();
-            // Simple string check if IDs missing
-            if (user.branch_id && batch.from_loc_name && batch.to_loc_name) {
-                // This is a rough check, ideal is comparing IDs
-            }
         }
 
         return `
@@ -246,11 +271,9 @@ class TransfersView {
 
                     <div class="flex-none flex items-center justify-end gap-md" style="min-width: 180px;">
                         ${statusBadge}
-                        
                         <button class="btn btn-sm btn-ghost btn-download-batch" data-batch="${batch.batch_id}" title="Download CSV">
                             <i class="fa-solid fa-file-csv fa-lg"></i>
                         </button>
-
                         <div class="w-8 h-8 flex items-center justify-center rounded-full bg-neutral-50 hover:bg-neutral-100 transition-colors">
                             <i class="fa-solid fa-chevron-down text-muted transition-transform chevron-icon"></i>
                         </div>
@@ -323,10 +346,8 @@ class TransfersView {
     }
 
     attachBatchEvents(batchesData) {
-        // Collapse/Expand
         document.querySelectorAll('.batch-header').forEach(header => {
             header.addEventListener('click', (e) => {
-                // Prevent toggle if clicking download button
                 if (e.target.closest('.btn-download-batch')) return;
 
                 const body = header.nextElementSibling;
@@ -336,7 +357,6 @@ class TransfersView {
             });
         });
 
-        // Download Single Batch CSV
         document.querySelectorAll('.btn-download-batch').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -348,35 +368,25 @@ class TransfersView {
             });
         });
 
-        // Select All
         document.querySelectorAll('.select-all-items').forEach(checkbox => {
             checkbox.addEventListener('change', (e) => {
-                const batchId = e.target.dataset.batch;
-                const items = document.querySelectorAll(`.item-checkbox`); // Scope this better ideally
-                // Simple fix: find closest table or scope by batch ID logic if needed,
-                // but if only one is expanded, this works. For safety:
                 const container = e.target.closest('table');
                 container.querySelectorAll('.item-checkbox').forEach(item => item.checked = e.target.checked);
             });
         });
 
-        // Approve
         document.querySelectorAll('.btn-approve-batch').forEach(btn => {
             btn.addEventListener('click', () => this.approveBatch(btn.dataset.batch));
         });
 
-        // Reject
         document.querySelectorAll('.btn-reject-batch').forEach(btn => {
             btn.addEventListener('click', () => this.rejectBatch(btn.dataset.batch));
         });
     }
 
-    // --- CSV Helper ---
     generateCSV(data, filename) {
         if (!data || data.length === 0) return;
 
-        // Flatten data if it's nested (though API returns flat list mostly)
-        // Define Headers
         const headers = ['Batch ID', 'Date', 'Status', 'From Branch', 'To Branch', 'User', 'Product', 'SKU', 'Sent Qty'];
 
         const rows = data.map(row => [
@@ -409,8 +419,6 @@ class TransfersView {
 
     async approveBatch(batchId) {
         const user = this.state.getUser();
-        // Scope selection to specific batch container to avoid conflicts
-        // Finding the container for this batch
         const batchBody = document.querySelector(`.btn-approve-batch[data-batch="${batchId}"]`).closest('.batch-body');
         const checkboxes = batchBody.querySelectorAll('.item-checkbox:checked');
 
