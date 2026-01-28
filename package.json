@@ -2,7 +2,7 @@
   "name": "faranuxinventory",
   "version": "1.0.0",
   "description": "",
-  "main": "main.js",
+  "main": "src/main/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron ."
@@ -13,5 +13,8 @@
   "type": "commonjs",
   "devDependencies": {
     "electron": "^40.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
   }
 }

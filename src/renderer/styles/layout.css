@@ -1,0 +1,420 @@
+/* Layout & Structure */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family), sans-serif;
+    font-size: 1rem;
+    color: var(--neutral-700);
+    background: var(--neutral-100);
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Sidebar */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
+    z-index: 100;
+}
+
+.sidebar-brand {
+    padding: var(--spacing-xl);
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: var(--spacing-lg) 0;
+    overflow-y: auto;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-xl);
+    color: #b0b0b0;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    border-left: 4px solid transparent;
+}
+
+.nav-item i {
+    width: 24px;
+    margin-right: var(--spacing-md);
+}
+
+.nav-item:hover {
+    background: var(--sidebar-hover);
+    color: white;
+}
+
+.nav-item.active {
+    background: var(--sidebar-active); /* Now uses #932013 */
+    color: white;
+    border-left-color: white;
+}
+
+/* Main Content Area */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.content-wrapper {
+    flex: 1;
+    padding: var(--spacing-xl);
+    overflow-y: auto;
+    background: var(--neutral-100);
+    display: block; /* Ensures content aligns to top */
+}
+
+/* Page Header */
+.page-header {
+    margin-bottom: var(--spacing-lg);
+    background: transparent;
+}
+
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--neutral-900);
+}
+
+/* --- Sidebar Profile / Footer --- */
+.sidebar-profile {
+    margin-top: auto; /* Pushes this section to the very bottom */
+    padding: var(--spacing-lg);
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.user-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    color: var(--neutral-400);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+/*.logout-btn {*/
+/*    width: 36px;*/
+/*    height: 36px;*/
+/*    border-radius: var(--radius-md);*/
+/*    background: var(--primary-500); !* Uses your Action Red *!*/
+/*    color: white;*/
+/*    border: none;*/
+/*    display: flex;*/
+/*    align-items: center;*/
+/*    justify-content: center;*/
+/*    cursor: pointer;*/
+/*    transition: background var(--transition-fast);*/
+/*    flex-shrink: 0;*/
+/*}*/
+
+.logout-btn:hover {
+    background: var(--primary-600);
+}
+
+/* Layout & Structure */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family), sans-serif;
+    font-size: 1rem;
+    color: var(--neutral-700);
+    background: var(--neutral-100);
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Sidebar */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+.sidebar-brand {
+    padding: var(--spacing-xl);
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: var(--spacing-lg) 0;
+    overflow-y: auto;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-xl);
+    color: #b0b0b0;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    border-left: 4px solid transparent;
+}
+
+.nav-item i {
+    width: 24px;
+    margin-right: var(--spacing-md);
+}
+
+.nav-item:hover {
+    background: var(--sidebar-hover);
+    color: white;
+}
+
+.nav-item.active {
+    background: var(--sidebar-active);
+    color: white;
+    border-left-color: white;
+}
+
+/* Main Content Area */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.content-wrapper {
+    flex: 1;
+    padding: var(--spacing-xl);
+    overflow-y: auto;
+    background: var(--neutral-100);
+    /* Allow header to be sticky relative to this scrollable area */
+    position: relative;
+}
+
+/* Page Header - STICKY FIX */
+.page-header {
+    position: sticky;
+    padding-top: var(--spacing-md);
+    top: -32px; /* Compensate for padding-top if needed, or 0 */
+    /*top: 0;*/
+    z-index: 50;
+    /* Ensure solid background so content doesn't show through */
+    background: var(--neutral-100);
+    padding-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    /* Optional: Add shadow when scrolling if supported by JS, for now just bg */
+}
+
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--neutral-900);
+}
+
+/* --- Sidebar Profile / Footer --- */
+.sidebar-profile {
+    margin-top: auto;
+    padding: var(--spacing-lg);
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.user-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role {
+    font-size: 0.75rem;
+    color: var(--neutral-400);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+}
+
+.logout-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: var(--primary-500);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.logout-btn:hover {
+    background: var(--primary-600);
+}
+
+
+/* --- Login Page --- */
+.login-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--neutral-100);
+    background-image:
+            radial-gradient(circle at 20% 50%, rgba(147, 32, 19, 0.05) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(147, 32, 19, 0.05) 0%, transparent 50%);
+    padding: var(--spacing-lg);
+}
+
+.login-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    padding: var(--spacing-2xl);
+    width: 100%;
+    max-width: 420px;
+    animation: loginSlideUp 0.4s ease-out;
+}
+
+.login-icon {
+    width: 80px;
+    height: 80px;
+    background: var(--primary-50);
+    border-radius: var(--radius-full);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.login-icon i {
+    font-size: 2.5rem;
+    color: var(--primary-500);
+}
+
+.login-title {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--neutral-900);
+    margin: var(--spacing-md) 0 var(--spacing-xs);
+}
+
+.login-divider {
+    position: relative;
+    text-align: center;
+    margin: var(--spacing-lg) 0;
+}
+
+.login-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--neutral-200);
+}
+
+.login-divider span {
+    position: relative;
+    background: white;
+    padding: 0 var(--spacing-md);
+    color: var(--neutral-500);
+    font-size: var(--font-size-xs);
+}
+
+@keyframes loginSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

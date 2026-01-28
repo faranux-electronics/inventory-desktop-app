@@ -1,0 +1,79 @@
+/* --- Flexbox --- */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+.gap-sm { gap: var(--spacing-sm); }
+.gap-md { gap: var(--spacing-md); }
+
+/* --- Spacing (Margins & Paddings) --- */
+.m-0 { margin: 0; }
+.mt-xs { margin-top: var(--spacing-xs); }
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+
+.mb-sm { margin-bottom: var(--spacing-sm); }
+.mb-md { margin-bottom: var(--spacing-md); }
+.mb-lg { margin-bottom: var(--spacing-lg); }
+
+.ml-sm { margin-left: var(--spacing-sm); }
+.ml-md { margin-left: var(--spacing-md); }
+.mr-sm { margin-right: var(--spacing-sm); }
+.mr-md { margin-right: var(--spacing-md); }
+
+.p-0 { padding: 0; }
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.p-lg { padding: var(--spacing-lg); }
+.p-xl { padding: var(--spacing-xl); }
+
+.py-sm { padding-top: var(--spacing-sm); padding-bottom: var(--spacing-sm); }
+
+/* --- Typography --- */
+.text-xs { font-size: var(--font-size-xs); }
+.text-sm { font-size: var(--font-size-sm); }
+.text-lg { font-size: var(--font-size-lg); }
+
+.font-bold { font-weight: 700; }
+.font-semibold { font-weight: 600; }
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+.text-primary { color: var(--primary-600); }
+.text-success { color: var(--success-700); }
+.text-error { color: var(--error-700); }
+.text-muted { color: var(--neutral-600); }
+.text-neutral-700 { color: var(--neutral-700); }
+.text-neutral-800 { color: var(--neutral-800); }
+.text-neutral-900 { color: var(--neutral-900); }
+
+/* --- Backgrounds --- */
+.bg-white { background: white; }
+.bg-neutral-50 { background: var(--neutral-50); }
+.bg-neutral-100 { background: var(--neutral-100); }
+
+/* Tailwind-style hover support */
+.hover\:bg-neutral-100:hover { background: var(--neutral-100); }
+
+/* --- Borders --- */
+.border-b { border-bottom: 1px solid var(--neutral-200); }
+.border-t { border-top: 1px solid var(--neutral-200); }
+.border-dashed { border-style: dashed; }
+.border-neutral-200 { border-color: var(--neutral-200); }
+
+/* --- Display & Sizing --- */
+.hidden { display: none; }
+.block { display: block; }
+.w-full { width: 100%; }
+.cursor-pointer { cursor: pointer; }
+.rounded { border-radius: var(--radius-md); }
+
+/* --- Transitions --- */
+.transition-colors { transition: background-color 0.2s, color 0.2s; }
+.transition-transform { transition: transform 0.2s; }
+.duration-200 { transition-duration: 200ms; }
