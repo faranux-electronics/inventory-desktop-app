@@ -28,16 +28,6 @@ jobs:
 
       - name: Create .env file
         run: |
-          echo "EXPO_PUBLIC_FIREBASE_API_KEY=${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}" >> .env
-          echo "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN }}" >> .env
-          echo "EXPO_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_PROJECT_ID }}" >> .env
-          echo "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=${{ secrets.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET }}" >> .env
-          echo "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}" >> .env
-          echo "EXPO_PUBLIC_FIREBASE_APP_ID=${{ secrets.EXPO_PUBLIC_FIREBASE_APP_ID }}" >> .env
-          echo "EXPO_PUBLIC_GSHEETS_API_KEY=${{ secrets.EXPO_PUBLIC_GSHEETS_API_KEY }}" >> .env
-          echo "EXPO_PUBLIC_GSHEET_ID=${{ secrets.EXPO_PUBLIC_GSHEET_ID }}" >> .env
-          echo "CONSUMER_KEY=${{ secrets.CONSUMER_KEY }}" >> .env
-          echo "CONSUMER_SECRET=${{ secrets.CONSUMER_SECRET }}" >> .env
           echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
           echo "DEBUG=false" >> .env
           echo "LOG_LEVEL=info" >> .env
