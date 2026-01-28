@@ -95,13 +95,9 @@ class DashboardView {
       </div>
     `;
 
-        // 1. Populate Locations Dropdown
         await this.loadLocationFilter();
-
-        // 2. Attach Listeners
         this.attachEvents();
 
-        // 3. Load Data (use cache if available)
         if (this.state.hasInventoryData()) {
             const products = this.state.getInventory();
             this.renderProducts(products, this.state.get().totalPages, this.state.get().totalItems);
@@ -113,22 +109,21 @@ class DashboardView {
     async loadLocationFilter() {
         const select = document.getElementById('locationFilter');
         if (!select) return;
-
         const locations = await this.state.loadLocations();
         const currentFilter = this.state.getFilters().location_id;
 
         let html = '<option value="">All Locations</option>';
+        // Manually add Main Warehouse for filtering if needed
+        html += `<option value="0" ${currentFilter === '0' ? 'selected' : ''}>Main Warehouse</option>`;
 
         locations.forEach(loc => {
-            const selected = loc.id === currentFilter ? 'selected' : '';
+            const selected = loc.id == currentFilter ? 'selected' : '';
             html += `<option value="${loc.id}" ${selected}>${loc.name}</option>`;
         });
-
         select.innerHTML = html;
     }
 
     attachEvents() {
-        // --- SEARCH ---
         const searchInput = document.getElementById('searchInput');
         let searchTimeout;
         searchInput.addEventListener('input', (e) => {
@@ -139,13 +134,11 @@ class DashboardView {
             }, 500);
         });
 
-        // --- LOCATION FILTER ---
         document.getElementById('locationFilter').addEventListener('change', (e) => {
             this.state.setLocationFilter(e.target.value);
             this.loadData();
         });
 
-        // --- TABS ---
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const status = e.target.dataset.status;
@@ -158,7 +151,6 @@ class DashboardView {
             });
         });
 
-        // --- SELECTION ---
         document.getElementById('selectAll').addEventListener('change', (e) => {
             const checked = e.target.checked;
             document.querySelectorAll('.row-checkbox').forEach(cb => {
@@ -170,18 +162,17 @@ class DashboardView {
             this.updateSelectionBar();
         });
 
-        // --- BUTTONS ---
         document.getElementById('refreshBtn').addEventListener('click', () => {
             this.state.clearSelection();
-            this.loadData(true); // Force refresh
+            this.loadData(true);
         });
+
         document.getElementById('prevBtn').addEventListener('click', () => this.changePage(-1));
         document.getElementById('nextBtn').addEventListener('click', () => this.changePage(1));
         document.getElementById('syncBtn').addEventListener('click', () => this.syncProducts());
         document.getElementById('gotoOrdersBtn').addEventListener('click', () => this.app.navigate('orders'));
         document.getElementById('bulkTransferBtn').addEventListener('click', () => this.handleBulkTransfer());
 
-        // --- SORTING ---
         document.querySelectorAll('.sortable').forEach(th => {
             th.addEventListener('click', (e) => {
                 const field = e.currentTarget.dataset.sort;
@@ -195,7 +186,6 @@ class DashboardView {
         const filters = this.state.getFilters();
         const tbody = document.getElementById('tableBody');
 
-        // Show loading only if no cached data or forced refresh
         if (!this.state.hasInventoryData() || forceRefresh) {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center p-lg"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</td></tr>';
         }
@@ -211,8 +201,10 @@ class DashboardView {
             );
 
             if (res.status === 'success') {
-                this.state.setInventoryData(res.data, res.pagination.total_pages, res.pagination.total_items);
-                this.renderProducts(res.data, res.pagination.total_pages, res.pagination.total_items);
+                const totalPages = (res.pagination && res.pagination.total_pages) ? res.pagination.total_pages : 1;
+                const totalItems = (res.pagination && res.pagination.total_items) ? res.pagination.total_items : 0;
+                this.state.setInventoryData(res.data, totalPages, totalItems);
+                this.renderProducts(res.data, totalPages, totalItems);
             } else {
                 tbody.innerHTML = `<tr><td colspan="4" class="text-center text-error p-lg">${res.message}</td></tr>`;
                 Toast.error(res.message);
@@ -234,13 +226,10 @@ class DashboardView {
 
         tbody.innerHTML = products.map(p => this.renderProductRow(p)).join('');
         this.updatePagination(totalPages, totalItems);
-
-        // Attach row-level event listeners
         this.attachRowEvents();
     }
 
     attachRowEvents() {
-        // Individual checkboxes
         document.querySelectorAll('.row-checkbox').forEach(cb => {
             cb.addEventListener('change', (e) => {
                 const id = parseInt(e.target.dataset.id);
@@ -249,7 +238,6 @@ class DashboardView {
             });
         });
 
-        // Single transfer buttons - THIS WAS THE MISSING PART!
         document.querySelectorAll('.btn-transfer-single').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const productId = parseInt(e.currentTarget.dataset.id);
@@ -270,8 +258,10 @@ class DashboardView {
                 let badgeClass = 'badge-info';
                 if (loc.type === 'defect') badgeClass = 'badge-error';
                 else if (loc.type === 'virtual') badgeClass = 'badge-warning';
-
-                stockHtml += `<span class="badge ${badgeClass}" style="margin-right: 5px; margin-bottom: 2px;">${loc.location_name}: ${loc.quantity}</span>`;
+                // Only show stock > 0 to keep UI clean
+                if (loc.quantity > 0) {
+                    stockHtml += `<span class="badge ${badgeClass}" style="margin-right: 5px; margin-bottom: 2px;">${loc.location_name}: ${loc.quantity}</span>`;
+                }
             });
         }
 
@@ -330,14 +320,11 @@ class DashboardView {
         this.loadData();
     }
 
-    // --- TRANSFER LOGIC ---
+    // --- TRANSFER LOGIC (SMART FILTERING) ---
 
     async handleSingleTransfer(productId) {
         const product = this.state.getProduct(productId);
-        if (!product) {
-            Toast.error("Product not found in current view");
-            return;
-        }
+        if (!product) return Toast.error("Product not found");
         const locations = await this.state.loadLocations();
         this.openTransferModal([product], locations, false);
     }
@@ -345,11 +332,7 @@ class DashboardView {
     async handleBulkTransfer() {
         const selectedIds = this.state.getSelectedIds();
         const products = this.state.getProducts(selectedIds);
-        if (products.length === 0) {
-            Toast.error("No products selected");
-            return;
-        }
-
+        if (products.length === 0) return Toast.error("No products selected");
         const locations = await this.state.loadLocations();
         this.openTransferModal(products, locations, true);
     }
@@ -358,12 +341,11 @@ class DashboardView {
         const btn = document.getElementById('syncBtn');
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...';
-
         try {
             const res = await API.syncProducts(1);
             if (res.status === 'success' || res.status === 'done') {
                 Toast.success('Sync complete');
-                this.loadData(true); // Force refresh after sync
+                this.loadData(true);
             } else {
                 Toast.error(res.message || "Sync Failed");
             }
@@ -378,94 +360,97 @@ class DashboardView {
     openTransferModal(products, locations, isBulk) {
         const title = isBulk ? `Transfer ${products.length} Items` : `Transfer: ${products[0].name}`;
 
-        const locOptions = `
-            <option value="0">Main Warehouse / Unassigned</option>
-            ${locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
-        `;
+        // --- SMART SOURCE FILTERING ---
+        // 1. Build list of potential sources (DB locations + Virtual Main Warehouse)
+        const allSources = [
+            { id: 0, name: "Main Warehouse" },
+            ...locations
+        ];
+
+        // 2. Filter: Valid source must have quantity > 0 for ALL selected products
+        let sourceOptionsHtml = `<option value="" disabled selected>Select Source...</option>`;
+
+        allSources.forEach(loc => {
+            const hasStock = products.every(p => {
+                // Find stock record for this location in this product
+                const breakdown = p.stock_breakdown.find(b => b.location_id == loc.id);
+                return breakdown && breakdown.quantity > 0;
+            });
+
+            if (hasStock) {
+                sourceOptionsHtml += `<option value="${loc.id}">${loc.name}</option>`;
+            } else {
+                // Optional: Show disabled option for clarity
+                sourceOptionsHtml += `<option value="${loc.id}" disabled>${loc.name} (Out of Stock)</option>`;
+            }
+        });
+
+        // Destination Options (All locations except Main usually, or all)
+        // You might want to flag locations that have cashiers here if API provided it
+        const destOptionsHtml = locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
 
         const body = `
             <div class="form-group mb-md">
                 <label class="form-label font-semibold mb-sm">Source Location (From)</label>
                 <select id="transferFrom" class="form-select">
-                    <option value="" disabled selected>Select Source...</option>
-                    ${locOptions}
+                    ${sourceOptionsHtml}
                 </select>
+                <p class="text-xs text-muted mt-xs">Only locations with stock are enabled.</p>
             </div>
             
             <div class="form-group mb-md">
-                <label class="form-label font-semibold mb-sm">Destination Location (To)</label>
+                <label class="form-label font-semibold mb-sm">Destination Branch (To)</label>
                 <select id="transferTo" class="form-select">
                     <option value="" disabled selected>Select Destination...</option>
-                    ${locOptions}
+                    ${destOptionsHtml}
                 </select>
             </div>
 
             <div class="form-group">
-                <label class="form-label font-semibold mb-sm">Quantity per Item</label>
+                <label class="form-label font-semibold mb-sm">Quantity to Transfer</label>
                 <input type="number" id="transferQty" class="form-input" value="1" min="1">
-                <p class="text-xs text-muted mt-xs">For bulk transfers, this amount will be moved for EACH selected product.</p>
+                <p class="text-xs text-muted mt-xs">
+                    ${isBulk ? 'This quantity will be applied to EACH selected item.' : 'Enter quantity to move.'}
+                </p>
             </div>
         `;
 
         Modal.open({
             title: title,
             body: body,
-            confirmText: "Transfer Stock",
+            confirmText: "Initiate Transfer",
             onConfirm: async () => {
                 const fromId = document.getElementById('transferFrom').value;
                 const toId = document.getElementById('transferTo').value;
                 const qty = parseInt(document.getElementById('transferQty').value);
 
-                if (!fromId || !toId) {
-                    Toast.error("Select both locations");
-                    throw new Error("Validation failed");
-                }
-                if (fromId === toId) {
-                    Toast.error("Source and Destination cannot be same");
-                    throw new Error("Validation failed");
-                }
-                if (!qty || qty < 1) {
-                    Toast.error("Invalid Quantity");
-                    throw new Error("Validation failed");
-                }
+                if (!fromId) return Toast.error("Please select a Source location");
+                if (!toId) return Toast.error("Please select a Destination");
+                if (fromId === toId) return Toast.error("Source and Destination cannot be same");
+                if (!qty || qty < 1) return Toast.error("Invalid Quantity");
+
+                const user = this.state.getUser();
 
                 try {
-                    if (isBulk) {
-                        const items = products.map(p => ({
-                            product_id: p.id,
-                            from_id: fromId,
-                            to_id: toId,
-                            qty: qty
-                        }));
-                        const res = await API.bulkTransfer(items);
-                        if (res.status === 'success') {
-                            Toast.success("Bulk Transfer Successful");
-                            this.state.clearSelection();
-                            this.loadData(true);
-                        } else {
-                            throw new Error(res.message);
-                        }
-                    } else {
-                        const res = await API.transfer({
-                            product_id: products[0].id,
-                            from_id: fromId,
-                            to_id: toId,
-                            qty: qty
-                        });
-                        if (res.status === 'success') {
-                            Toast.success("Transfer Successful");
-                            this.loadData(true);
-                        } else {
-                            throw new Error(res.message);
-                        }
-                    }
-                } catch (e) {
-                    Toast.error(e.message || "Transfer Failed");
-                    throw e; // Re-throw to prevent modal from closing
+                    const items = products.map(p => ({
+                        product_id: p.id,
+                        qty: qty
+                    }));
+                    const res = await API.initiateTransfer(items, user.id, toId);
+                if (res.status === 'success') {
+                    Toast.success("Transfer Initiated. Waiting for approval.");
+                    this.state.clearSelection();
+                    this.loadData(true);
+                } else {
+                    throw new Error(res.message);
                 }
+            } catch (e) {
+                Toast.error(e.message || "Transfer Failed");
+                throw e;
             }
-        });
-    }
+        }
+    });
+}
 }
 
 module.exports = DashboardView;

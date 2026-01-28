@@ -6,6 +6,7 @@ class UsersView {
     constructor(app) {
         this.app = app;
         this.state = app.state;
+        this.locationsCache = [];
     }
 
     render() {
@@ -29,19 +30,31 @@ class UsersView {
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Role</th>
+                                <th>Assigned Branch</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="usersTableBody">
-                            <tr><td colspan="4" class="text-center p-lg">Loading...</td></tr>
+                            <tr><td colspan="5" class="text-center p-lg text-muted">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         `;
 
-        this.loadUsers();
-        this.attachEvents();
+        this.init();
+    }
+
+    async init() {
+        // Load locations first for the dropdowns and mapping
+        try {
+            const locRes = await API.getLocations();
+            this.locationsCache = locRes.status === 'success' ? locRes.data : [];
+            this.loadUsers();
+            this.attachEvents();
+        } catch (e) {
+            Toast.error("Failed to initialize view data");
+        }
     }
 
     async loadUsers() {
@@ -51,32 +64,53 @@ class UsersView {
         try {
             const res = await API.getUsers(currentUser.role);
             if(res.status === 'success') {
-                tbody.innerHTML = res.data.map(u => `
+                if (res.data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="text-center p-lg text-muted">No users found.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = res.data.map(u => {
+                    // Map Branch ID to Name
+                    const branchName = u.branch_id
+                        ? (this.locationsCache.find(l => l.id == u.branch_id)?.name || 'Unknown Branch')
+                        : '<span class="text-muted">Head Office</span>';
+
+                    return `
                     <tr>
-                        <td><span class="font-semibold">${u.full_name || u.name || 'No Name'}</span></td>
+                        <td>
+                            <div class="font-semibold">${u.full_name || u.name || 'No Name'}</div>
+                        </td>
                         <td>${u.email}</td>
                         <td><span class="badge ${this.getRoleBadge(u.role)}">${u.role.toUpperCase()}</span></td>
+                        <td>${branchName}</td>
                         <td>
                             ${currentUser.id !== u.id ? `
                             <div class="flex gap-sm">
-                                <button class="btn btn-sm btn-secondary btn-edit-role" data-id="${u.id}" data-role="${u.role}" title="Change Role">
-                                    <i class="fa-solid fa-user-tag"></i>
+                                <button class="btn btn-sm btn-secondary btn-edit-user" 
+                                    data-id="${u.id}" 
+                                    data-role="${u.role}" 
+                                    data-branch="${u.branch_id || ''}"
+                                    title="Edit User">
+                                    <i class="fa-solid fa-pen"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger btn-delete-user" data-id="${u.id}" data-name="${u.full_name || u.email}" title="Delete User">
+                                <button class="btn btn-sm btn-danger btn-delete-user" 
+                                    data-id="${u.id}" 
+                                    data-name="${u.full_name || u.email}" 
+                                    title="Delete User">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
                             </div>
-                            ` : '<span class="text-muted text-xs">It\'s You</span>'}
+                            ` : '<span class="badge badge-neutral">You</span>'}
                         </td>
                     </tr>
-                `).join('');
+                `}).join('');
 
                 this.attachItemEvents();
             } else {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-error p-lg">${res.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-error p-lg">${res.message}</td></tr>`;
             }
         } catch(e) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-error p-lg">Failed to load users</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-error p-lg">Failed to load users</td></tr>`;
         }
     }
 
@@ -87,6 +121,15 @@ class UsersView {
         return 'badge-neutral';
     }
 
+    getBranchOptions(selectedId) {
+        let html = `<option value="" ${!selectedId ? 'selected' : ''}>-- Head Office / None --</option>`;
+        this.locationsCache.forEach(loc => {
+            const isSel = loc.id == selectedId ? 'selected' : '';
+            html += `<option value="${loc.id}" ${isSel}>${loc.name}</option>`;
+        });
+        return html;
+    }
+
     attachEvents() {
         document.getElementById('addUserBtn').addEventListener('click', () => {
             Modal.open({
@@ -94,24 +137,32 @@ class UsersView {
                 body: `
                     <div class="form-group mb-md">
                         <label class="form-label">Full Name</label>
-                        <input type="text" id="newUserName" class="form-input">
+                        <input type="text" id="newUserName" class="form-input" placeholder="e.g. John Doe">
                     </div>
                     <div class="form-group mb-md">
                         <label class="form-label">Email</label>
-                        <input type="email" id="newUserEmail" class="form-input">
+                        <input type="email" id="newUserEmail" class="form-input" placeholder="john@example.com">
                     </div>
                     <div class="form-group mb-md">
                         <label class="form-label">Password</label>
-                        <input type="password" id="newUserPass" class="form-input">
+                        <input type="password" id="newUserPass" class="form-input" placeholder="******">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Role</label>
-                        <select id="newUserRole" class="form-select">
-                            <option value="cashier">Cashier</option>
-                            <option value="manager">Manager</option>
-                            <option value="accountant">Accountant</option>
-                            <option value="admin">Admin</option>
-                        </select>
+                    <div class="row flex gap-md">
+                        <div class="form-group flex-1">
+                            <label class="form-label">Role</label>
+                            <select id="newUserRole" class="form-select">
+                                <option value="cashier">Cashier</option>
+                                <option value="manager">Manager</option>
+                                <option value="accountant">Accountant</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="form-group flex-1">
+                            <label class="form-label">Assigned Branch</label>
+                            <select id="newUserBranch" class="form-select">
+                                ${this.getBranchOptions()}
+                            </select>
+                        </div>
                     </div>
                 `,
                 confirmText: "Create User",
@@ -120,13 +171,15 @@ class UsersView {
                     const email = document.getElementById('newUserEmail').value;
                     const password = document.getElementById('newUserPass').value;
                     const role = document.getElementById('newUserRole').value;
+                    const branch_id = document.getElementById('newUserBranch').value;
 
                     if(!name || !email || !password) {
                         Toast.error("All fields are required");
                         throw new Error("Validation Error");
                     }
 
-                    const res = await API.registerUser({ name, email, password, role }, this.state.getUser().role);
+                    // Pass branch_id to API
+                    const res = await API.registerUser({ name, email, password, role, branch_id }, this.state.getUser().role);
                     if(res.status === 'success') {
                         Toast.success("User created successfully");
                         this.loadUsers();
@@ -140,17 +193,18 @@ class UsersView {
     }
 
     attachItemEvents() {
-        // Edit Role
-        document.querySelectorAll('.btn-edit-role').forEach(btn => {
+        // Edit User (Role & Branch)
+        document.querySelectorAll('.btn-edit-user').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.dataset.id;
                 const currentRole = btn.dataset.role;
+                const currentBranch = btn.dataset.branch;
 
                 Modal.open({
-                    title: "Change User Role",
+                    title: "Edit User",
                     body: `
-                        <div class="form-group">
-                            <label class="form-label">Select New Role</label>
+                        <div class="form-group mb-md">
+                            <label class="form-label">Role</label>
                             <select id="editUserRole" class="form-select">
                                 <option value="cashier" ${currentRole === 'cashier' ? 'selected' : ''}>Cashier</option>
                                 <option value="manager" ${currentRole === 'manager' ? 'selected' : ''}>Manager</option>
@@ -158,23 +212,35 @@ class UsersView {
                                 <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">Assigned Branch</label>
+                            <select id="editUserBranch" class="form-select">
+                                ${this.getBranchOptions(currentBranch)}
+                            </select>
+                        </div>
                     `,
-                    confirmText: "Update Role",
+                    confirmText: "Update User",
                     onConfirm: async () => {
                         const newRole = document.getElementById('editUserRole').value;
-                        const res = await API.updateUserRole(id, newRole, this.state.getUser().role);
+                        const newBranch = document.getElementById('editUserBranch').value;
+
+                        // We use a generic adminUpdateUser or updateUserRole endpoint
+                        // Ensure your API.updateUserRole or similar supports branch_id
+                        const res = await API.updateUserRole(id, newRole, this.state.getUser().role, newBranch);
+
                         if(res.status === 'success') {
-                            Toast.success("Role updated");
+                            Toast.success("User updated");
                             this.loadUsers();
                         } else {
                             Toast.error(res.message);
+                            throw new Error(res.message);
                         }
                     }
                 });
             });
         });
 
-        // Delete User (Using Modal now)
+        // Delete User
         document.querySelectorAll('.btn-delete-user').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const name = btn.dataset.name;

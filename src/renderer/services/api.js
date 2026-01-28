@@ -28,17 +28,15 @@ module.exports = {
     login: (email, password) => request('login', 'POST', { email, password }),
     googleLogin: (token) => request('google_login', 'POST', { token }),
 
-    // --- PROFILE (NEW) ---
+    // --- PROFILE ---
     updateProfile: (data) => request('update_profile', 'POST', data),
 
     // --- USER MANAGEMENT ---
     registerUser: (newUser, currentRole) => request('register_user', 'POST', { ...newUser, current_user_role: currentRole }),
     getUsers: (currentRole) => request(`get_users&role=${currentRole}`),
     deleteUser: (id, currentRole) => request('delete_user', 'POST', { id, current_user_role: currentRole }),
-
-    // NEW: Assign Role
-    updateUserRole: (targetId, newRole, currentRole) =>
-        request('admin_update_role', 'POST', { target_id: targetId, role: newRole, current_user_role: currentRole }),
+    updateUserRole: (targetId, newRole, currentRole, branchId) =>
+        request('admin_update_role', 'POST', { target_id: targetId, role: newRole, current_user_role: currentRole, branch_id: branchId }),
 
     // --- INVENTORY ---
     getInventory: (page, search, status, sortBy, sortOrder, locationId = '') =>
@@ -47,28 +45,35 @@ module.exports = {
     syncProducts: (page) => request(`sync&page=${page}`),
 
     // --- TRANSFERS ---
-    transfer: (data) => request('transfer', 'POST', data),
-    bulkTransfer: (items) => request('bulk_transfer', 'POST', items),
-    getTransfers: (search = '', start = '', end = '') =>
-        request(`get_transfers&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}`),
+    initiateTransfer: (items, userId, toBranchId) =>
+        request('initiate_transfer', 'POST', { items, user_id: userId, to_branch_id: toBranchId }),
+
+    approveTransfer: (batchId, approvals, userId, action = 'approve') =>
+        request('approve_transfer', 'POST', { batch_id: batchId, approvals, user_id: userId, action }),
+
+    getTransfers: ({ type = 'all', page = 1, search = '', start = '', end = '', branch_id = '', user_id = '' }) => {
+        const query = `get_transfers&type=${type}&page=${page}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}&branch_id=${branch_id}&user_id=${user_id}`;
+        return request(query);
+    },
+
+    getBranchesWithCashiers: (excludeBranchId = '') =>
+        request(`get_branches_with_cashiers&exclude_branch_id=${excludeBranchId}`),
+
+    // --- NOTIFICATIONS ---
+    getNotifications: (userId) => request('get_notifications', 'POST', { user_id: userId }),
+    markNotificationRead: (notificationId, userId) =>
+        request('mark_notification_read', 'POST', { notification_id: notificationId, user_id: userId }),
+    markAllNotificationsRead: (userId) =>
+        request('mark_all_notifications_read', 'POST', { user_id: userId }),
 
     // --- LOCATIONS ---
-    getLocations: () => request('get_locations'),
-
-    // UPDATED: All admin actions now send current_user_role via POST
+    getRealLocations: () => request('get_locations'),
+    getLocations: () => request('get_real_locations'),
     getTrashedLocations: (currentRole) => request('get_trashed_locations', 'POST', { current_user_role: currentRole }),
-
     addLocation: (name) => request('add_location', 'POST', { name }),
-
     updateLocation: (id, name) => request('update_location', 'POST', { id, name }),
-
-    // Soft Delete (Move to Trash)
     deleteLocation: (id, currentRole) => request('delete_location', 'POST', { id, current_user_role: currentRole }),
-
-    // Restore from Trash
     restoreLocation: (id, currentRole) => request('restore_location', 'POST', { id, current_user_role: currentRole }),
-
-    // Permanent Delete
     permanentlyDeleteLocation: (id, currentRole) => request('permanently_delete_location', 'POST', { id, current_user_role: currentRole }),
 
     // --- ORDERS ---

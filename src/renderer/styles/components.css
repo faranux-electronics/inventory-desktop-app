@@ -358,3 +358,179 @@ input[type="checkbox"] {
     cursor: pointer;
     accent-color: var(--primary-500);
 }
+
+/* Notification Badge Styles */
+.notification-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--error-500, #ef4444);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    line-height: 1.2;
+    animation: pulse 2s infinite;
+}
+
+.notification-badge.hidden {
+    display: none;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+/* Tab button positioning for badge */
+.tab-btn {
+    position: relative;
+}
+
+/* Transfer batch styling */
+.transfer-batch {
+    background: var(--bg-secondary, #f9fafb);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.card-nested {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+/* Compact table for transfers */
+.compact-table {
+    width: 100%;
+    font-size: 0.875rem;
+}
+
+.compact-table th {
+    background: var(--bg-secondary);
+    padding: 8px 12px;
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.compact-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.compact-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.compact-table tbody tr:hover {
+    background: var(--bg-hover, #f3f4f6);
+}
+
+/* Form input small */
+.form-input-sm {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.form-input-sm:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Error highlighting */
+.bg-error-50 {
+    background-color: #fef2f2 !important;
+}
+
+/* Utility classes */
+.space-y-md > * + * {
+    margin-top: 1rem;
+}
+
+.flex {
+    display: flex;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.gap-sm {
+    gap: 0.5rem;
+}
+
+.gap-md {
+    gap: 1rem;
+}
+
+.mb-sm {
+    margin-bottom: 0.5rem;
+}
+
+.mb-md {
+    margin-bottom: 1rem;
+}
+
+.mx-sm {
+    margin-left: 0.5rem;
+    margin-right: 0.5rem;
+}
+
+.mt-md {
+    margin-top: 1rem;
+}
+
+.p-md {
+    padding: 1rem;
+}
+
+.p-lg {
+    padding: 1.5rem;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.font-semibold {
+    font-weight: 600;
+}
+
+.text-muted {
+    color: var(--text-muted, #6b7280);
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+}
+
+.text-xs {
+    font-size: 0.75rem;
+}
+
+.hidden {
+    display: none !important;
+}
