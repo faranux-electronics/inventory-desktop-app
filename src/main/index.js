@@ -2,7 +2,8 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const http = require('http');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
-require('dotenv').config();
+
+require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 

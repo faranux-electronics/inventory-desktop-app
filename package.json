@@ -25,6 +25,10 @@
   "build": {
     "appId": "com.faranux.inventorymis",
     "productName": "Faranux Inventory",
+    "files": [
+      "**/*",
+      ".env"
+    ],
     "compression": "normal",
     "win": {
       "target": [
