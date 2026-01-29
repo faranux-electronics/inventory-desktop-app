@@ -27,10 +27,22 @@ jobs:
 
       - name: Create .env file
         run: |
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env
           echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> .env
           echo "DEBUG=false" >> .env
           echo "LOG_LEVEL=info" >> .env
+        shell: bash
+
+      - name: Verify .env file
+        run: |
+          echo "Checking .env file..."
+          if [ -f .env ]; then
+            echo ".env file created successfully"
+            wc -l .env
+          else
+            echo "ERROR: .env file not created!"
+            exit 1
+          fi
         shell: bash
 
       - name: Build and publish

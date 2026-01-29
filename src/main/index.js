@@ -4,7 +4,7 @@ const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
 
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GITHUB_TOKEN = process.env.GH_TOKEN; // For private repo access
@@ -13,12 +13,18 @@ const GITHUB_TOKEN = process.env.GH_TOKEN; // For private repo access
 autoUpdater.autoDownload = false;  // User chooses when to download
 autoUpdater.autoInstallOnAppQuit = true;
 
-// Set the update feed URL with token for private repo
+// For private repos, electron-updater reads GH_TOKEN from process.env
+// Set it explicitly to ensure it's available
+if (GITHUB_TOKEN) {
+    process.env.GH_TOKEN = GITHUB_TOKEN;
+}
+
+// Set the update feed URL for private repo
+// Note: Don't pass token directly - electron-updater uses GH_TOKEN env var
 autoUpdater.setFeedURL({
     provider: 'github',
     owner: 'faranux-electronics',
     repo: 'inventory-desktop-app',
-    token: GITHUB_TOKEN,
     private: true
 });
 
