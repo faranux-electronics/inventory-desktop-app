@@ -4,15 +4,25 @@ const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
 
-require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GITHUB_TOKEN = process.env.GH_TOKEN; // For private repo access
 
-// --- CONFIGURE AUTO UPDATER ---
-autoUpdater.autoDownload = false;
+// --- CONFIGURE AUTO UPDATER (MANUAL DOWNLOAD MODE) ---
+autoUpdater.autoDownload = false;  // User chooses when to download
 autoUpdater.autoInstallOnAppQuit = true;
 
-// 2. Configure Logger (Crucial for debugging)
+// Set the update feed URL with token for private repo
+autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: 'faranux-electronics',
+    repo: 'inventory-desktop-app',
+    token: GITHUB_TOKEN,
+    private: true
+});
+
+// Configure Logger
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 log.info('App starting...');
@@ -32,10 +42,9 @@ function createWindow() {
     win.loadFile('index.html');
 
     win.once('ready-to-show', () => {
-        // 3. Check for updates ONLY if packaged (not in dev mode)
+        // Check for updates ONLY if packaged
         if (app.isPackaged) {
             log.info('Checking for updates...');
-            // Change to checkForUpdates() to use your custom UI
             autoUpdater.checkForUpdates();
         } else {
             log.info('Running in dev mode. Updates disabled.');
@@ -54,7 +63,6 @@ app.whenReady().then(() => {
 
     // --- UPDATER EVENTS ---
 
-    // Log these events to see what's happening
     autoUpdater.on('checking-for-update', () => {
         log.info('Checking for update...');
     });
@@ -69,13 +77,15 @@ app.whenReady().then(() => {
     });
 
     autoUpdater.on('error', (err) => {
-        log.error('Error in auto-updater. ' + err);
+        log.error('Error in auto-updater: ' + err);
+        if(mainWindow) mainWindow.webContents.send('update-error', err.message);
     });
 
     autoUpdater.on('download-progress', (progressObj) => {
         let log_message = "Download speed: " + progressObj.bytesPerSecond;
         log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
         log.info(log_message);
+        if(mainWindow) mainWindow.webContents.send('download-progress', progressObj);
     });
 
     autoUpdater.on('update-downloaded', (info) => {

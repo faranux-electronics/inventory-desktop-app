@@ -5,7 +5,6 @@ on:
     tags:
       - 'v*'  # Triggers on version tags like v1.0.0
 
-# Required permissions for creating releases
 permissions:
   contents: write
 
@@ -29,6 +28,7 @@ jobs:
       - name: Create .env file
         run: |
           echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> .env
+          echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> .env
           echo "DEBUG=false" >> .env
           echo "LOG_LEVEL=info" >> .env
         shell: bash
@@ -37,6 +37,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run publish
+
+      - name: Verify release artifacts
+        run: |
+          echo "Checking for release files..."
+          dir dist
+        shell: bash
 
       - name: Upload artifacts (backup)
         uses: actions/upload-artifact@v4

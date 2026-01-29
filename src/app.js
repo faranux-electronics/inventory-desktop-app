@@ -1,10 +1,10 @@
 // Main Application Entry Point
-const { ipcRenderer } = require('electron'); // This works now!
+const { ipcRenderer } = require('electron');
 const Sidebar = require('./src/renderer/components/Sidebar.js');
 const Toast = require('./src/renderer/components/Toast.js');
 const State = require('./src/renderer/services/state.js');
 const API = require('./src/renderer/services/api.js');
-const Modal = require('./src/renderer/components/Modal.js'); // Import Modal here
+const Modal = require('./src/renderer/components/Modal.js');
 
 // Views
 const LoginView = require('./src/renderer/views/Loginview.js');
@@ -15,43 +15,87 @@ const OrdersView = require('./src/renderer/views/Ordersview.js');
 const ProfileView = require('./src/renderer/views/ProfileView.js');
 const UsersView = require('./src/renderer/views/UsersView.js');
 
-// --- AUTO UPDATE LISTENERS ---
-// 1. Listen for available updates
+// --- AUTO UPDATE LISTENERS (MANUAL DOWNLOAD VERSION) ---
+
+// 1. Update available - ask user if they want to download
 ipcRenderer.on('update-available', (event, info) => {
     Modal.open({
         title: "Update Available",
         body: `
             <div class="text-center">
                 <i class="fa-solid fa-cloud-arrow-down text-primary-500" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                <p>A new version <b>(${info.version})</b> is available.</p>
-                <p class="text-sm text-muted">Would you like to download it now?</p>
+                <h3 style="margin-bottom: 0.5rem;">Version ${info.version} is Available</h3>
+                <p class="text-sm text-muted" style="margin-bottom: 1rem;">A new version is ready to download.</p>
+                ${info.releaseNotes ? `
+                    <div style="text-align: left; max-height: 200px; overflow-y: auto; padding: 1rem; background: #f5f5f5; border-radius: 8px; margin-bottom: 1rem;">
+                        <strong>What's New:</strong>
+                        <p class="text-sm">${info.releaseNotes}</p>
+                    </div>
+                ` : ''}
+                <p class="text-sm">Download now or later?</p>
             </div>
         `,
-        confirmText: "Download Update",
-        cancelText: "Later",
+        confirmText: "Download Now",
+        cancelText: "Remind Me Later",
         onConfirm: () => {
             ipcRenderer.send('download-update');
-            Toast.info("Downloading update in background...");
+            Toast.info("Downloading update...", 3000);
+        },
+        onCancel: () => {
+            Toast.info("You can update later from the menu");
         }
     });
 });
 
-// 2. Listen for download completion
+// 2. Download progress
+let progressToastId = null;
+ipcRenderer.on('download-progress', (event, progressObj) => {
+    const percent = Math.round(progressObj.percent);
+    const downloaded = Math.round(progressObj.transferred / 1024 / 1024);
+    const total = Math.round(progressObj.total / 1024 / 1024);
+
+    Toast.info(`Downloading: ${percent}% (${downloaded}/${total} MB)`, 2000);
+});
+
+// 3. Download complete - prompt to install
 ipcRenderer.on('update-downloaded', (event, info) => {
     Modal.open({
-        title: "Update Ready",
+        title: "✓ Update Downloaded",
         body: `
             <div class="text-center">
-                <i class="fa-solid fa-gift text-success-500" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                <p>Version <b>${info.version}</b> has been downloaded.</p>
-                <p class="text-sm text-muted">Restart the app to apply changes.</p>
+                <i class="fa-solid fa-circle-check text-success-500" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <h3 style="margin-bottom: 0.5rem;">Ready to Install v${info.version}</h3>
+                <p class="text-sm text-muted">The update has been downloaded successfully.</p>
+                <p class="text-sm" style="margin-top: 1rem;">
+                    <strong>Install now</strong> (app will restart) or <strong>install later</strong> (on next app launch).
+                </p>
             </div>
         `,
-        confirmText: "Restart Now",
-        cancelText: "Later",
+        confirmText: "Restart & Install",
+        cancelText: "Install on Exit",
         onConfirm: () => {
             ipcRenderer.send('quit-and-install');
+        },
+        onCancel: () => {
+            Toast.success("Update will install when you close the app", 4000);
         }
+    });
+});
+
+// 4. Error handling
+ipcRenderer.on('update-error', (event, error) => {
+    Modal.open({
+        title: "Update Failed",
+        body: `
+            <div class="text-center">
+                <i class="fa-solid fa-circle-exclamation text-danger-500" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <p>Unable to download the update.</p>
+                <p class="text-sm text-muted">${error}</p>
+                <p class="text-sm" style="margin-top: 1rem;">You can try again later or download manually from our website.</p>
+            </div>
+        `,
+        confirmText: "OK",
+        cancelText: null
     });
 });
 
@@ -77,7 +121,6 @@ class App {
         this.init();
     }
 
-    // ... rest of your App class (init, renderApp, navigate, handleLogin, etc)
     init() {
         const user = this.state.getUser();
         if (user) {
