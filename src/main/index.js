@@ -112,16 +112,51 @@ ipcMain.handle('login-google', async () => {
                 const urlObj = new URL(req.url, `http://127.0.0.1:4200`);
                 if (urlObj.pathname === '/callback') {
                     res.writeHead(200, {'Content-Type': 'text/html'});
-                    res.end(`<html><body><script>
-                        const params = new URLSearchParams(window.location.hash.substring(1));
-                        if (params.has('id_token')) {
-                            fetch('/token', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ id_token: params.get('id_token') })
-                            }).then(() => window.close());
-                        }
-                    </script></body></html>`);
+                    res.end(`
+                        <html>
+                        <head>
+                            <title>Authenticating...</title>
+                            <style>
+                            body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f5f5f5; text-align: center; }
+                            .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                            h1 { color: #333; }
+                            .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+                            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="card">
+                            <div class="spinner"></div>
+                            <h1>Authenticating...</h1>
+                            <p>Please wait while we log you in.</p>
+                            </div>
+                            <script>
+                            // Extract hash values (access_token, id_token)
+                            const hash = window.location.hash.substring(1);
+                            const params = new URLSearchParams(hash);
+                            
+                            if (params.has('id_token')) {
+                                fetch('/token', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        id_token: params.get('id_token'),
+                                        access_token: params.get('access_token')
+                                    })
+                                }).then(() => {
+                                    document.querySelector('h1').textContent = "Success!";
+                                    document.querySelector('p').textContent = "You can close this tab and return to the app.";
+                                    document.querySelector('.spinner').style.display = 'none';
+                                    setTimeout(() => window.close(), 1000); // Try to close tab
+                                });
+                            } else {
+                                document.querySelector('h1').textContent = "Authentication Failed";
+                                document.querySelector('p').textContent = "No token found.";
+                            }
+                            </script>
+                        </body>
+                        </html>
+                    `);
                     return;
                 }
                 if (req.method === 'POST' && req.url === '/token') {
