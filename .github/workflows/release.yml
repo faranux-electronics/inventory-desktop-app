@@ -28,8 +28,7 @@ jobs:
       - name: Create .env file
         run: |
           echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env
-          # CHANGE THIS LINE: Use your custom secret (GH_TOKEN), not the system one (GITHUB_TOKEN)
-          echo "GH_TOKEN=${{ secrets.GH_TOKEN }}" >> .env
+          # DELETE THIS LINE: echo "GH_TOKEN=${{ secrets.GH_TOKEN }}" >> .env
           echo "DEBUG=false" >> .env
           echo "LOG_LEVEL=info" >> .env
         shell: bash

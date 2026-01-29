@@ -7,7 +7,7 @@ const log = require('electron-log');
 require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GITHUB_TOKEN = process.env.GH_TOKEN; // For private repo access
+/*const GITHUB_TOKEN = process.env.GH_TOKEN; // For private repo access
 
 // --- CONFIGURE AUTO UPDATER (MANUAL DOWNLOAD MODE) ---
 autoUpdater.autoDownload = false;  // User chooses when to download
@@ -18,14 +18,15 @@ autoUpdater.autoInstallOnAppQuit = true;
 if (GITHUB_TOKEN) {
     process.env.GH_TOKEN = GITHUB_TOKEN;
 }
+*/
 
-// Set the update feed URL for private repo
-// Note: Don't pass token directly - electron-updater uses GH_TOKEN env var
+// You can often delete the entire setFeedURL block if package.json has the repo URL.
+// But if you keep it, ensure 'private' is false or removed.
 autoUpdater.setFeedURL({
     provider: 'github',
     owner: 'faranux-electronics',
-    repo: 'inventory-desktop-app',
-    private: true
+    repo: 'inventory-desktop-app'
+    // private: false (Default)
 });
 
 // Configure Logger
