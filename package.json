@@ -57,7 +57,8 @@
     "publish": {
       "provider": "github",
       "owner": "faranux-electronics",
-      "repo": "inventory-desktop-app"
+      "repo": "inventory-desktop-app",
+      "releaseType": "release"
     }
   },
   "author": "Faranux Dev Team",

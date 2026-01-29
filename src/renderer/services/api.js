@@ -37,7 +37,7 @@ module.exports = {
     deleteUser: (id, currentRole) => request('delete_user', 'POST', { id, current_user_role: currentRole }),
     updateUserRole: (targetId, newRole, currentRole, branchId) =>
         request('admin_update_role', 'POST', { target_id: targetId, role: newRole, current_user_role: currentRole, branch_id: branchId }),
-
+    approveUser: (id, currentRole) => request('approve_user', 'POST', { id, current_user_role: currentRole }),
     // --- INVENTORY ---
     getInventory: (page, search, status, sortBy, sortOrder, locationId = '') =>
         request(`get_inventory&page=${page}&search=${search}&status=${status}&sort_by=${sortBy}&sort_order=${sortOrder}&location_id=${locationId}`),

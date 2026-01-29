@@ -1,4 +1,6 @@
 const Toast = require('../components/Toast.js');
+const { ipcRenderer } = require('electron');
+const API = require('../services/api.js');
 
 class LoginView {
     constructor(app) {
@@ -6,10 +8,14 @@ class LoginView {
     }
 
     render() {
+        this.renderLoginForm();
+    }
+
+    renderLoginForm() {
         const appContainer = document.getElementById('app');
         appContainer.innerHTML = `
       <div class="login-container">
-        <div class="login-card">
+        <div class="login-card" id="loginCard">
           <div class="text-center mb-lg">
             <div class="login-icon">
               <i class="fa-solid fa-box-open"></i>
@@ -56,11 +62,41 @@ class LoginView {
         this.attachEvents();
     }
 
+    // New Screen: Shows when status is 'pending'
+    renderPendingApproval() {
+        const card = document.getElementById('loginCard');
+        if (!card) return;
+
+        card.innerHTML = `
+            <div class="text-center fade-in">
+                <i class="fa-solid fa-clock-rotate-left text-warning-500" style="font-size: 3rem; margin-bottom: 1rem; display:block;"></i>
+                <h2 class="font-bold text-xl mb-sm">Approval Pending</h2>
+                <p class="text-neutral-600 mb-lg">Your account has been created but requires Administrator approval before you can access the system.</p>
+                
+                <div class="bg-neutral-50 p-md rounded mb-lg border border-neutral-200">
+                    <p class="text-sm font-semibold">Please contact your Admin to approve your email.</p>
+                </div>
+
+                <button id="checkStatusBtn" class="btn btn-primary w-full mb-md">
+                    <i class="fa-solid fa-rotate-right"></i> Check Approval Status
+                </button>
+                
+                <button id="backToLoginBtn" class="btn btn-ghost w-full">
+                    Back to Login
+                </button>
+            </div>
+        `;
+
+        document.getElementById('checkStatusBtn').addEventListener('click', () => this.handleCheckStatus());
+        document.getElementById('backToLoginBtn').addEventListener('click', () => this.renderLoginForm());
+    }
+
     attachEvents() {
         const form = document.getElementById('loginForm');
         const googleBtn = document.getElementById('googleLoginBtn');
         const loginBtn = document.getElementById('loginBtn');
 
+        // Standard Email Login
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value.trim();
@@ -75,28 +111,84 @@ class LoginView {
             loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing in...';
 
             try {
-                await this.app.handleLogin({ email, password });
+                // Call API directly to handle specific status codes
+                const res = await API.login(email, password);
+
+                if (res.status === 'success') {
+                    this.app.state.setUser(res.user);
+                    this.app.renderApp(res.user);
+                    this.app.navigate('dashboard');
+                    Toast.success('Welcome back!');
+                } else if (res.status === 'pending_approval') {
+                    this.renderPendingApproval();
+                } else {
+                    Toast.error(res.message || 'Login failed');
+                }
             } catch (e) {
                 Toast.error("Login failed");
             } finally {
-                loginBtn.disabled = false;
-                loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In';
+                if (document.getElementById('loginBtn')) {
+                    loginBtn.disabled = false;
+                    loginBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In';
+                }
             }
         });
 
-        googleBtn.addEventListener('click', async () => {
-            googleBtn.disabled = true;
-            googleBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting to Google...';
+        // Google Login
+        googleBtn.addEventListener('click', () => this.handleGoogleLogin());
+    }
 
-            try {
-                await this.app.handleGoogleLogin();
-            } catch (e) {
-                Toast.error("Google login failed");
-            } finally {
+    async handleGoogleLogin() {
+        const googleBtn = document.getElementById('googleLoginBtn');
+        googleBtn.disabled = true;
+        googleBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
+
+        try {
+            // Get token from Main process
+            const token = await ipcRenderer.invoke('login-google');
+
+            // Verify with Backend
+            const res = await API.googleLogin(token);
+
+            if (res.status === 'success') {
+                this.app.state.setUser(res.user);
+                this.app.renderApp(res.user);
+                this.app.navigate('dashboard');
+                Toast.success('Welcome back!');
+            } else if (res.status === 'pending_approval') {
+                this.renderPendingApproval();
+            } else {
+                Toast.error(res.message || 'Google login failed');
+            }
+        } catch (error) {
+            console.error(error);
+            Toast.error('Google login failed');
+        } finally {
+            if (document.getElementById('googleLoginBtn')) {
                 googleBtn.disabled = false;
                 googleBtn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in with Google';
             }
-        });
+        }
+    }
+
+    async handleCheckStatus() {
+        const btn = document.getElementById('checkStatusBtn');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+
+        try {
+            // Re-trigger Google Login to valid status.
+            // Usually happens instantly if user is already signed in to browser session.
+            await this.handleGoogleLogin();
+        } catch (e) {
+            Toast.error("Could not verify status. Try again.");
+        } finally {
+            if (document.getElementById('checkStatusBtn')) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
     }
 }
 

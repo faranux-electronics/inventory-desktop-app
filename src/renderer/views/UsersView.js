@@ -29,7 +29,7 @@ class UsersView {
                             <tr>
                                 <th>Name</th>
                                 <th>Email</th>
-                                <th>Role</th>
+                                <th>Role & Status</th>
                                 <th>Assigned Branch</th>
                                 <th>Actions</th>
                             </tr>
@@ -46,7 +46,6 @@ class UsersView {
     }
 
     async init() {
-        // Load locations first for the dropdowns and mapping
         try {
             const locRes = await API.getLocations();
             this.locationsCache = locRes.status === 'success' ? locRes.data : [];
@@ -63,7 +62,7 @@ class UsersView {
 
         try {
             const res = await API.getUsers(currentUser.role);
-            if(res.status === 'success') {
+            if (res.status === 'success') {
                 if (res.data.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="5" class="text-center p-lg text-muted">No users found.</td></tr>`;
                     return;
@@ -75,17 +74,34 @@ class UsersView {
                         ? (this.locationsCache.find(l => l.id == u.branch_id)?.name || 'Unknown Branch')
                         : '<span class="text-muted">Head Office</span>';
 
+                    // Check Status
+                    const isPending = u.status === 'pending';
+                    const statusBadge = isPending
+                        ? '<span class="badge badge-warning ml-sm"><i class="fa-solid fa-clock"></i> Pending</span>'
+                        : '<span class="badge badge-success ml-sm">Active</span>';
+
                     return `
-                    <tr>
+                    <tr class="${isPending ? 'bg-warning-50' : ''}">
                         <td>
                             <div class="font-semibold">${u.full_name || u.name || 'No Name'}</div>
                         </td>
                         <td>${u.email}</td>
-                        <td><span class="badge ${this.getRoleBadge(u.role)}">${u.role.toUpperCase()}</span></td>
+                        <td>
+                            <span class="badge ${this.getRoleBadge(u.role)}">${u.role.toUpperCase()}</span>
+                            ${statusBadge}
+                        </td>
                         <td>${branchName}</td>
                         <td>
                             ${currentUser.id !== u.id ? `
                             <div class="flex gap-sm">
+                                ${isPending ? `
+                                <button class="btn btn-sm btn-success btn-approve-user" 
+                                    data-id="${u.id}" 
+                                    title="Approve User">
+                                    <i class="fa-solid fa-check"></i> Approve
+                                </button>
+                                ` : ''}
+
                                 <button class="btn btn-sm btn-secondary btn-edit-user" 
                                     data-id="${u.id}" 
                                     data-role="${u.role}" 
@@ -109,15 +125,16 @@ class UsersView {
             } else {
                 tbody.innerHTML = `<tr><td colspan="5" class="text-center text-error p-lg">${res.message}</td></tr>`;
             }
-        } catch(e) {
+        } catch (e) {
+            console.error(e);
             tbody.innerHTML = `<tr><td colspan="5" class="text-center text-error p-lg">Failed to load users</td></tr>`;
         }
     }
 
     getRoleBadge(role) {
-        if(role === 'admin') return 'badge-error';
-        if(role === 'manager') return 'badge-warning';
-        if(role === 'cashier') return 'badge-success';
+        if (role === 'admin') return 'badge-error';
+        if (role === 'manager') return 'badge-warning';
+        if (role === 'cashier') return 'badge-success';
         return 'badge-neutral';
     }
 
@@ -173,14 +190,13 @@ class UsersView {
                     const role = document.getElementById('newUserRole').value;
                     const branch_id = document.getElementById('newUserBranch').value;
 
-                    if(!name || !email || !password) {
+                    if (!name || !email || !password) {
                         Toast.error("All fields are required");
                         throw new Error("Validation Error");
                     }
 
-                    // Pass branch_id to API
                     const res = await API.registerUser({ name, email, password, role, branch_id }, this.state.getUser().role);
-                    if(res.status === 'success') {
+                    if (res.status === 'success') {
                         Toast.success("User created successfully");
                         this.loadUsers();
                     } else {
@@ -193,7 +209,25 @@ class UsersView {
     }
 
     attachItemEvents() {
-        // Edit User (Role & Branch)
+        // 1. Approve User
+        document.querySelectorAll('.btn-approve-user').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.id;
+                try {
+                    const res = await API.approveUser(id, this.state.getUser().role);
+                    if (res.status === 'success') {
+                        Toast.success("User approved successfully!");
+                        this.loadUsers();
+                    } else {
+                        Toast.error(res.message || "Approval failed");
+                    }
+                } catch (e) {
+                    Toast.error("Network error during approval");
+                }
+            });
+        });
+
+        // 2. Edit User
         document.querySelectorAll('.btn-edit-user').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.dataset.id;
@@ -224,11 +258,9 @@ class UsersView {
                         const newRole = document.getElementById('editUserRole').value;
                         const newBranch = document.getElementById('editUserBranch').value;
 
-                        // We use a generic adminUpdateUser or updateUserRole endpoint
-                        // Ensure your API.updateUserRole or similar supports branch_id
                         const res = await API.updateUserRole(id, newRole, this.state.getUser().role, newBranch);
 
-                        if(res.status === 'success') {
+                        if (res.status === 'success') {
                             Toast.success("User updated");
                             this.loadUsers();
                         } else {
@@ -240,7 +272,7 @@ class UsersView {
             });
         });
 
-        // Delete User
+        // 3. Delete User
         document.querySelectorAll('.btn-delete-user').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const name = btn.dataset.name;
@@ -259,7 +291,7 @@ class UsersView {
                     cancelText: "Cancel",
                     onConfirm: async () => {
                         const res = await API.deleteUser(id, this.state.getUser().role);
-                        if(res.status === 'success') {
+                        if (res.status === 'success') {
                             Toast.success("User deleted");
                             this.loadUsers();
                         } else {
