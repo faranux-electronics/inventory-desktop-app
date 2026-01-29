@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const http = require('http');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
+const log = require('electron-log');
 
 require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
 
@@ -11,6 +12,11 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
 
+// 2. Configure Logger (Crucial for debugging)
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'info';
+log.info('App starting...');
+
 let authServer = null;
 
 function createWindow() {
@@ -18,16 +24,21 @@ function createWindow() {
         width: 1200,
         height: 800,
         webPreferences: {
-            nodeIntegration: true,    // Allows 'require' in app.js
-            contextIsolation: false,  // Required when nodeIntegration is true
+            nodeIntegration: true,
+            contextIsolation: false,
         }
     });
 
     win.loadFile('index.html');
 
     win.once('ready-to-show', () => {
+        // 3. Check for updates ONLY if packaged (not in dev mode)
         if (app.isPackaged) {
-            autoUpdater.checkForUpdatesAndNotify();
+            log.info('Checking for updates...');
+            // Change to checkForUpdates() to use your custom UI
+            autoUpdater.checkForUpdates();
+        } else {
+            log.info('Running in dev mode. Updates disabled.');
         }
     });
 
@@ -42,19 +53,44 @@ app.whenReady().then(() => {
     });
 
     // --- UPDATER EVENTS ---
+
+    // Log these events to see what's happening
+    autoUpdater.on('checking-for-update', () => {
+        log.info('Checking for update...');
+    });
+
     autoUpdater.on('update-available', (info) => {
+        log.info('Update available:', info);
         if(mainWindow) mainWindow.webContents.send('update-available', info);
     });
 
-    ipcMain.on('download-update', () => {
-        autoUpdater.downloadUpdate();
+    autoUpdater.on('update-not-available', (info) => {
+        log.info('Update not available.', info);
+    });
+
+    autoUpdater.on('error', (err) => {
+        log.error('Error in auto-updater. ' + err);
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+        let log_message = "Download speed: " + progressObj.bytesPerSecond;
+        log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+        log.info(log_message);
     });
 
     autoUpdater.on('update-downloaded', (info) => {
+        log.info('Update downloaded');
         if(mainWindow) mainWindow.webContents.send('update-downloaded', info);
     });
 
+    // IPC Listeners
+    ipcMain.on('download-update', () => {
+        log.info('User chose to download update');
+        autoUpdater.downloadUpdate();
+    });
+
     ipcMain.on('quit-and-install', () => {
+        log.info('User chose to quit and install');
         autoUpdater.quitAndInstall();
     });
 });
