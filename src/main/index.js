@@ -7,34 +7,43 @@ const log = require('electron-log');
 require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-/*const GITHUB_TOKEN = process.env.GH_TOKEN; // For private repo access
 
-// --- CONFIGURE AUTO UPDATER (MANUAL DOWNLOAD MODE) ---
-autoUpdater.autoDownload = false;  // User chooses when to download
-autoUpdater.autoInstallOnAppQuit = true;
-
-// For private repos, electron-updater reads GH_TOKEN from process.env
-// Set it explicitly to ensure it's available
-if (GITHUB_TOKEN) {
-    process.env.GH_TOKEN = GITHUB_TOKEN;
-}
-*/
-
-// You can often delete the entire setFeedURL block if package.json has the repo URL.
-// But if you keep it, ensure 'private' is false or removed.
 autoUpdater.setFeedURL({
     provider: 'github',
     owner: 'faranux-electronics',
     repo: 'inventory-desktop-app'
-    // private: false (Default)
 });
 
-// Configure Logger
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 log.info('App starting...');
 
 let authServer = null;
+let authTimeout = null;
+
+function cleanupAuthServer() {
+    if (authTimeout) {
+        clearTimeout(authTimeout);
+        authTimeout = null;
+    }
+
+    if (authServer) {
+        return new Promise((resolve) => {
+            authServer.close(() => {
+                authServer = null;
+                resolve();
+            });
+            // Force close after 1 second if not responding
+            setTimeout(() => {
+                if (authServer) {
+                    authServer = null;
+                }
+                resolve();
+            }, 1000);
+        });
+    }
+    return Promise.resolve();
+}
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -48,8 +57,24 @@ function createWindow() {
 
     win.loadFile('index.html');
 
+    // Intercept external links and open in default browser
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            shell.openExternal(url);
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
+    });
+
+    // Handle navigation attempts
+    win.webContents.on('will-navigate', (event, url) => {
+        if (url !== win.webContents.getURL() && (url.startsWith('http://') || url.startsWith('https://'))) {
+            event.preventDefault();
+            shell.openExternal(url);
+        }
+    });
+
     win.once('ready-to-show', () => {
-        // Check for updates ONLY if packaged
         if (app.isPackaged) {
             log.info('Checking for updates...');
             autoUpdater.checkForUpdates();
@@ -68,39 +93,26 @@ app.whenReady().then(() => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 
-    // --- UPDATER EVENTS ---
-
-    autoUpdater.on('checking-for-update', () => {
-        log.info('Checking for update...');
-    });
-
+    // Auto-updater events
+    autoUpdater.on('checking-for-update', () => log.info('Checking for update...'));
     autoUpdater.on('update-available', (info) => {
         log.info('Update available:', info);
         if(mainWindow) mainWindow.webContents.send('update-available', info);
     });
-
-    autoUpdater.on('update-not-available', (info) => {
-        log.info('Update not available.', info);
-    });
-
+    autoUpdater.on('update-not-available', (info) => log.info('Update not available.', info));
     autoUpdater.on('error', (err) => {
         log.error('Error in auto-updater: ' + err);
         if(mainWindow) mainWindow.webContents.send('update-error', err.message);
     });
-
     autoUpdater.on('download-progress', (progressObj) => {
-        let log_message = "Download speed: " + progressObj.bytesPerSecond;
-        log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
-        log.info(log_message);
+        log.info(`Downloaded ${progressObj.percent}%`);
         if(mainWindow) mainWindow.webContents.send('download-progress', progressObj);
     });
-
     autoUpdater.on('update-downloaded', (info) => {
         log.info('Update downloaded');
         if(mainWindow) mainWindow.webContents.send('update-downloaded', info);
     });
 
-    // IPC Listeners
     ipcMain.on('download-update', () => {
         log.info('User chose to download update');
         autoUpdater.downloadUpdate();
@@ -110,19 +122,42 @@ app.whenReady().then(() => {
         log.info('User chose to quit and install');
         autoUpdater.quitAndInstall();
     });
+
+    // IPC handler for opening URLs in external browser
+    ipcMain.on('open-external', (event, url) => {
+        if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+            shell.openExternal(url);
+        }
+    });
 });
 
 app.on('window-all-closed', () => {
+    cleanupAuthServer(); // Clean up auth server before quitting
     if (process.platform !== 'darwin') app.quit();
 });
 
-// --- GOOGLE LOGIN (Existing) ---
+app.on('will-quit', async (e) => {
+    e.preventDefault();
+    await cleanupAuthServer();
+    app.exit(0);
+});
+
+// Google Login handler
 ipcMain.handle('login-google', async () => {
+    // Clean up any existing server first
+    await cleanupAuthServer();
+
     return new Promise((resolve, reject) => {
         if (!GOOGLE_CLIENT_ID) {
-            reject("Google Client ID not configured in .env");
+            reject(new Error("Google Client ID not configured in .env"));
             return;
         }
+
+        // Add timeout: reject after 5 minutes if no response
+        authTimeout = setTimeout(async () => {
+            await cleanupAuthServer();
+            reject(new Error("Authentication timeout - please try again"));
+        }, 5 * 60 * 1000); // 5 minutes
 
         authServer = http.createServer((req, res) => {
             try {
@@ -148,7 +183,6 @@ ipcMain.handle('login-google', async () => {
                             <p>Please wait while we log you in.</p>
                             </div>
                             <script>
-                            // Extract hash values (access_token, id_token)
                             const hash = window.location.hash.substring(1);
                             const params = new URLSearchParams(hash);
                             
@@ -164,7 +198,7 @@ ipcMain.handle('login-google', async () => {
                                     document.querySelector('h1').textContent = "Success!";
                                     document.querySelector('p').textContent = "You can close this tab and return to the app.";
                                     document.querySelector('.spinner').style.display = 'none';
-                                    setTimeout(() => window.close(), 1000); // Try to close tab
+                                    setTimeout(() => window.close(), 1000);
                                 });
                             } else {
                                 document.querySelector('h1').textContent = "Authentication Failed";
@@ -179,23 +213,46 @@ ipcMain.handle('login-google', async () => {
                 if (req.method === 'POST' && req.url === '/token') {
                     let body = '';
                     req.on('data', chunk => body += chunk.toString());
-                    req.on('end', () => {
+                    req.on('end', async () => {
                         try {
                             const data = JSON.parse(body);
-                            res.writeHead(200); res.end('Auth successful');
+                            res.writeHead(200);
+                            res.end('Auth successful');
                             resolve(data.id_token);
-                        } catch (e) { reject(e); }
-                        finally { if (authServer) { authServer.close(); authServer = null; } }
+                        } catch (e) {
+                            reject(e);
+                        } finally {
+                            await cleanupAuthServer();
+                        }
                     });
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) {
+                console.error(e);
+            }
         });
 
-        authServer.listen(4200, '127.0.0.1', () => {
+        authServer.on('error', async (err) => {
+            await cleanupAuthServer();
+            reject(new Error("Server error: " + err.message));
+        });
+
+        authServer.listen(4200, '127.0.0.1', (err) => {
+            if (err) {
+                cleanupAuthServer();
+                reject(err);
+                return;
+            }
+
             const redirectUri = 'http://127.0.0.1:4200/callback';
             const scope = encodeURIComponent('email profile openid');
             const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=token id_token&client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&scope=${scope}&nonce=${Date.now()}`;
             shell.openExternal(authUrl);
         });
     });
+});
+
+// Handler to manually cancel Google login
+ipcMain.handle('cancel-google-login', async () => {
+    await cleanupAuthServer();
+    return { status: 'cancelled' };
 });

@@ -65,7 +65,7 @@ class UsersView {
     getBranchOptions(selected = null) {
         const options = [`<option value="">Head Office</option>`];
         this.locationsCache.forEach(l => {
-            options.push(`<option value="${l.id}" ${l.id == selected ? 'selected' : ''}>${l.name}</option>`);
+            options.push(`<option value="${l.id}" ${l.id === selected ? 'selected' : ''}>${l.name}</option>`);
         });
         return options.join('');
     }
@@ -85,7 +85,7 @@ class UsersView {
 
                 tbody.innerHTML = res.data.map(u => {
                     const branchName = u.branch_id
-                        ? (this.locationsCache.find(l => l.id == u.branch_id)?.name || 'Unknown Branch')
+                        ? (this.locationsCache.find(l => l.id === u.branch_id)?.name || 'Unknown Branch')
                         : '<span class="text-muted">Head Office</span>';
 
                     const isPending = u.status === 'pending';

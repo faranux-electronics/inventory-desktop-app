@@ -5,6 +5,7 @@ const API = require('../services/api.js');
 class LoginView {
     constructor(app) {
         this.app = app;
+        this.googleLoginInProgress = false;
     }
 
     render() {
@@ -55,6 +56,10 @@ class LoginView {
             <i class="fa-brands fa-google"></i>
             Sign in with Google
           </button>
+          
+          <button id="cancelGoogleBtn" class="btn btn-ghost w-full mt-sm" style="display: none;">
+            Cancel
+          </button>
         </div>
       </div>
     `;
@@ -94,6 +99,7 @@ class LoginView {
     attachEvents() {
         const form = document.getElementById('loginForm');
         const googleBtn = document.getElementById('googleLoginBtn');
+        const cancelBtn = document.getElementById('cancelGoogleBtn');
         const loginBtn = document.getElementById('loginBtn');
 
         // Standard Email Login
@@ -136,16 +142,52 @@ class LoginView {
 
         // Google Login
         googleBtn.addEventListener('click', () => this.handleGoogleLogin());
+
+        // Cancel Google Login
+        cancelBtn.addEventListener('click', async () => {
+            this.googleLoginInProgress = false;
+
+            // Notify main process to cleanup server
+            try {
+                await ipcRenderer.invoke('cancel-google-login');
+            } catch (e) {
+                console.error('Error cancelling login:', e);
+            }
+
+            const btn = document.getElementById('googleLoginBtn');
+            const cancel = document.getElementById('cancelGoogleBtn');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in with Google';
+            }
+            if (cancel) {
+                cancel.style.display = 'none';
+            }
+            Toast.info('Login cancelled');
+        });
     }
 
     async handleGoogleLogin() {
         const googleBtn = document.getElementById('googleLoginBtn');
+        const cancelBtn = document.getElementById('cancelGoogleBtn');
+
+        this.googleLoginInProgress = true;
         googleBtn.disabled = true;
-        googleBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
+        googleBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Waiting for browser...';
+
+        // Show cancel button
+        if (cancelBtn) {
+            cancelBtn.style.display = 'block';
+        }
 
         try {
             // Get token from Main process
             const token = await ipcRenderer.invoke('login-google');
+
+            // Check if user cancelled
+            if (!this.googleLoginInProgress) {
+                return; // User clicked cancel
+            }
 
             // Verify with Backend
             const res = await API.googleLogin(token);
@@ -161,12 +203,38 @@ class LoginView {
                 Toast.error(res.message || 'Google login failed');
             }
         } catch (error) {
-            console.error(error);
-            Toast.error('Google login failed');
+            console.error('Google login error:', error);
+
+            // Don't show error if user cancelled
+            if (!this.googleLoginInProgress) {
+                return;
+            }
+
+            // Show user-friendly error messages
+            if (error && error.message) {
+                if (error.message.includes('timeout')) {
+                    Toast.error('Login timed out. Please try again.');
+                } else if (error.message.includes('EADDRINUSE')) {
+                    Toast.error('Login server busy. Please wait a moment and try again.');
+                } else if (error.message.includes('Server error')) {
+                    Toast.error('Authentication server error. Please try again.');
+                } else {
+                    Toast.error('Google login cancelled or failed');
+                }
+            } else {
+                Toast.error('Google login failed');
+            }
         } finally {
-            if (document.getElementById('googleLoginBtn')) {
-                googleBtn.disabled = false;
-                googleBtn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in with Google';
+            // Always re-enable the button and hide cancel
+            this.googleLoginInProgress = false;
+            const btn = document.getElementById('googleLoginBtn');
+            const cancel = document.getElementById('cancelGoogleBtn');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in with Google';
+            }
+            if (cancel) {
+                cancel.style.display = 'none';
             }
         }
     }
