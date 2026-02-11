@@ -165,7 +165,7 @@ ipcMain.handle('login-google', async () => {
                 if (urlObj.pathname === '/callback') {
                     res.writeHead(200, {'Content-Type': 'text/html'});
                     res.end(`
-                        <html>
+                        <html lang="en">
                         <head>
                             <title>Authenticating...</title>
                             <style>
