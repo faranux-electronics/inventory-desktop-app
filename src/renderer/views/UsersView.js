@@ -16,9 +16,15 @@ class UsersView {
             <div class="page-header">
                 <div class="header-row">
                     <h1 class="page-title">User Management</h1>
-                    <button class="btn btn-primary" id="addUserBtn">
-                        <i class="fa-solid fa-user-plus"></i> Add User
-                    </button>
+                    <div class="flex gap-sm">
+                        <div class="form-check pt-xs">
+                            <input type="checkbox" id="showTrashCheck" class="form-checkbox">
+                            <label for="showTrashCheck" class="text-sm select-none cursor-pointer">Show Trash</label>
+                        </div>
+                        <button class="btn btn-primary" id="addUserBtn">
+                            <i class="fa-solid fa-user-plus"></i> Add User
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -56,12 +62,21 @@ class UsersView {
         }
     }
 
+    getBranchOptions(selected = null) {
+        const options = [`<option value="">Head Office</option>`];
+        this.locationsCache.forEach(l => {
+            options.push(`<option value="${l.id}" ${l.id == selected ? 'selected' : ''}>${l.name}</option>`);
+        });
+        return options.join('');
+    }
+
     async loadUsers() {
         const currentUser = this.state.getUser();
         const tbody = document.getElementById('usersTableBody');
+        const showTrash = document.getElementById('showTrashCheck')?.checked || false;
 
         try {
-            const res = await API.getUsers(currentUser.role);
+            const res = await API.getUsers(showTrash);
             if (res.status === 'success') {
                 if (res.data.length === 0) {
                     tbody.innerHTML = `<tr><td colspan="5" class="text-center p-lg text-muted">No users found.</td></tr>`;
@@ -69,170 +84,143 @@ class UsersView {
                 }
 
                 tbody.innerHTML = res.data.map(u => {
-                    // Map Branch ID to Name
                     const branchName = u.branch_id
                         ? (this.locationsCache.find(l => l.id == u.branch_id)?.name || 'Unknown Branch')
                         : '<span class="text-muted">Head Office</span>';
 
-                    // Check Status
                     const isPending = u.status === 'pending';
-                    const statusBadge = isPending
-                        ? '<span class="badge badge-warning ml-sm"><i class="fa-solid fa-clock"></i> Pending</span>'
-                        : '<span class="badge badge-success ml-sm">Active</span>';
+                    const isActive = u.status === 'active';
+                    const isSuspended = u.status === 'suspended';
+                    const isDeleted = !!u.deleted_at;
+
+                    let statusBadge = '';
+                    if (isPending) statusBadge = '<span class="badge badge-warning ml-sm"><i class="fa-solid fa-clock"></i> Pending</span>';
+                    else if (isActive) statusBadge = '<span class="badge badge-success ml-sm">Active</span>';
+                    else if (isSuspended) statusBadge = '<span class="badge badge-error ml-sm">Suspended</span>';
 
                     return `
-                    <tr class="${isPending ? 'bg-warning-50' : ''}">
+                    <tr class="${isPending ? 'bg-warning-50' : (isSuspended ? 'bg-error-50' : '')}">
                         <td>
-                            <div class="font-semibold">${u.full_name || u.name || 'No Name'}</div>
-                        </td>
-                        <td>${u.email}</td>
-                        <td>
-                            <span class="badge ${this.getRoleBadge(u.role)}">${u.role.toUpperCase()}</span>
-                            ${statusBadge}
-                        </td>
-                        <td>${branchName}</td>
-                        <td>
-                            ${currentUser.id !== u.id ? `
-                            <div class="flex gap-sm">
-                                ${isPending ? `
-                                <button class="btn btn-sm btn-success btn-approve-user" 
-                                    data-id="${u.id}" 
-                                    title="Approve User">
-                                    <i class="fa-solid fa-check"></i> Approve
-                                </button>
-                                ` : ''}
+                        <div class="font-semibold">${u.full_name || u.name || 'No Name'}</div>
+                    </td>
+                    <td>${u.email}</td>
+                    <td>
+                        <span class="badge ${this.getRoleBadge(u.role)}">${u.role.toUpperCase()}</span>
+                        ${statusBadge}
+                    </td>
+                    <td>${branchName}</td>
+                    <td>
+                        ${currentUser.id !== u.id ? `
+            <div class="flex gap-sm">
+                ${isPending || isSuspended ? `
+                <button class="btn btn-sm btn-success btn-approve-user" 
+                    data-id="${u.id}" 
+                    title="Activate User">
+                    <i class="fa-solid fa-check"></i>
+                </button>
+                ` : ''}
+                
+                ${isActive ? `
+                <button class="btn btn-sm btn-warning btn-deactivate-user" 
+                    data-id="${u.id}" 
+                    title="Deactivate User">
+                    <i class="fa-solid fa-ban"></i>
+                </button>
+                ` : ''}
 
-                                <button class="btn btn-sm btn-secondary btn-edit-user" 
+                <button class="btn btn-sm btn-primary btn-edit-user"
                                     data-id="${u.id}" 
-                                    data-role="${u.role}" 
+                                    data-role="${u.role}"
                                     data-branch="${u.branch_id || ''}"
-                                    title="Edit User">
-                                    <i class="fa-solid fa-pen"></i>
+                                    title="Edit Role/Branch">
+                                    <i class="fa-solid fa-edit"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger btn-delete-user" 
+                                ${isDeleted ? `
+                                <button class="btn btn-sm btn-info btn-restore-user" 
                                     data-id="${u.id}" 
-                                    data-name="${u.full_name || u.email}" 
-                                    title="Delete User">
+                                    data-name="${u.full_name || u.email}"
+                                    title="Restore User">
+                                    <i class="fa-solid fa-trash-arrow-up"></i>
+                                </button>
+                            ` : `
+                                <button class="btn btn-sm btn-error btn-delete-user" 
+                                    data-id="${u.id}" 
+                                    data-name="${u.full_name || u.email}"
+                                    title="Move to Trash">
                                     <i class="fa-solid fa-trash"></i>
                                 </button>
+                            `}
                             </div>
-                            ` : '<span class="badge badge-neutral">You</span>'}
+                            ` : '<span class="text-muted">—</span>'}
                         </td>
                     </tr>
-                `}).join('');
+                    `;
+                }).join('');
 
-                this.attachItemEvents();
+                this.attachRowEvents();
             } else {
                 tbody.innerHTML = `<tr><td colspan="5" class="text-center text-error p-lg">${res.message}</td></tr>`;
             }
         } catch (e) {
-            console.error(e);
             tbody.innerHTML = `<tr><td colspan="5" class="text-center text-error p-lg">Failed to load users</td></tr>`;
         }
     }
 
     getRoleBadge(role) {
-        if (role === 'admin') return 'badge-error';
-        if (role === 'manager') return 'badge-warning';
-        if (role === 'cashier') return 'badge-success';
-        return 'badge-neutral';
-    }
-
-    getBranchOptions(selectedId) {
-        let html = `<option value="" ${!selectedId ? 'selected' : ''}>-- Head Office / None --</option>`;
-        this.locationsCache.forEach(loc => {
-            const isSel = loc.id == selectedId ? 'selected' : '';
-            html += `<option value="${loc.id}" ${isSel}>${loc.name}</option>`;
-        });
-        return html;
+        const map = { admin: 'badge-primary', manager: 'badge-info', cashier: 'badge-neutral' };
+        return map[role] || 'badge-neutral';
     }
 
     attachEvents() {
-        document.getElementById('addUserBtn').addEventListener('click', () => {
-            Modal.open({
-                title: "Add New User",
-                body: `
-                    <div class="form-group mb-md">
-                        <label class="form-label">Full Name</label>
-                        <input type="text" id="newUserName" class="form-input" placeholder="e.g. John Doe">
-                    </div>
-                    <div class="form-group mb-md">
-                        <label class="form-label">Email</label>
-                        <input type="email" id="newUserEmail" class="form-input" placeholder="john@example.com">
-                    </div>
-                    <div class="form-group mb-md">
-                        <label class="form-label">Password</label>
-                        <input type="password" id="newUserPass" class="form-input" placeholder="******">
-                    </div>
-                    <div class="row flex gap-md">
-                        <div class="form-group flex-1">
-                            <label class="form-label">Role</label>
-                            <select id="newUserRole" class="form-select">
-                                <option value="cashier">Cashier</option>
-                                <option value="manager">Manager</option>
-                                <option value="accountant">Accountant</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        </div>
-                        <div class="form-group flex-1">
-                            <label class="form-label">Assigned Branch</label>
-                            <select id="newUserBranch" class="form-select">
-                                ${this.getBranchOptions()}
-                            </select>
-                        </div>
-                    </div>
-                `,
-                confirmText: "Create User",
-                onConfirm: async () => {
-                    const name = document.getElementById('newUserName').value;
-                    const email = document.getElementById('newUserEmail').value;
-                    const password = document.getElementById('newUserPass').value;
-                    const role = document.getElementById('newUserRole').value;
-                    const branch_id = document.getElementById('newUserBranch').value;
-
-                    if (!name || !email || !password) {
-                        Toast.error("All fields are required");
-                        throw new Error("Validation Error");
-                    }
-
-                    const res = await API.registerUser({ name, email, password, role, branch_id }, this.state.getUser().role);
-                    if (res.status === 'success') {
-                        Toast.success("User created successfully");
-                        this.loadUsers();
-                    } else {
-                        Toast.error(res.message);
-                        throw new Error(res.message);
-                    }
-                }
-            });
+        document.getElementById('addUserBtn').addEventListener('click', () => this.showAddUserModal());
+        document.getElementById('showTrashCheck')?.addEventListener('change', () => {
+            this.loadUsers();
         });
     }
 
-    attachItemEvents() {
-        // 1. Approve User
+    attachRowEvents() {
+        // Approve
         document.querySelectorAll('.btn-approve-user').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.dataset.id;
-                try {
-                    const res = await API.approveUser(id, this.state.getUser().role);
-                    if (res.status === 'success') {
-                        Toast.success("User approved successfully!");
-                        this.loadUsers();
-                    } else {
-                        Toast.error(res.message || "Approval failed");
-                    }
-                } catch (e) {
-                    Toast.error("Network error during approval");
+                const res = await API.approveUser(id);
+                if (res.status === 'success') {
+                    Toast.success("User approved");
+                    this.loadUsers();
+                } else {
+                    Toast.error(res.message || "Approval failed");
                 }
             });
         });
 
-        // 2. Edit User
+        // Deactivate
+        document.querySelectorAll('.btn-deactivate-user').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.id;
+                Modal.open({
+                    title: "Deactivate User",
+                    body: `<p>Are you sure you want to deactivate this user?</p>`,
+                    confirmText: "Deactivate",
+                    onConfirm: async () => {
+                        const res = await API.deactivateUser(id);
+                        if (res.status === 'success') {
+                            Toast.success("User deactivated");
+                            this.loadUsers();
+                        } else {
+                            Toast.error(res.message || "Failed");
+                            throw new Error();
+                        }
+                    }
+                });
+            });
+        });
+
+        // Edit Role/Branch
         document.querySelectorAll('.btn-edit-user').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.dataset.id;
                 const currentRole = btn.dataset.role;
-                const currentBranch = btn.dataset.branch;
+                const currentBranch = btn.dataset.branch || '';
 
                 Modal.open({
                     title: "Edit User",
@@ -242,7 +230,6 @@ class UsersView {
                             <select id="editUserRole" class="form-select">
                                 <option value="cashier" ${currentRole === 'cashier' ? 'selected' : ''}>Cashier</option>
                                 <option value="manager" ${currentRole === 'manager' ? 'selected' : ''}>Manager</option>
-                                <option value="accountant" ${currentRole === 'accountant' ? 'selected' : ''}>Accountant</option>
                                 <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin</option>
                             </select>
                         </div>
@@ -256,9 +243,9 @@ class UsersView {
                     confirmText: "Update User",
                     onConfirm: async () => {
                         const newRole = document.getElementById('editUserRole').value;
-                        const newBranch = document.getElementById('editUserBranch').value;
+                        const newBranch = document.getElementById('editUserBranch').value || null;
 
-                        const res = await API.updateUserRole(id, newRole, this.state.getUser().role, newBranch);
+                        const res = await API.updateUserRole(id, newRole, newBranch);
 
                         if (res.status === 'success') {
                             Toast.success("User updated");
@@ -272,7 +259,22 @@ class UsersView {
             });
         });
 
-        // 3. Delete User
+        // 1. RESTORE (Moved here from attachEvents)
+        document.querySelectorAll('.btn-restore-user').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.dataset.id;
+                // Ensure API.restoreUser is defined in your api.js
+                const res = await API.restoreUser(id);
+                if (res.status === 'success') {
+                    Toast.success("User restored successfully");
+                    this.loadUsers();
+                } else {
+                    Toast.error(res.message || "Failed to restore user");
+                }
+            });
+        });
+
+        // Delete
         document.querySelectorAll('.btn-delete-user').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const name = btn.dataset.name;
@@ -288,9 +290,8 @@ class UsersView {
                         </div>
                     `,
                     confirmText: "Delete",
-                    cancelText: "Cancel",
                     onConfirm: async () => {
-                        const res = await API.deleteUser(id, this.state.getUser().role);
+                        const res = await API.deleteUser(id);
                         if (res.status === 'success') {
                             Toast.success("User deleted");
                             this.loadUsers();
@@ -301,6 +302,70 @@ class UsersView {
                     }
                 });
             });
+        });
+    }
+
+    showAddUserModal() {
+        Modal.open({
+            title: "Add New User",
+            body: `
+                <div class="form-group mb-md">
+                    <label class="form-label">Full Name <span class="text-error">*</span></label>
+                    <input type="text" id="addName" class="form-input" required>
+                </div>
+                <div class="form-group mb-md">
+                    <label class="form-label">Email <span class="text-error">*</span></label>
+                    <input type="email" id="addEmail" class="form-input" required>
+                </div>
+                <div class="form-group mb-md">
+                    <label class="form-label">Password <span class="text-error">*</span></label>
+                    <input type="password" id="addPass" class="form-input" required>
+                </div>
+                <div class="form-group mb-md">
+                    <label class="form-label">Role</label>
+                    <select id="addRole" class="form-select">
+                        <option value="cashier">Cashier</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Branch</label>
+                    <select id="addBranch" class="form-select">
+                        <option value="">Head Office</option>
+                        ${this.locationsCache.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
+                    </select>
+                </div>
+            `,
+            confirmText: "Create User",
+            onConfirm: async () => {
+                const name = document.getElementById('addName').value.trim();
+                const email = document.getElementById('addEmail').value.trim();
+                const pass = document.getElementById('addPass').value;
+                const role = document.getElementById('addRole').value;
+                const branch = document.getElementById('addBranch').value || null;
+
+                if (!name || !email || !pass) {
+                    Toast.error("Name, email and password are required");
+                    throw new Error("Validation");
+                }
+
+                const res = await API.registerUser({
+                    full_name: name,
+                    email,
+                    password: pass,
+                    role,
+                    branch_id: branch
+                });
+
+                if (res.status === 'success') {
+                    Toast.success("User created successfully");
+                    this.loadUsers();
+                } else {
+                    Toast.error(res.message || "Failed to create user");
+                    throw new Error(res.message);
+                }
+            }
         });
     }
 }
