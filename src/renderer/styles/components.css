@@ -534,3 +534,474 @@ input[type="checkbox"] {
 .hidden {
     display: none !important;
 }
+
+/* Sticky Header */
+.sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: white;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--neutral-200);
+}
+
+/* Sync Progress */
+.sync-progress {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--primary-50);
+    border-radius: 8px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--neutral-200);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary-500);
+    transition: width 0.3s ease;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.sync-progress p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--neutral-700);
+    text-align: center;
+}
+
+/* Selection Actions */
+.selection-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--primary-50);
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.selection-actions.hidden {
+    display: none;
+}
+
+.selection-actions span {
+    font-weight: 600;
+    color: var(--primary-700);
+}
+
+/* Enhanced Pagination */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-top: 1px solid var(--neutral-200);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.pagination-info {
+    font-size: 0.875rem;
+    color: var(--neutral-600);
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.page-btn {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--neutral-300);
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    min-width: 36px;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--neutral-50);
+    border-color: var(--primary-500);
+}
+
+.page-btn.active {
+    background: var(--primary-500);
+    color: white;
+    border-color: var(--primary-500);
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-ellipsis {
+    padding: 0.5rem;
+    color: var(--neutral-400);
+}
+
+/* Product Images */
+.table img {
+    border: 1px solid var(--neutral-200);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--neutral-200);
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--neutral-600);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: -2px;
+}
+
+.tab-btn:hover {
+    color: var(--primary-600);
+}
+
+.tab-btn.active {
+    color: var(--primary-600);
+    border-bottom-color: var(--primary-600);
+}
+
+.tab-btn i {
+    margin-right: 0.5rem;
+}
+/* Sticky Header */
+.sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: white;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--neutral-200);
+}
+
+/* Sync Progress */
+.sync-progress {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--primary-50);
+    border-radius: 8px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--neutral-200);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary-500);
+    transition: width 0.3s ease;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.sync-progress p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--neutral-700);
+    text-align: center;
+}
+
+/* Selection Actions */
+.selection-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--primary-50);
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.selection-actions.hidden {
+    display: none;
+}
+
+.selection-actions span {
+    font-weight: 600;
+    color: var(--primary-700);
+}
+
+/* Enhanced Pagination */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-top: 1px solid var(--neutral-200);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.pagination-info {
+    font-size: 0.875rem;
+    color: var(--neutral-600);
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.page-btn {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--neutral-300);
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    min-width: 36px;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--neutral-50);
+    border-color: var(--primary-500);
+}
+
+.page-btn.active {
+    background: var(--primary-500);
+    color: white;
+    border-color: var(--primary-500);
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-ellipsis {
+    padding: 0.5rem;
+    color: var(--neutral-400);
+}
+
+/* Product Images */
+.table img {
+    border: 1px solid var(--neutral-200);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--neutral-200);
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--neutral-600);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: -2px;
+}
+
+.tab-btn:hover {
+    color: var(--primary-600);
+}
+
+.tab-btn.active {
+    color: var(--primary-600);
+    border-bottom-color: var(--primary-600);
+}
+
+.tab-btn i {
+    margin-right: 0.5rem;
+}
+
+
+/* Sticky Header */
+.sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: white;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--neutral-200);
+}
+
+/* Sync Progress */
+.sync-progress {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--primary-50);
+    border-radius: 8px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--neutral-200);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary-500);
+    transition: width 0.3s ease;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.sync-progress p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--neutral-700);
+    text-align: center;
+}
+
+/* Selection Actions */
+.selection-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--primary-50);
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.selection-actions.hidden {
+    display: none;
+}
+
+.selection-actions span {
+    font-weight: 600;
+    color: var(--primary-700);
+}
+
+/* Enhanced Pagination */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-top: 1px solid var(--neutral-200);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.pagination-info {
+    font-size: 0.875rem;
+    color: var(--neutral-600);
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.page-btn {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--neutral-300);
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    min-width: 36px;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--neutral-50);
+    border-color: var(--primary-500);
+}
+
+.page-btn.active {
+    background: var(--primary-500);
+    color: white;
+    border-color: var(--primary-500);
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-ellipsis {
+    padding: 0.5rem;
+    color: var(--neutral-400);
+}
+
+/* Product Images */
+.table img {
+    border: 1px solid var(--neutral-200);
+}
+
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--neutral-200);
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--neutral-600);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: -2px;
+}
+
+.tab-btn:hover {
+    color: var(--primary-600);
+}
+
+.tab-btn.active {
+    color: var(--primary-600);
+    border-bottom-color: var(--primary-600);
+}
+
+.tab-btn i {
+    margin-right: 0.5rem;
+}

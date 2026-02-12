@@ -63,12 +63,23 @@ module.exports = {
         return request(query);
     },
 
-    getStockComparison: (page = 1, search = '', category = '') => {
-        const query = `get_stock_comparison&page=${page}&search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}`;
+    getStockComparison: (page = 1, search = '', category = '', locationId = '', status = 'publish', sortBy = 'difference', sortOrder = 'DESC') => {
+        const query = `get_stock_comparison&page=${page}&search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}&location_id=${locationId}&status=${status}&sort_by=${sortBy}&sort_order=${sortOrder}`;
         return request(query);
     },
 
     getCategories: () => request('get_categories'),
+
+    wcFetchOrders: (status = 'any', page = 1) =>
+        request(`wc_fetch_orders&status=${status}&page=${page}`),
+
+    wcUpdateOrderStatus: (orderId, status) =>
+        request('wc_update_order_status', 'POST', { order_id: orderId, status }),
+
+    wcUpdateStock: (productId, quantity) =>
+        request('wc_update_product_stock', 'POST', { product_id: productId, quantity }),
+
+    wcGetCategories: () => request('wc_get_categories'),
 
     adjustStock: (productId, locationId, qty, reason) =>
         request('adjust_stock', 'POST', { product_id: productId, location_id: locationId, qty, reason }),
@@ -89,8 +100,12 @@ module.exports = {
         return request(query);
     },
 
-    initiateTransfer: (items, toBranchId) =>
-        request('initiate_transfer', 'POST', { items, to_branch_id: toBranchId }),
+    initiateTransfer: (items, fromBranchId, toBranchId) =>
+        request('initiate_transfer', 'POST', {
+            items,
+            from_branch_id: fromBranchId,
+            to_branch_id: toBranchId
+        }),
 
     approveTransfer: (batchId, action = 'approve', approvals = []) =>
         request('approve_transfer', 'POST', { batch_id: batchId, action, approvals }),
@@ -107,6 +122,7 @@ module.exports = {
     // --- ORDERS ---
     getPendingOrders: (startDate = '', endDate = '') =>
         request(`get_pending_orders&start_date=${startDate}&end_date=${endDate}`),
+    syncOrders: () => request('sync_orders', 'POST'),
 
     processOrder: (orderData) => request('process_order', 'POST', orderData),
 };

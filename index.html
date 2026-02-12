@@ -5,7 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faranux Inventory</title>
 
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://api.faranux.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data: https:;">
+    <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://api.faranux.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; img-src 'self' data: https:;"> -->
+
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self' https://api.faranux.com;
+        connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://api.faranux.com;
+        script-src 'self' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+        font-src 'self' https://cdnjs.cloudflare.com;
+        img-src 'self' data: https:;
+    ">
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

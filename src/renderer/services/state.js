@@ -3,36 +3,34 @@ const API = require('./api.js');
 class StateManager {
     constructor() {
         this.user = this.loadFromStorage('faranux_user');
-
-        // Cache for locations (persistent across tab switches)
         this.locations = [];
         this.locationsLoaded = false;
-
-        // Cache for inventory (persistent across pagination)
         this.inventory = [];
         this.totalPages = 1;
         this.totalItems = 0;
         this.selectedIds = new Set();
 
-        // Filters
         this.filters = {
             page: 1,
             search: '',
             status: 'publish',
             sortBy: 'name',
             sortOrder: 'ASC',
-            location_id: ''
+            location_id: '',
+            category: ''
         };
 
-        // Cache timestamp to invalidate old data (5 minutes)
         this.inventoryCacheTime = null;
-        this.CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+        this.CACHE_DURATION = 5 * 60 * 1000;
+
+        // Add tab state caching
+        this.tabStates = new Map();
+        this.TAB_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
     }
 
     get() { return this; }
-
-    // --- USER MANAGEMENT ---
     getUser() { return this.user; }
+    getUserBranchId() { return this.user?.branch_id || null; }
 
     setUser(user) {
         this.user = user;
@@ -47,13 +45,12 @@ class StateManager {
         this.selectedIds.clear();
         this.inventoryCacheTime = null;
         localStorage.removeItem('faranux_user');
+        this.clearAllTabStates();
     }
 
-    // --- INVENTORY MANAGEMENT ---
     getInventory() { return this.inventory; }
 
     hasInventoryData() {
-        // Check if cache is still valid
         if (this.inventory.length > 0 && this.inventoryCacheTime) {
             const age = Date.now() - this.inventoryCacheTime;
             return age < this.CACHE_DURATION;
@@ -73,7 +70,6 @@ class StateManager {
         this.inventory = [];
     }
 
-    // --- LOCATIONS MANAGEMENT ---
     getLocations() { return this.locations; }
 
     setLocations(locations) {
@@ -82,7 +78,6 @@ class StateManager {
     }
 
     async loadLocations(forceRefresh = false) {
-        // Return cached locations if available and not forced
         if (this.locationsLoaded && this.locations.length > 0 && !forceRefresh) {
             return this.locations;
         }
@@ -99,7 +94,6 @@ class StateManager {
         return this.locations;
     }
 
-    // --- FILTER MANAGEMENT ---
     getFilters() { return { ...this.filters }; }
 
     setPage(page) {
@@ -109,7 +103,7 @@ class StateManager {
     setSearch(search) {
         this.filters.search = search;
         this.filters.page = 1;
-        this.invalidateInventoryCache(); // Invalidate on filter change
+        this.invalidateInventoryCache();
     }
 
     setLocationFilter(id) {
@@ -125,6 +119,12 @@ class StateManager {
         this.invalidateInventoryCache();
     }
 
+    setCategory(category) {
+        this.filters.category = category;
+        this.filters.page = 1;
+        this.invalidateInventoryCache();
+    }
+
     toggleSort(field) {
         if (this.filters.sortBy === field) {
             this.filters.sortOrder = this.filters.sortOrder === 'ASC' ? 'DESC' : 'ASC';
@@ -135,9 +135,7 @@ class StateManager {
         this.invalidateInventoryCache();
     }
 
-    // --- SELECTION MANAGEMENT ---
     selectProduct(id) { this.selectedIds.add(id); }
-
     deselectProduct(id) { this.selectedIds.delete(id); }
 
     toggleSelect(id) {
@@ -149,14 +147,10 @@ class StateManager {
     }
 
     isSelected(id) { return this.selectedIds.has(id); }
-
     getSelectedIds() { return Array.from(this.selectedIds); }
-
     getSelectedCount() { return this.selectedIds.size; }
-
     clearSelection() { this.selectedIds.clear(); }
 
-    // --- PRODUCT HELPERS ---
     getProduct(id) {
         return this.inventory.find(p => p.id === id);
     }
@@ -166,7 +160,6 @@ class StateManager {
         return this.inventory.filter(p => idSet.has(p.id));
     }
 
-    // --- STORAGE HELPERS ---
     loadFromStorage(key) {
         const data = localStorage.getItem(key);
         if (!data || data === "undefined") return null;
@@ -179,6 +172,35 @@ class StateManager {
 
     saveToStorage(key, value) {
         localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    // Add new methods for tab state management
+    saveTabState(tabId, state) {
+        this.tabStates.set(tabId, {
+            state: state,
+            timestamp: Date.now()
+        });
+    }
+
+    getTabState(tabId) {
+        const cachedData = this.tabStates.get(tabId);
+        if (!cachedData) return null;
+
+        const age = Date.now() - cachedData.timestamp;
+        if (age > this.TAB_CACHE_DURATION) {
+            this.tabStates.delete(tabId);
+            return null;
+        }
+
+        return cachedData.state;
+    }
+
+    clearTabState(tabId) {
+        this.tabStates.delete(tabId);
+    }
+
+    clearAllTabStates() {
+        this.tabStates.clear();
     }
 }
 
