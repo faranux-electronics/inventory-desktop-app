@@ -490,26 +490,28 @@ class TransfersView {
                             `;
                         }).join('');
 
+                        // Build Meta/Audit Information
                         const firstItem = items[0] || {};
                         const initiatedAtStr = new Date(data.created_at).toLocaleString();
                         const approvedAtStr = firstItem.approved_at ? new Date(firstItem.approved_at).toLocaleString() : '';
 
+                        // Using explicit inline styles to guarantee the spacing
                         let metaHtml = `
-                            <div class="flex gap-lg text-sm mb-md" style="padding-bottom: 10px; border-bottom: 1px dashed #dcdcde;">
-                                <div>
-                                    <span style="color: #8c8f94;">Initiated By:</span> 
-                                    <span style="font-weight: 600; color: #2c3338;">${data.initiated_by}</span> 
-                                    <span style="color: #8c8f94; font-size: 12px; margin-left: 4px;"><i class="fa-regular fa-clock"></i> ${initiatedAtStr}</span>
+                            <div style="display: flex; gap: 24px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px dashed #dcdcde; margin-bottom: 16px; font-size: 14px;">
+                                <div style="display: flex; align-items: center; white-space: nowrap;">
+                                    <span style="color: #8c8f94; margin-right: 6px;">Initiated By:</span>
+                                    <strong style="color: #2c3338; margin-right: 12px;">${data.initiated_by}</strong> 
+                                    <span style="color: #8c8f94; font-size: 12px;"><i class="fa-regular fa-clock"></i> ${initiatedAtStr}</span>
                                 </div>
                         `;
 
                         if (data.status !== 'pending') {
                             const actionVerb = data.status === 'completed' ? 'Approved' : 'Handled';
                             metaHtml += `
-                                <div>
-                                    <span style="color: #8c8f94;">${actionVerb} By:</span> 
-                                    <span style="font-weight: 600; color: #2c3338;">${data.approved_by || 'System'}</span> 
-                                    <span style="color: #8c8f94; font-size: 12px; margin-left: 4px;"><i class="fa-regular fa-clock"></i> ${approvedAtStr}</span>
+                                <div style="display: flex; align-items: center; white-space: nowrap;">
+                                    <span style="color: #8c8f94; margin-right: 6px;">${actionVerb} By:</span>
+                                    <strong style="color: #2c3338; margin-right: 12px;">${data.approved_by || 'System'}</strong> 
+                                    <span style="color: #8c8f94; font-size: 12px;"><i class="fa-regular fa-clock"></i> ${approvedAtStr}</span>
                                 </div>
                             `;
                         }
