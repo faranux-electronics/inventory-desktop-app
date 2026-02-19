@@ -41,6 +41,56 @@ async function request(action, method = 'GET', body = null) {
     }
 }
 
+// --- NEW HELPER: SECURE FILE DOWNLOAD (Fixes CSV Unauthorized Issue) ---
+async function downloadFile(action, filename) {
+    try {
+        const options = {
+            method: 'GET',
+            headers: {}
+        };
+
+        const storedUser = localStorage.getItem('faranux_user');
+        if (storedUser) {
+            try {
+                const user = JSON.parse(storedUser);
+                if (user && user.api_token) {
+                    options.headers['Authorization'] = `Bearer ${user.api_token}`;
+                }
+            } catch (e) {
+                console.warn("Corrupt user data in storage");
+            }
+        }
+
+        const separator = action.includes('?') ? '&' : '?';
+        const url = `${API_URL}${separator}action=${action}`;
+
+        const res = await fetch(url, options);
+
+        if (!res.ok) {
+            throw new Error(`Server rejected request: ${res.status}`);
+        }
+
+        // Convert response to file blob
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Trigger browser download invisibly
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+
+        // Cleanup
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+        return { status: 'success' };
+    } catch (e) {
+        console.error("Download Error:", e);
+        return { status: "error", message: e.message };
+    }
+}
+
 module.exports = {
     // --- AUTH ---
     login: (email, password) => request('login', 'POST', { email, password }),
@@ -111,9 +161,11 @@ module.exports = {
     cancelTransfer: (batchId, reason = '') =>
         request('cancel_transfer', 'POST', { batch_id: batchId, reason }),
 
+    // --- EXPORT TRANSFERS (FIXED) ---
     exportTransfersCsv: (type = 'all', direction = 'all', search = '', start = '', end = '') => {
-        const url = `${API_URL}?action=export_transfers_csv&type=${type}&direction=${direction}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}`;
-        window.open(url, '_blank');
+        const query = `export_transfers_csv&type=${type}&direction=${direction}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}`;
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        return downloadFile(query, `Transfers_Export_${dateStr}.csv`);
     },
 
     // --- LOCATIONS ---
