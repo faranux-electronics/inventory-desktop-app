@@ -52,7 +52,7 @@ class Sidebar {
                 <div class="user-name">${user.name || 'User'}</div>
                 <div class="user-role">${user.role || 'Role'}</div>
             </div>
-            <button class="logout-btn nav-text" id="logoutBtn" title="Logout">
+            <button class="logout-btn" id="logoutBtn" title="Logout">
                 <i class="fa-solid fa-power-off"></i>
             </button>
         </div>
