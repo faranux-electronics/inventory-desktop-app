@@ -15,8 +15,6 @@ const OrdersView = require('./src/renderer/views/Ordersview.js');
 const ProfileView = require('./src/renderer/views/ProfileView.js');
 const UsersView = require('./src/renderer/views/UsersView.js');
 
-// --- AUTO UPDATE LISTENERS (MANUAL DOWNLOAD VERSION) ---
-
 // 1. Update available - ask user if they want to download
 ipcRenderer.on('update-available', (event, info) => {
     Modal.open({
@@ -155,39 +153,6 @@ class App {
             if (!document.querySelector('.sidebar')) this.renderApp(user);
             this.sidebar.setActive(viewName);
             view.render();
-        }
-    }
-
-    async handleLogin(credentials) {
-        try {
-            const res = await API.login(credentials.email, credentials.password);
-            if (res.status === 'success') {
-                this.state.setUser(res.user);
-                this.renderApp(res.user);
-                this.navigate('dashboard');
-                Toast.success('Welcome back!');
-            } else {
-                Toast.error(res.message || 'Login failed');
-            }
-        } catch (error) {
-            Toast.error('An error occurred during login');
-        }
-    }
-
-    async handleGoogleLogin() {
-        try {
-            const token = await ipcRenderer.invoke('login-google');
-            const res = await API.googleLogin(token);
-            if (res.status === 'success') {
-                this.state.setUser(res.user);
-                this.renderApp(res.user);
-                this.navigate('dashboard');
-                Toast.success('Welcome back!');
-            } else {
-                Toast.error(res.message || 'Google login failed');
-            }
-        } catch (error) {
-            Toast.error('Google login failed: ' + error);
         }
     }
 
