@@ -48,14 +48,20 @@ class TransfersView {
                     <button class="tab-btn ${this.currentTab === 'history' ? 'active' : ''}" data-tab="history">History</button>
                 </div>
 
-                <div class="card p-md mb-md">
-                    <div class="flex items-center gap-md flex-wrap">
+                <div class="card p-sm mb-md">
+                    <div class="flex items-center gap-md" style="white-space: nowrap;">
                         <div class="search-box flex-1" style="min-width: 200px;">
                             <i class="fa-solid fa-search"></i>
                             <input type="text" id="transferSearch" class="search-input w-full" placeholder="Search Batch ID or Product..." value="${this.filters.search}">
                         </div>
-                        <input type="date" id="dateStart" class="form-input" value="${this.filters.start}">
-                        <input type="date" id="dateEnd" class="form-input" value="${this.filters.end}">
+                        <div class="flex items-center gap-sm">
+                            <span class="text-sm text-muted font-semibold">From:</span>
+                            <input type="date" id="dateStart" class="form-input form-input-sm" value="${this.filters.start}">
+                        </div>
+                        <div class="flex items-center gap-sm">
+                            <span class="text-sm text-muted font-semibold">To:</span>
+                            <input type="date" id="dateEnd" class="form-input form-input-sm" value="${this.filters.end}">
+                        </div>
                     </div>
                 </div>
 
@@ -64,18 +70,20 @@ class TransfersView {
                         <table>
                             <thead>
                                 <tr>
+                                    <th style="width: 40px;"></th>
                                     <th>Batch ID</th>
                                     <th>Date</th>
                                     <th class="text-center"><i class="fa-solid fa-arrows-turn-to-dots text-muted"></i></th>
                                     <th>From</th>
                                     <th>To</th>
-                                    <th>Items</th>
+                                    <th>Items (Sent)</th>
+                                    <th class="text-center">Discrepancy</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="transfersTableBody">
-                                <tr><td colspan="8" class="text-center p-lg">Loading...</td></tr>
+                                <tr><td colspan="10" class="text-center p-lg">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -150,7 +158,7 @@ class TransfersView {
         const isAdmin = this.state.getUser()?.role === 'admin';
 
         if (transfers.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center p-lg text-muted">No transfers found in this category.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center p-lg text-muted">No transfers found in this category.</td></tr>';
             return;
         }
 
@@ -158,10 +166,10 @@ class TransfersView {
             let actions = '';
 
             if (t.status === 'pending') {
-                if (isAdmin || userBranch == t.to_loc_id) {
-                    actions += `<button class="btn btn-sm btn-primary btn-review" data-id="${t.batch_id}">Review & Receive</button> `;
+                if (isAdmin || userBranch === t.to_loc_id) {
+                    actions += `<button class="btn btn-sm btn-primary btn-review" data-id="${t.batch_id}">Review</button> `;
                 }
-                if (isAdmin || userBranch == t.from_loc_id) {
+                if (isAdmin || userBranch === t.from_loc_id) {
                     actions += `<button class="btn btn-sm btn-error btn-cancel" data-id="${t.batch_id}">Cancel</button> `;
                 }
             } else {
@@ -175,19 +183,48 @@ class TransfersView {
                 else if (userBranch == t.from_loc_id) dirIcon = '<i class="fa-solid fa-arrow-up text-warning" title="Outgoing"></i>';
             }
 
+            // Discrepancy logic
+            let discHtml = '<span class="text-muted">-</span>';
+            if (t.status === 'completed' || t.status === 'rejected') {
+                const diff = (parseInt(t.total_received_qty) || 0) - (parseInt(t.total_qty) || 0);
+                if (diff < 0) discHtml = `<span class="text-error font-bold">${diff}</span>`;
+                else if (diff > 0) discHtml = `<span class="text-warning font-bold">+${diff}</span>`;
+                else discHtml = `<span class="text-success"><i class="fa-solid fa-check"></i></span>`;
+            }
+
             return `
-                <tr>
+                <tr class="hover:bg-neutral-50 border-b border-neutral-200 transition-colors">
+                    <td class="text-center text-muted cursor-pointer expand-toggle" data-batch="${t.batch_id}">
+                        <div class="p-xs rounded hover:bg-neutral-200 inline-block">
+                            <i class="fa-solid fa-chevron-right" id="icon-${t.batch_id}" style="transition: transform 0.2s;"></i>
+                        </div>
+                    </td>
                     <td class="font-mono text-primary font-semibold">${t.batch_id}</td>
                     <td class="text-sm">${new Date(t.created_at).toLocaleDateString()}</td>
                     <td class="text-center">${dirIcon}</td>
                     <td>${t.from_location}</td>
                     <td>${t.to_location}</td>
-                    <td class="text-sm">${t.item_count} items (${t.total_qty} qty)</td>
+                    <td class="text-sm font-semibold">${t.item_count} items <span class="text-muted font-normal">(${t.total_qty} qty)</span></td>
+                    <td class="text-center text-sm">${discHtml}</td>
                     <td><span class="badge badge-${this.getBadgeColor(t.status)}">${t.status.toUpperCase()}</span></td>
                     <td>${actions}</td>
                 </tr>
+                <tr class="hidden" id="expanded-${t.batch_id}">
+                    <td colspan="10" class="p-0 border-b border-neutral-300 bg-neutral-50">
+                        <div id="expanded-content-${t.batch_id}" 
+                             style="margin: 0.75rem 1rem 1rem 3rem; border-left: 4px solid var(--primary-500); background: white; border-radius: 0 8px 8px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);" 
+                             class="p-md">
+                            <div class="text-center text-muted text-sm py-sm"><i class="fa-solid fa-spinner fa-spin"></i> Fetching transfer items...</div>
+                        </div>
+                    </td>
+                </tr>
             `;
         }).join('');
+
+        // Attach Expand Listeners
+        document.querySelectorAll('.expand-toggle').forEach(td => {
+            td.addEventListener('click', () => this.toggleExpand(td.dataset.batch));
+        });
 
         document.querySelectorAll('.btn-review').forEach(btn => btn.addEventListener('click', () => this.showReviewModal(btn.dataset.id)));
         document.querySelectorAll('.btn-cancel').forEach(btn => btn.addEventListener('click', () => this.handleCancel(btn.dataset.id)));
@@ -195,10 +232,79 @@ class TransfersView {
         document.querySelectorAll('.btn-print').forEach(btn => btn.addEventListener('click', () => this.printTransfer(btn.dataset.id)));
     }
 
+    async toggleExpand(batchId) {
+        const row = document.getElementById(`expanded-${batchId}`);
+        const icon = document.getElementById(`icon-${batchId}`);
+        const content = document.getElementById(`expanded-content-${batchId}`);
+
+        if (row.classList.contains('hidden')) {
+            // Expand
+            row.classList.remove('hidden');
+            icon.style.transform = 'rotate(90deg)'; // Rotate arrow instead of swapping class for smoother animation
+            icon.classList.add('text-primary');
+
+            // Load data only if it hasn't been loaded yet
+            if (content.dataset.loaded !== 'true') {
+                try {
+                    const res = await API.getTransferDetails(batchId);
+                    if (res.status === 'success') {
+                        const items = res.data.items;
+                        const itemsHtml = items.map(i => {
+                            const diff = (i.received_qty !== null) ? i.received_qty - i.qty : null;
+                            const qtyClass = diff < 0 ? 'text-error' : (diff === 0 ? 'text-success' : 'text-neutral-700');
+
+                            return `
+                                <tr class="border-b border-neutral-100 hover:bg-neutral-50">
+                                    <td class="text-xs font-mono text-muted pl-md py-sm">${i.product_sku || '-'}</td>
+                                    <td class="text-sm font-semibold text-neutral-800 py-sm">${i.product_name}</td>
+                                    <td class="text-center text-sm font-bold text-primary py-sm">${i.qty}</td>
+                                    <td class="text-center text-sm font-bold ${qtyClass} py-sm">${i.received_qty !== null ? i.received_qty : '-'}</td>
+                                    <td class="text-sm text-muted italic py-sm">${i.note || '-'}</td>
+                                </tr>
+                            `;
+                        }).join('');
+
+                        content.innerHTML = `
+                            <div class="mb-sm flex justify-between items-center">
+                                <h4 class="text-sm font-bold text-neutral-600 uppercase tracking-wider"><i class="fa-solid fa-box-open mr-xs"></i> Transfer Items Details</h4>
+                                <span class="badge badge-neutral">${items.length} Product${items.length !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div class="border border-neutral-200 rounded overflow-hidden">
+                                <table class="compact-table w-full">
+                                    <thead class="bg-neutral-50 border-b border-neutral-200">
+                                        <tr>
+                                            <th class="text-xs text-neutral-500 uppercase pl-md py-sm text-left">SKU</th>
+                                            <th class="text-xs text-neutral-500 uppercase py-sm text-left">Product Name</th>
+                                            <th class="text-xs text-neutral-500 uppercase text-center py-sm">Sent Qty</th>
+                                            <th class="text-xs text-neutral-500 uppercase text-center py-sm">Received</th>
+                                            <th class="text-xs text-neutral-500 uppercase py-sm text-left">Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${itemsHtml}</tbody>
+                                </table>
+                            </div>
+                        `;
+                        content.dataset.loaded = 'true';
+                    } else {
+                        content.innerHTML = `<div class="text-error text-center p-sm"><i class="fa-solid fa-circle-exclamation"></i> ${res.message}</div>`;
+                    }
+                } catch (e) {
+                    content.innerHTML = `<div class="text-error text-center p-sm"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load transfer items.</div>`;
+                }
+            }
+        } else {
+            // Collapse
+            row.classList.add('hidden');
+            icon.style.transform = 'rotate(0deg)';
+            icon.classList.remove('text-primary');
+        }
+    }
+
     getBadgeColor(status) {
         const map = { completed: 'success', pending: 'warning', rejected: 'error', canceled: 'neutral' };
         return map[status] || 'neutral';
     }
+
 
     async showReviewModal(batchId) {
         const res = await API.getTransferDetails(batchId);
