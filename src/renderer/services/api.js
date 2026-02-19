@@ -95,20 +95,26 @@ module.exports = {
     },
 
     // --- TRANSFERS ---
-    getTransfers: (type = 'all', page = 1, search = '', branch_id = '', start = '', end = '', user_id = '') => {
-        const query = `get_transfers&type=${type}&page=${page}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}&branch_id=${branch_id}&user_id=${user_id}`;
+    getTransfers: (type = 'all', direction = 'all', page = 1, search = '', branch_id = '', start = '', end = '', user_id = '') => {
+        const query = `get_transfers&type=${type}&direction=${direction}&page=${page}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}&branch_id=${branch_id}&user_id=${user_id}`;
         return request(query);
     },
 
-    initiateTransfer: (items, fromBranchId, toBranchId) =>
-        request('initiate_transfer', 'POST', {
-            items,
-            from_branch_id: fromBranchId,
-            to_branch_id: toBranchId
-        }),
+    getTransferDetails: (batchId) => request(`get_transfer_details&batch_id=${batchId}`),
 
-    approveTransfer: (batchId, action = 'approve', approvals = []) =>
-        request('approve_transfer', 'POST', { batch_id: batchId, action, approvals }),
+    initiateTransfer: (items, fromBranchId, toBranchId) =>
+        request('initiate_transfer', 'POST', { items, from_branch_id: fromBranchId, to_branch_id: toBranchId }),
+
+    approveTransfer: (batchId, action = 'approve', itemsData = []) =>
+        request('approve_transfer', 'POST', { batch_id: batchId, action, items_data: itemsData }),
+
+    cancelTransfer: (batchId, reason = '') =>
+        request('cancel_transfer', 'POST', { batch_id: batchId, reason }),
+
+    exportTransfersCsv: (type = 'all', direction = 'all', search = '', start = '', end = '') => {
+        const url = `${API_URL}?action=export_transfers_csv&type=${type}&direction=${direction}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}`;
+        window.open(url, '_blank');
+    },
 
     // --- LOCATIONS ---
     getLocations: () => request('get_locations'),
