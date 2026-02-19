@@ -104,8 +104,17 @@ module.exports = {
     deleteUser: (id) => request('delete_user', 'POST', { id }),
     approveUser: (id) => request('approve_user', 'POST', { id }),
     deactivateUser: (id) => request('deactivate_user', 'POST', { id }),
-    updateUserRole: (id, role, branchId = null) =>
-        request('admin_update_role', 'POST', { id, role, branch_id: branchId }),
+    updateUserRole: (id, role, allowedBranches = [], name = '', email = '') =>
+        request('admin_update_role', 'POST', {
+            id,
+            role,
+            allowed_branches: allowedBranches,
+            name,
+            email
+        }),
+
+    regeneratePassword: (id, newPassword) =>
+        request('regenerate_password', 'POST', { id, password: newPassword }),
 
     // --- INVENTORY ---
     getInventory: (page = 1, search = '', locationId = '', status = 'publish', sortBy = 'name', sortOrder = 'ASC', category = '') => {
