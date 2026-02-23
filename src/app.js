@@ -14,6 +14,7 @@ const TransfersView = require('./src/renderer/views/Transfersview.js');
 const OrdersView = require('./src/renderer/views/Ordersview.js');
 const ProfileView = require('./src/renderer/views/ProfileView.js');
 const UsersView = require('./src/renderer/views/UsersView.js');
+const ImportView = require('./src/renderer/views/ImportView.js');
 
 // 1. Update available - ask user if they want to download
 ipcRenderer.on('update-available', (event, info) => {
@@ -111,6 +112,7 @@ class App {
             branches: new BranchesView(this),
             transfers: new TransfersView(this),
             orders: new OrdersView(this),
+            import: new ImportView(this),
             profile: new ProfileView(this),
             users: new UsersView(this)
         };

@@ -25,11 +25,14 @@ class Modal {
             body,
             confirmText = 'Confirm',
             cancelText = 'Cancel',
+            confirmClass = 'btn-primary',
             onConfirm,
+            onCancel,
             size = 'md'
         } = config;
 
         this.onConfirm = onConfirm;
+        this.onCancel = onCancel;
 
         this.overlay.innerHTML = `
       <div class="modal modal-${size}">
@@ -44,7 +47,7 @@ class Modal {
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" id="modal-cancel">${cancelText}</button>
-          <button class="btn btn-primary" id="modal-confirm">${confirmText}</button>
+          <button class="btn ${confirmClass}" id="modal-confirm">${confirmText}</button>
         </div>
       </div>
     `;
@@ -68,16 +71,17 @@ class Modal {
 
                 try {
                     await this.onConfirm();
+                    this.onCancel = null; // confirmed — don't fire cancel on close
                     this.close();
                 } catch (error) {
                     console.error('Modal confirm error:', error);
-                    // Don't close modal on error, allow user to retry
                 } finally {
-                    if (!this.overlay.classList.contains('active')) return; // Already closed
+                    if (!this.overlay.classList.contains('active')) return;
                     confirmBtn.disabled = false;
                     confirmBtn.textContent = 'Confirm';
                 }
             } else {
+                this.onCancel = null;
                 this.close();
             }
         });
@@ -85,7 +89,9 @@ class Modal {
 
     close() {
         this.overlay.classList.remove('active');
+        if (this.onCancel) this.onCancel();
         this.onConfirm = null;
+        this.onCancel = null;
     }
 }
 

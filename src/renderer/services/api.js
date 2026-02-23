@@ -122,6 +122,10 @@ module.exports = {
         return request(query);
     },
 
+    // --- IMPORT STOCK ---
+    importStock: (items, mode) =>
+        request('import_stock', 'POST', { items, mode }),
+
     getStockComparison: (page = 1, search = '', category = '', locationId = '', status = 'publish', sortBy = 'difference', sortOrder = 'DESC') => {
         const query = `get_stock_comparison&page=${page}&search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}&location_id=${locationId}&status=${status}&sort_by=${sortBy}&sort_order=${sortOrder}`;
         return request(query);

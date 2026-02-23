@@ -33,6 +33,9 @@ class Sidebar {
            <div class="nav-item" data-view="branches" title="Branches">
              <i class="fa-solid fa-store"></i> <span class="nav-text">Branches</span>
            </div>
+           <div class="nav-item" data-view="import" title="Import Stock">
+             <i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Stock</span>
+           </div>
            <div class="nav-item" data-view="transfers" title="Transfers">
              <i class="fa-solid fa-truck-arrow-right"></i> <span class="nav-text">Transfers</span>
            </div>
