@@ -8,7 +8,7 @@ class ImportView {
         this.state = app.state;
         this.locationsCache = [];
         this.parsedData = [];
-        this.historyLogs = []; // NEW: Store logs for exporting
+        this.historyLogs = [];
     }
 
     render() {
@@ -112,12 +112,26 @@ class ImportView {
             </div>
 
             <div id="viewHistory" class="hidden">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
                     <h3 style="font-size: 14px; font-weight: 600; margin: 0; color: #1d2327;">Recent Imports</h3>
-                    <button class="btn btn-sm" id="exportHistoryBtn" style="background: white; border: 1px solid #2271b1; color: #2271b1; padding: 6px 14px; font-weight: 500;">
-                        <i class="fa-solid fa-file-csv"></i> Export to CSV
-                    </button>
+                    
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="date" id="historyStartDate" class="form-input" style="padding: 4px 8px; font-size: 12px; height: 30px;" title="Start Date">
+                        <span style="color: #a7aaad; font-size: 12px;">to</span>
+                        <input type="date" id="historyEndDate" class="form-input" style="padding: 4px 8px; font-size: 12px; height: 30px;" title="End Date">
+                        
+                        <button class="btn btn-sm btn-secondary" id="filterHistoryBtn" style="height: 30px; display: flex; align-items: center;">
+                            <i class="fa-solid fa-filter mr-xs"></i> Filter
+                        </button>
+                        
+                        <div style="width: 1px; height: 20px; background: #c3c4c7; margin: 0 4px;"></div>
+                        
+                        <button class="btn btn-sm" id="exportHistoryBtn" style="background: white; border: 1px solid #2271b1; color: #2271b1; padding: 4px 12px; font-weight: 500; height: 30px; display: flex; align-items: center;">
+                            <i class="fa-solid fa-file-csv mr-xs"></i> Export Page
+                        </button>
+                    </div>
                 </div>
+                
                 <div style="background: white; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden;">
                     <table style="width: 100%; border-collapse: collapse; text-align: left;">
                         <thead style="background: #f8f9fa; border-bottom: 1px solid #c3c4c7;">
@@ -131,6 +145,8 @@ class ImportView {
                             <tr><td colspan="3" class="text-center p-lg text-muted">Loading history...</td></tr>
                         </tbody>
                     </table>
+                    
+                    <div id="historyPagination" style="background: #f8f9fa; border-top: 1px solid #c3c4c7;"></div>
                 </div>
             </div>
         `;
@@ -247,32 +263,40 @@ class ImportView {
 
         document.getElementById('confirmImportBtn').addEventListener('click', () => this.submitImport());
 
-        // NEW: Export History
+        // History Actions
+        document.getElementById('filterHistoryBtn').addEventListener('click', () => this.loadHistory(1));
         document.getElementById('exportHistoryBtn').addEventListener('click', () => this.exportHistoryCSV());
     }
 
-    async loadHistory() {
+    async loadHistory(page = 1) {
         const tbody = document.getElementById('historyTableBody');
+        const paginationContainer = document.getElementById('historyPagination');
+
         tbody.innerHTML = '<tr><td colspan="3" class="text-center p-lg text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Fetching records...</td></tr>';
 
+        // Grab values from Date Filters
+        const startDate = document.getElementById('historyStartDate').value;
+        let endDate = document.getElementById('historyEndDate').value;
+        if (endDate) endDate += ' 23:59:59'; // Ensure it captures the entire end day
+
         try {
-            const res = await API.getAuditLogs('STOCK_IMPORT');
+            // Pass the requested page and filters to the API
+            const res = await API.getAuditLogs('STOCK_IMPORT', page, startDate, endDate);
+
             if (res.status === 'success') {
                 let logs = Array.isArray(res.data) ? res.data : (res.data.data || []);
                 logs = logs.filter(log => log.action === 'STOCK_IMPORT');
 
-                this.historyLogs = logs; // Save for exporting
+                this.historyLogs = logs; // Save current page for exporting
 
                 if (logs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="3" class="text-center p-lg text-muted" style="background: #f9f9f9;">No import history found.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center p-lg text-muted" style="background: #f9f9f9;">No import history found for this period.</td></tr>';
+                    paginationContainer.innerHTML = '';
                     return;
                 }
 
-                // Create a quick lookup map for branch names
                 const locMap = {};
-                this.locationsCache.forEach(l => {
-                    locMap[String(l.id)] = l.name;
-                });
+                this.locationsCache.forEach(l => { locMap[String(l.id)] = l.name; });
 
                 tbody.innerHTML = logs.map(log => {
                     const date = new Date(log.created_at).toLocaleString(undefined, {
@@ -282,14 +306,11 @@ class ImportView {
 
                     let detailsHtml = log.details || '';
 
-                    // --- Parse the metadata and build the Collapsible mini-table ---
                     if (log.metadata) {
                         try {
                             const meta = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
-
                             if (meta && meta.imported_items && meta.imported_items.length > 0) {
                                 const itemCount = meta.imported_items.length;
-
                                 detailsHtml += `
                                 <div style="margin-top: 10px;">
                                     <details style="background: white; border: 1px solid #e5e7eb; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
@@ -309,12 +330,10 @@ class ImportView {
                                                 <tbody>
                                                     ${meta.imported_items.map(item => {
                                         const bName = locMap[String(item.branch)] || 'Unknown Branch';
-                                        const branchDisplay = `${bName} [${item.branch}]`;
-                                                        
-                                                        return `
+                                        return `
                                                         <tr class="hover:bg-neutral-50">
                                                             <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; font-family: monospace; font-weight: 600; color: #2c3338;">${item.sku}</td>
-                                                            <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; color: #50575e;">${branchDisplay}</td>
+                                                            <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; color: #50575e;">${bName} [${item.branch}]</td>
                                                             <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; text-align: right; color: #8c8f94;">${item.old}</td>
                                                             <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; text-align: right; color: #00a32a; font-weight: 600;">${item.new}</td>
                                                         </tr>
@@ -326,9 +345,7 @@ class ImportView {
                                     </details>
                                 </div>`;
                                     }
-                                    } catch(e) {
-                            console.warn("Failed to parse metadata", e);
-                        }
+                                    } catch(e) {}
                     }
                     
                     return `
@@ -346,11 +363,34 @@ class ImportView {
                             </tr>
                                 `;
                 }).join('');
+
+                // --- BUILD PAGINATION CONTROLS ---
+                if (res.pagination && res.pagination.pages > 1) {
+                    const p = res.pagination;
+                    paginationContainer.innerHTML = `
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;">
+                                    <span class="text-sm text-muted">Showing page <b>${p.page}</b> of <b>${p.pages}</b> (Total records: ${p.total})</span>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-sm btn-ghost btn-hist-page" data-page="${p.page - 1}" ${p.page <= 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i> Previous</button>
+                                    <button class="btn btn-sm btn-ghost btn-hist-page" data-page="${p.page + 1}" ${p.page >= p.pages ? 'disabled' : ''}>Next <i class="fa-solid fa-chevron-right"></i></button>
+                                </div>
+                            </div>
+                                `;
+                    
+                    paginationContainer.querySelectorAll('.btn-hist-page').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            if (!btn.disabled) this.loadHistory(parseInt(btn.dataset.page));
+                        });
+                    });
+                } else {
+                    paginationContainer.innerHTML = ''; // Hide if only 1 page
+                }
+
             } else {
                 tbody.innerHTML = `<tr><td colspan="3" class="text-center p-lg text-error">${res.message}</td></tr>`;
             }
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-lg text-error">Failed to communicate with server</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-lg text-error">Failed to load history</td></tr>';
         }
     }
 
@@ -359,14 +399,13 @@ class ImportView {
             return Toast.error("No history to export.");
         }
 
-        // Create a lookup map for branch names
         const locMap = {};
         this.locationsCache.forEach(l => { locMap[String(l.id)] = l.name; });
 
         let csvContent = "Date,User,Action,SKU,Branch Name,Branch ID,Stock Before,Stock After\n";
 
         this.historyLogs.forEach(log => {
-            const date = log.created_at; // use raw DB date format for CSV
+            const date = log.created_at; 
             const user = (log.user_name || 'System User').replace(/"/g, '""');
             const action = log.action;
             
@@ -386,12 +425,10 @@ class ImportView {
             }
 
             if (!hasItems) {
-                // Fallback for logs without parsed item metadata
                 csvContent += `"${date}","${user}","${action}","N/A","N/A","N/A","N/A","N/A"\n`;
             }
         });
 
-        // Trigger Download
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -499,7 +536,6 @@ class ImportView {
                 document.getElementById('previewContainer').classList.add('hidden');
                 this.parsedData = [];
 
-                // If they have the history tab open somehow, refresh it
                 if (!document.getElementById('viewHistory').classList.contains('hidden')) {
                     this.loadHistory();
                 }

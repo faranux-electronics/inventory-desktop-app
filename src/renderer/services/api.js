@@ -126,6 +126,14 @@ module.exports = {
     importStock: (items, mode) =>
         request('import_stock', 'POST', { items, mode }),
 
+    // --- AUDIT LOGS ---
+    getAuditLogs: (actionFilter = '', page = 1, startDate = '', endDate = '') => {
+        let query = `get_audit_logs&filter_action=${actionFilter}&page=${page}`;
+        if (startDate) query += `&start_date=${encodeURIComponent(startDate)}`;
+        if (endDate) query += `&end_date=${encodeURIComponent(endDate)}`;
+        return request(query);
+    },
+
     getStockComparison: (page = 1, search = '', category = '', locationId = '', status = 'publish', sortBy = 'difference', sortOrder = 'DESC') => {
         const query = `get_stock_comparison&page=${page}&search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}&location_id=${locationId}&status=${status}&sort_by=${sortBy}&sort_order=${sortOrder}`;
         return request(query);
