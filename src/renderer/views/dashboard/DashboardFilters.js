@@ -1,3 +1,4 @@
+//
 const API = require('../../services/api.js');
 
 class DashboardFilters {
@@ -11,56 +12,67 @@ class DashboardFilters {
         await this.loadCategories();
         await this.loadLocations();
 
-        const container = document.getElementById('filtersContainer');
+        const statusContainer = document.getElementById('statusFilterContainer');
+        const filtersContainer = document.getElementById('filtersContainer');
         const f = this.state.getFilters();
 
-        container.innerHTML = `
-            <div class="card p-sm flex items-center gap-md mb-md flex-wrap">
-                <div class="search-box flex-1" style="min-width: 200px;">
-                    <i class="fa-solid fa-search"></i>
-                    <input type="text" id="searchInput" class="search-input w-full" 
-                           placeholder="Search products..." value="${f.search}">
+        // 1. Build WooCommerce Status Links
+        if (statusContainer) {
+            const statuses = [
+                { id: 'all', label: 'All' },
+                { id: 'publish', label: 'Published' },
+                { id: 'draft', label: 'Drafts' },
+                { id: 'pending', label: 'Pending' },
+                { id: 'private', label: 'Private' }
+            ];
+
+            statusContainer.innerHTML = `
+                <ul class="subsubsub" style="list-style: none; padding: 0; margin: 0 0 10px 0; font-size: 13px; color: #646970;">
+                    ${statuses.map((s, index) => `
+                        <li style="display: inline-block; margin: 0;">
+                            <a href="#" class="status-link ${f.status === s.id ? 'current' : ''}" data-status="${s.id}" 
+                               style="text-decoration: none; color: ${f.status === s.id ? '#000' : '#2271b1'}; font-weight: ${f.status === s.id ? '600' : '400'};">
+                                ${s.label}
+                            </a> ${index < statuses.length - 1 ? '<span style="color: #c3c4c7; margin: 0 4px;">|</span>' : ''}
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+        }
+
+        // 2. Build Category Dropdown with Visual Indentation for Subcategories
+        if (filtersContainer) {
+            const categoryOptions = this.categories.map(c => {
+                const parts = c.split('>');
+                // Indent subcategories dynamically (4 spaces per depth level)
+                const indent = '&nbsp;'.repeat((parts.length - 1) * 4);
+                const label = parts[parts.length - 1].trim();
+                return `<option value="${c}" ${c === f.category ? 'selected' : ''}>${indent}${label}</option>`;
+            }).join('');
+
+            filtersContainer.innerHTML = `
+                <div class="tablenav top" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div class="alignleft actions" style="display: flex; gap: 8px; align-items: center;">
+                        <select id="categoryFilter" style="font-size: 13px; padding: 4px 8px; border: 1px solid #8c8f94; border-radius: 3px; background: white; min-width: 150px;">
+                            <option value="">Select a category</option>
+                            ${categoryOptions}
+                        </select>
+                        
+                        <select id="locationFilter" style="font-size: 13px; padding: 4px 8px; border: 1px solid #8c8f94; border-radius: 3px; background: white; min-width: 150px;">
+                            <option value="">All Locations</option>
+                            ${this.locationOptions}
+                        </select>
+
+                        <button id="applyFiltersBtn" class="btn btn-sm" style="background: #f6f7f7; border: 1px solid #2271b1; color: #2271b1; padding: 3px 10px;">Filter</button>
+                    </div>
+
+                    <div class="alignright search-box" style="display: flex; gap: 6px;">
+                        <input type="search" id="searchInput" placeholder="Search products..." value="${f.search}" style="font-size: 13px; padding: 4px 8px; border: 1px solid #8c8f94; border-radius: 3px;">
+                        <button id="searchBtn" class="btn btn-sm" style="background: #f6f7f7; border: 1px solid #8c8f94; color: #2c3338; padding: 3px 10px;">Search</button>
+                    </div>
                 </div>
-                
-                <select id="categoryFilter" class="form-select" style="width: auto; min-width: 150px;">
-                    <option value="">All Categories</option>
-                    ${this.categories.map(c =>
-            `<option value="${c}" ${c === f.category ? 'selected' : ''}>${c}</option>`
-        ).join('')}
-                </select>
-                
-                <select id="locationFilter" class="form-select" style="width: auto; min-width: 150px;">
-                    <option value="">All Locations</option>
-                    ${this.locationOptions}
-                </select>
-                
-                <select id="statusFilter" class="form-select" style="width: auto;">
-                    <option value="publish" ${f.status === 'publish' ? 'selected' : ''}>Published</option>
-                    <option value="draft" ${f.status === 'draft' ? 'selected' : ''}>Drafts</option>
-                    <option value="private" ${f.status === 'private' ? 'selected' : ''}>Private</option>
-                    <option value="pending" ${f.status === 'pending' ? 'selected' : ''}>Pending</option>
-                    <option value="all" ${f.status === 'all' ? 'selected' : ''}>All</option>
-                </select>
-
-                <select id="sortFilter" class="form-select" style="width: auto;">
-                    <option value="name" ${f.sortBy === 'name' ? 'selected' : ''}>Name</option>
-                    <option value="quantity" ${f.sortBy === 'quantity' ? 'selected' : ''}>Stock</option>
-                    <option value="price" ${f.sortBy === 'price' ? 'selected' : ''}>Price</option>
-                    <option value="sku" ${f.sortBy === 'sku' ? 'selected' : ''}>SKU</option>
-                    <option value="category" ${f.sortBy === 'category' ? 'selected' : ''}>Category</option>
-                    <option value="total_sales" ${f.sortBy === 'total_sales' ? 'selected' : ''}>Sales</option>
-                </select>
-
-                <select id="sortOrderFilter" class="form-select" style="width: auto;">
-                    <option value="ASC" ${f.sortOrder === 'ASC' ? 'selected' : ''}>
-                        <i class="fa-solid fa-arrow-up"></i> Ascending
-                    </option>
-                    <option value="DESC" ${f.sortOrder === 'DESC' ? 'selected' : ''}>
-                        <i class="fa-solid fa-arrow-down"></i> Descending
-                    </option>
-                </select>
-            </div>
-        `;
+            `;
+        }
 
         this.attachEvents();
     }
@@ -87,43 +99,35 @@ class DashboardFilters {
 
     attachEvents() {
         const searchInput = document.getElementById('searchInput');
-        const statusFilter = document.getElementById('statusFilter');
-        const sortFilter = document.getElementById('sortFilter');
-        const sortOrderFilter = document.getElementById('sortOrderFilter');
+        const searchBtn = document.getElementById('searchBtn');
+        const applyFiltersBtn = document.getElementById('applyFiltersBtn');
         const locationFilter = document.getElementById('locationFilter');
         const categoryFilter = document.getElementById('categoryFilter');
 
-        // Debounced search
-        let searchTimeout;
-        searchInput?.addEventListener('input', () => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                this.state.setSearch(searchInput.value);
+        // Status Links Click
+        document.querySelectorAll('.status-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.state.setStatus(link.dataset.status);
                 this.dashboard.saveState();
                 this.dashboard.loadData();
-            }, 500);
+                this.render(); // Re-render filters to update the bold "current" styling
+            });
         });
 
-        statusFilter?.addEventListener('change', () => {
-            this.state.setStatus(statusFilter.value);
+        // Search trigger
+        const triggerSearch = () => {
+            this.state.setSearch(searchInput.value);
             this.dashboard.saveState();
             this.dashboard.loadData();
+        };
+
+        searchBtn?.addEventListener('click', triggerSearch);
+        searchInput?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') triggerSearch();
         });
 
-        sortFilter?.addEventListener('change', () => {
-            this.state.filters.sortBy = sortFilter.value;
-            this.state.invalidateInventoryCache();
-            this.dashboard.saveState();
-            this.dashboard.loadData();
-        });
-
-        sortOrderFilter?.addEventListener('change', () => {
-            this.state.filters.sortOrder = sortOrderFilter.value;
-            this.state.invalidateInventoryCache();
-            this.dashboard.saveState();
-            this.dashboard.loadData();
-        });
-
+        // Dropdown Auto-Filters
         locationFilter?.addEventListener('change', () => {
             this.state.setLocationFilter(locationFilter.value);
             this.dashboard.saveState();
@@ -131,6 +135,14 @@ class DashboardFilters {
         });
 
         categoryFilter?.addEventListener('change', () => {
+            this.state.setCategory(categoryFilter.value);
+            this.dashboard.saveState();
+            this.dashboard.loadData();
+        });
+
+        // Filter Button (Just a manual trigger for the dropdowns)
+        applyFiltersBtn?.addEventListener('click', () => {
+            this.state.setLocationFilter(locationFilter.value);
             this.state.setCategory(categoryFilter.value);
             this.dashboard.saveState();
             this.dashboard.loadData();

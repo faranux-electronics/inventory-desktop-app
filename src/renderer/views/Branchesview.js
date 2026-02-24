@@ -26,25 +26,25 @@ class BranchesView {
         const content = document.getElementById('content');
 
         content.innerHTML = `
-            <div class="page-header">
-                <div class="header-row">
-                    <h1 class="page-title">Branch Management</h1>
-                    <button class="btn btn-primary" id="addBranchBtn">
-                        <i class="fa-solid fa-plus"></i> Add Branch
+            <div class="page-header mb-md">
+                <div class="header-row mb-sm" style="display: flex; justify-content: flex-start; align-items: center; gap: 15px;">
+                    <h1 class="page-title text-neutral-800 font-normal" style="font-size: 23px; margin: 0;">Branches</h1>
+                    <button class="btn btn-sm" id="addBranchBtn" style="border: 1px solid #2271b1; color: #2271b1; background: white; padding: 4px 12px; font-weight: 500; border-radius: 3px;">
+                        Add New
                     </button>
                 </div>
 
-                <div class="tabs mb-md">
-                    <button class="tab-btn ${this.currentTab === 'active' ? 'active' : ''}" data-tab="active">
-                        <i class="fa-solid fa-store"></i> Active Branches
+                <div class="tabs" style="border-bottom: 1px solid #c3c4c7;">
+                    <button class="tab-btn ${this.currentTab === 'active' ? 'active' : ''}" data-tab="active" style="padding: 8px 16px; font-weight: 500; font-size: 13px;">
+                        Active
                     </button>
-                    <button class="tab-btn ${this.currentTab === 'trash' ? 'active' : ''}" data-tab="trash">
-                        <i class="fa-solid fa-trash"></i> Trash
+                    <button class="tab-btn ${this.currentTab === 'trash' ? 'active' : ''}" data-tab="trash" style="padding: 8px 16px; font-weight: 500; font-size: 13px;">
+                        Trash
                     </button>
                 </div>
             </div>
 
-            <div id="branchesContent"></div>
+            <div id="branchesContent" style="margin-top: 15px;"></div>
         `;
 
         this.attachEvents();
@@ -71,7 +71,7 @@ class BranchesView {
         const container = document.getElementById('branchesContent');
         if (!container) return;
 
-        container.innerHTML = '<div class="card p-lg text-center"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #646970;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
 
         try {
             if (this.currentTab === 'active') {
@@ -81,7 +81,7 @@ class BranchesView {
             }
         } catch (e) {
             console.error(e);
-            container.innerHTML = '<div class="card p-lg text-center text-error">Failed to load branches</div>';
+            container.innerHTML = '<div style="padding: 40px; text-align: center; color: #d63638;">Failed to load branches</div>';
         }
     }
 
@@ -93,54 +93,44 @@ class BranchesView {
             const branches = res.data || [];
 
             if (branches.length === 0) {
-                container.innerHTML = '<div class="card p-lg text-center text-muted">No branches found</div>';
+                container.innerHTML = '<div style="padding: 40px; text-align: center; background: white; border: 1px solid #c3c4c7; color: #646970;">No branches found</div>';
                 return;
             }
 
             const html = `
-                <div class="card">
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Branch Name</th>
-                                    <th>Actions</th>
+                <div style="background: white; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                        <thead style="background: #f8f9fa; border-bottom: 1px solid #c3c4c7;">
+                            <tr>
+                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600; width: 80px;">ID</th>
+                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600;">Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${branches.map(b => `
+                                <tr class="hover:bg-neutral-50" style="border-bottom: 1px solid #f0f0f1;">
+                                    <td style="padding: 12px 16px; color: #50575e; font-family: monospace;">#${b.id}</td>
+                                    <td style="padding: 12px 16px; vertical-align: top;">
+                                        <div style="font-weight: 600; color: #2271b1; font-size: 14px; margin-bottom: 4px;">
+                                            ${b.name}
+                                        </div>
+                                        <div class="row-actions" style="font-size: 12px;">
+                                            <button class="btn-edit" style="background: none; border: none; padding: 0; color: #2271b1; cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Edit</button>
+                                            <span style="color: #a7aaad; margin: 0 4px;">|</span>
+                                            <button class="btn-delete" style="background: none; border: none; padding: 0; color: #b32d2e; cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Trash</button>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                ${branches.map(b => `
-                                    <tr>
-                                        <td class="font-mono text-sm">#${b.id}</td>
-                                        <td class="font-semibold">${b.name}</td>
-                                        <td>
-                                            <div class="flex gap-sm">
-                                                <button class="btn btn-sm btn-secondary btn-edit" 
-                                                        data-id="${b.id}" 
-                                                        data-name="${b.name.replace(/"/g, '&quot;')}"
-                                                        title="Edit Branch">
-                                                    <i class="fa-solid fa-pen"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-danger btn-delete" 
-                                                        data-id="${b.id}" 
-                                                        data-name="${b.name.replace(/"/g, '&quot;')}"
-                                                        title="Move to Trash">
-                                                    <i class="fa-solid fa-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
             `;
 
             container.innerHTML = html;
             this.attachItemEvents();
         } else {
-            container.innerHTML = `<div class="card p-lg text-center text-error">${res.message}</div>`;
+            container.innerHTML = `<div style="padding: 40px; text-align: center; color: #d63638;">${res.message}</div>`;
         }
     }
 
@@ -152,54 +142,44 @@ class BranchesView {
             const branches = res.data || [];
 
             if (branches.length === 0) {
-                container.innerHTML = '<div class="card p-lg text-center text-muted">Trash is empty</div>';
+                container.innerHTML = '<div style="padding: 40px; text-align: center; background: white; border: 1px solid #c3c4c7; color: #646970;">Trash is empty</div>';
                 return;
             }
 
             const html = `
-                <div class="card">
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Branch Name</th>
-                                    <th>Actions</th>
+                <div style="background: white; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                        <thead style="background: #f8f9fa; border-bottom: 1px solid #c3c4c7;">
+                            <tr>
+                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600; width: 80px;">ID</th>
+                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600;">Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${branches.map(b => `
+                                <tr style="border-bottom: 1px solid #f0f0f1; background: #fafafa;">
+                                    <td style="padding: 12px 16px; color: #a7aaad; font-family: monospace;">#${b.id}</td>
+                                    <td style="padding: 12px 16px; vertical-align: top;">
+                                        <div style="font-weight: 600; color: #50575e; font-size: 14px; margin-bottom: 4px; text-decoration: line-through;">
+                                            ${b.name}
+                                        </div>
+                                        <div class="row-actions" style="font-size: 12px;">
+                                            <button class="btn-restore" style="background: none; border: none; padding: 0; color: #2271b1; cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Restore</button>
+                                            <span style="color: #a7aaad; margin: 0 4px;">|</span>
+                                            <button class="btn-permanent-delete" style="background: none; border: none; padding: 0; color: #b32d2e; cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Delete Permanently</button>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                ${branches.map(b => `
-                                    <tr class="bg-neutral-50">
-                                        <td class="font-mono text-sm text-muted">#${b.id}</td>
-                                        <td class="font-semibold text-muted">${b.name}</td>
-                                        <td>
-                                            <div class="flex gap-sm">
-                                                <button class="btn btn-sm btn-success btn-restore" 
-                                                        data-id="${b.id}" 
-                                                        data-name="${b.name.replace(/"/g, '&quot;')}"
-                                                        title="Restore Branch">
-                                                    <i class="fa-solid fa-rotate-left"></i> Restore
-                                                </button>
-                                                <button class="btn btn-sm btn-danger btn-permanent-delete" 
-                                                        data-id="${b.id}" 
-                                                        data-name="${b.name.replace(/"/g, '&quot;')}"
-                                                        title="Delete Permanently">
-                                                    <i class="fa-solid fa-trash"></i> Delete Forever
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
             `;
 
             container.innerHTML = html;
             this.attachTrashEvents();
         } else {
-            container.innerHTML = `<div class="card p-lg text-center text-error">${res.message}</div>`;
+            container.innerHTML = `<div style="padding: 40px; text-align: center; color: #d63638;">${res.message}</div>`;
         }
     }
 

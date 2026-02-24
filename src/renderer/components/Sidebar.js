@@ -34,9 +34,9 @@ class Sidebar {
              <i class="fa-solid fa-truck-arrow-right"></i> <span class="nav-text">Transfers</span>
            </div>
            ${isAdmin ? `
-           <div class="nav-item" data-view="orders" title="Order Review">
-             <i class="fa-solid fa-clipboard-list"></i> <span class="nav-text">Order Review</span>
-           </div>
+<!--           <div class="nav-item" data-view="orders" title="Order Review">-->
+<!--             <i class="fa-solid fa-clipboard-list"></i> <span class="nav-text">Order Review</span>-->
+<!--           </div>-->
            <div class="nav-item" data-view="import" title="Import Stock">
              <i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Stock</span>
            </div>

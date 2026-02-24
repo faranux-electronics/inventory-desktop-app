@@ -2,7 +2,6 @@ const Toast = require('../components/Toast.js');
 const API = require('../services/api.js');
 const DashboardFilters = require('./dashboard/DashboardFilters.js');
 const InventoryTable = require('./dashboard/InventoryTable.js');
-const StockComparison = require('./dashboard/StockComparison.js');
 const Pagination = require('./dashboard/Pagination.js');
 const BulkActions = require('./dashboard/BulkActions.js');
 
@@ -10,30 +9,33 @@ class DashboardView {
     constructor(app) {
         this.app = app;
         this.state = app.state;
-        this.selectedProducts = new Set();
+        this.selectedProducts = new Map();
         this.syncInProgress = false;
 
         // Restore previous state
         const savedState = this.state.getTabState('dashboard');
-        if (savedState) {
-            this.currentView = savedState.currentView || 'inventory';
-            this.selectedProducts = new Set(savedState.selectedProducts || []);
-        } else {
-            this.currentView = 'inventory';
+        if (savedState && savedState.selectedProducts) {
+            savedState.selectedProducts.forEach(p => {
+                if (typeof p === 'object' && p !== null) {
+                    this.selectedProducts.set(p.id, p);
+                } else if (typeof p === 'number') {
+                    // Fallback for older cached data
+                    this.selectedProducts.set(p, {id: p});
+                }
+            });
         }
 
         // Initialize sub-components
         this.filters = new DashboardFilters(this);
         this.inventoryTable = new InventoryTable(this);
-        this.stockComparison = new StockComparison(this);
         this.pagination = new Pagination(this);
         this.bulkActions = new BulkActions(this);
     }
 
     saveState() {
         this.state.saveTabState('dashboard', {
-            currentView: this.currentView,
-            selectedProducts: Array.from(this.selectedProducts)
+            // Save the array of actual product objects to state
+            selectedProducts: Array.from(this.selectedProducts.values())
         });
     }
 
@@ -41,94 +43,61 @@ class DashboardView {
         const content = document.getElementById('content');
 
         content.innerHTML = `
-            <div class="page-header sticky-header">
-                <div class="header-row">
-                    <h1 class="page-title">Inventory Dashboard</h1>
-                    <div class="header-actions">
-                        <button class="btn btn-secondary" id="exportBtn">
-                            <i class="fa-solid fa-download"></i> Export CSV
-                        </button>
-                        <button class="btn btn-secondary" id="refreshBtn">
+<div class="page-header mb-md">
+                <div class="header-row mb-sm" style="display: flex; justify-content: flex-start; align-items: center; gap: 15px;">
+                    <h1 class="page-title text-neutral-800 font-normal" style="font-size: 23px; margin: 0;">Products</h1>
+                    <button class="btn btn-sm" id="syncBtn" style="background: white; border: 1px solid #2271b1; color: #2271b1; font-weight: 500;">
+                                <i class="fa-solid fa-cloud-arrow-down"></i> Sync Web
+                            </button>
+                            <button class="btn btn-sm" id="exportBtn" style="background: white; border: 1px solid #c3c4c7; color: #2c3338;">
+                                <i class="fa-solid fa-download"></i> Export
+                            </button>
+                             <button class="btn btn-sm btn-ghost" id="refreshBtn" title="Refresh Data">
                             <i class="fa-solid fa-rotate"></i>
                         </button>
-                        <button class="btn btn-primary" id="syncBtn">
-                            <i class="fa-solid fa-cloud-arrow-down"></i> Sync Web
-                        </button>
-                    </div>
                 </div>
-
-                <!-- Sync Progress -->
-                <div id="syncProgress" class="sync-progress hidden">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill"></div>
+                 <div style="background: #f0f0f1; padding: 10px; border-bottom: 1px solid #c3c4c7;">
+                                        <div id="syncProgress" class="sync-progress hidden" style="margin-bottom: 10px;">
+                        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                        <p id="syncStatus" style="font-size: 12px; margin-top: 4px;">Syncing products...</p>
                     </div>
-                    <p id="syncStatus">Syncing products...</p>
-                </div>
 
-                <!-- Bulk Actions Bar -->
-                <div id="bulkActionsContainer"></div>
+                    <div id="statusFilterContainer"></div>
 
-                <!-- Filters -->
-                <div id="filtersContainer"></div>
-
-                <!-- View Tabs -->
-                <div class="tabs mb-md">
-                    <button class="tab-btn ${this.currentView === 'inventory' ? 'active' : ''}" data-view="inventory">
-                        <i class="fa-solid fa-boxes-stacked"></i> Inventory
-                    </button>
-                    <button class="tab-btn ${this.currentView === 'comparison' ? 'active' : ''}" data-view="comparison">
-                        <i class="fa-solid fa-scale-balanced"></i> Stock Comparison
-                    </button>
+                    <div id="filtersContainer"></div>
+                    
+                    <div id="bulkActionsContainer"></div>
                 </div>
             </div>
-
-            <div id="mainContent"></div>
-            <div id="paginationContainer"></div>
+            <div class="wrap" style="max-width: 100%; position: relative;">
+                             
+             <div id="mainContent"></div>
+             <div id="paginationContainer" style="margin-top: 15px;"></div>   
+            </div>
         `;
 
         this.init();
     }
 
     async init() {
+        // Default location filter to the user's active branch (branch-aware view)
+        const f = this.state.getFilters();
+        if (!f.location_id) {
+            const user = this.state.getUser();
+            if (user && user.branch_id) {
+                if (user.role !== 'admin') {
+                    this.state.setLocationFilter(String(user.branch_id));
+                }
+            }
+        }
+
         this.filters.render();
         this.bulkActions.render();
         this.attachEvents();
         await this.loadData();
-        this.setupScrollPreservation();
-    }
-
-    setupScrollPreservation() {
-        const mainContent = document.getElementById('mainContent');
-        if (!mainContent) return;
-
-        const savedScroll = localStorage.getItem('view_scroll_dashboard');
-        if (savedScroll !== null) {
-            setTimeout(() => {
-                const container = document.querySelector('.table-container');
-                if (container) container.scrollTop = parseInt(savedScroll, 10);
-            }, 100);
-        }
-
-        mainContent.addEventListener('scroll', () => {
-            const container = document.querySelector('.table-container');
-            if (container) {
-                localStorage.setItem('view_scroll_dashboard', container.scrollTop);
-            }
-        }, true);
     }
 
     attachEvents() {
-        // View tabs
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                this.currentView = btn.dataset.view;
-                this.saveState();
-                this.loadData();
-            });
-        });
-
         document.getElementById('refreshBtn')?.addEventListener('click', () => {
             this.state.invalidateInventoryCache();
             this.loadData();
@@ -144,14 +113,6 @@ class DashboardView {
 
         mainContent.innerHTML = '<div class="text-center p-xl"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
 
-        if (this.currentView === 'inventory') {
-            await this.loadInventoryView();
-        } else if (this.currentView === 'comparison') {
-            await this.loadComparisonView();
-        }
-    }
-
-    async loadInventoryView() {
         const f = this.state.getFilters();
 
         try {
@@ -165,42 +126,11 @@ class DashboardView {
                 this.inventoryTable.render(res.data || []);
                 this.pagination.render(res.pagination || {});
             } else {
-                document.getElementById('mainContent').innerHTML =
-                    `<div class="card p-lg text-center text-error">${res.message}</div>`;
+                mainContent.innerHTML = `<div class="card p-lg text-center text-error">${res.message}</div>`;
             }
         } catch (e) {
             console.error(e);
-            document.getElementById('mainContent').innerHTML =
-                '<div class="card p-lg text-center text-error">Failed to load inventory</div>';
-        }
-    }
-
-    async loadComparisonView() {
-        const f = this.state.getFilters();
-
-        try {
-            // Pass all filters: location_id AND status
-            const res = await API.getStockComparison(
-                f.page,
-                f.search,
-                f.category,
-                f.location_id,
-                f.status, // <--- Added this
-                f.sortBy,
-                f.sortOrder
-            );
-
-            if (res.status === 'success') {
-                this.stockComparison.render(res.data || []);
-                this.pagination.render(res.pagination || {});
-            } else {
-                document.getElementById('mainContent').innerHTML =
-                    `<div class="card p-lg text-center text-error">${res.message}</div>`;
-            }
-        } catch (e) {
-            console.error(e);
-            document.getElementById('mainContent').innerHTML =
-                '<div class="card p-lg text-center text-error">Failed to load comparison</div>';
+            mainContent.innerHTML = '<div class="card p-lg text-center text-error">Failed to load inventory</div>';
         }
     }
 
@@ -215,8 +145,8 @@ class DashboardView {
         const progressDiv = document.getElementById('syncProgress');
         const syncStatus = document.getElementById('syncStatus');
 
-        if(syncBtn) syncBtn.disabled = true;
-        if(progressDiv) progressDiv.classList.remove('hidden');
+        if (syncBtn) syncBtn.disabled = true;
+        if (progressDiv) progressDiv.classList.remove('hidden');
 
         let currentPage = 1;
         let totalSynced = 0;
@@ -224,7 +154,7 @@ class DashboardView {
 
         try {
             while (true) {
-                if(syncStatus) syncStatus.textContent = `Syncing Page ${currentPage}... (Total: ${totalSynced})`;
+                if (syncStatus) syncStatus.textContent = `Syncing Page ${currentPage}... (Total: ${totalSynced})`;
 
                 const res = await API.syncBatch(currentPage, BATCH_SIZE);
 
@@ -250,8 +180,8 @@ class DashboardView {
             Toast.error("Sync failed: " + e.message);
         } finally {
             this.syncInProgress = false;
-            if(syncBtn) syncBtn.disabled = false;
-            if(progressDiv) progressDiv.classList.add('hidden');
+            if (syncBtn) syncBtn.disabled = false;
+            if (progressDiv) progressDiv.classList.add('hidden');
         }
     }
 
@@ -265,12 +195,18 @@ class DashboardView {
         this.bulkActions.update(this.selectedProducts.size);
     }
 
-    toggleSelection(id) {
-        if (this.selectedProducts.has(id)) {
-            this.selectedProducts.delete(id);
+    toggleSelection(product, forceState = null) {
+        if (!product || !product.id) return;
+
+        const isSelected = this.selectedProducts.has(product.id);
+        const newState = forceState !== null ? forceState : !isSelected;
+
+        if (newState) {
+            this.selectedProducts.set(product.id, product);
         } else {
-            this.selectedProducts.add(id);
+            this.selectedProducts.delete(product.id);
         }
+
         this.saveState();
         this.updateSelectionUI();
     }
@@ -280,6 +216,7 @@ class DashboardView {
         this.saveState();
         this.updateSelectionUI();
         document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.wp-list-table tr').forEach(tr => tr.style.removeProperty('background-color'));
     }
 }
 

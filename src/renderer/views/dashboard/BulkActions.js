@@ -49,22 +49,15 @@ class BulkActions {
         const locations = await this.state.loadLocations();
         const user = this.state.getUser();
 
-        const selectedIds = Array.from(this.dashboard.selectedProducts);
-        const products = this.state.getProducts(selectedIds);
+        const products = Array.from(this.dashboard.selectedProducts.values());
 
         if (products.length === 0) {
             Toast.error("No products selected");
             return;
         }
 
-        // Build Location Options
+        // Build Location Options for both To and From
         const locationOptions = locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('');
-
-        // Build "From" Options (Includes WC)
-        const fromOptions = `
-            <option value="wc" selected>WooCommerce Pool</option>
-            ${locations.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
-        `;
 
         // Render Modal Body
         Modal.open({
@@ -74,7 +67,8 @@ class BulkActions {
                     <div class="form-group flex-1">
                         <label class="form-label">Transfer From:</label>
                         <select id="transferFromBranch" class="form-select">
-                            ${fromOptions}
+                            <option value="">-- Select Source --</option>
+                            ${locationOptions}
                         </select>
                     </div>
                     <div class="form-group flex-1">
@@ -111,6 +105,11 @@ class BulkActions {
                 const fromId = document.getElementById('transferFromBranch').value;
                 const toBranchId = document.getElementById('transferToBranch').value;
                 const reason = document.getElementById('transferReason').value.trim();
+
+                if (!fromId) {
+                    Toast.error("Please select a source branch");
+                    throw new Error("Validation failed");
+                }
 
                 if (!toBranchId) {
                     Toast.error("Please select a destination branch");
@@ -151,20 +150,8 @@ class BulkActions {
                     throw new Error("Validation failed");
                 }
 
-                // Call API
-                let res;
-                if (fromId === 'wc') {
-                    // Loop adjustStock for WC transfer
-                    let successCount = 0;
-                    for (const item of items) {
-                        const subRes = await API.adjustStock(item.product_id, toBranchId, item.qty, reason || "Transfer from WooCommerce");
-                        if (subRes.status === 'success') successCount++;
-                    }
-                    res = { status: successCount > 0 ? 'success' : 'error', message: `${successCount} items transferred` };
-                } else {
-                    // Explicitly pass 'fromId' to the API
-                    res = await API.initiateTransfer(items, fromId, toBranchId);
-                }
+                // Call standard Transfer API
+                const res = await API.initiateTransfer(items, fromId, toBranchId);
 
                 if (res.status === 'success') {
                     Toast.success("Transfer initiated successfully");
@@ -183,26 +170,22 @@ class BulkActions {
         const fromSelect = document.getElementById('transferFromBranch');
 
         const updateRows = () => {
-            const source = fromSelect.value; // 'wc' or branch ID
+            const source = fromSelect.value; // branch ID
 
             tbody.innerHTML = products.map(p => {
                 let available = 0;
 
-                if (source === 'wc') {
-                    available = p.wc_stock_quantity || 0;
-                } else {
-                    // Parse stock_breakdown (Format: "1:50,2:10")
+                if (source) {
                     if (p.stock_breakdown) {
                         const pairs = p.stock_breakdown.toString().split(',');
-                        const match = pairs.find(pair => pair.startsWith(source + ':'));
+                        // FIXED: Exact string matching using split, eliminating the 'startsWith' overlap bug
+                        const match = pairs.find(pair => pair.split(':')[0] === String(source));
                         if (match) {
-                            available = parseInt(match.split(':')[1]);
+                            available = parseInt(match.split(':')[1], 10);
                         }
                     }
-                    // Fallback if breakdown missing but we are in specific view
-                    if (available === 0 && this.state.filters.location_id == source) {
-                        available = p.stock_quantity || 0;
-                    }
+                    // The buggy fallback logic has been completely removed.
+                    // If the branch isn't in the breakdown, available stays 0.
                 }
 
                 return `
@@ -212,11 +195,11 @@ class BulkActions {
                             <div class="text-xs text-muted">${p.sku || ''}</div>
                         </td>
                         <td class="font-semibold text-right ${available < 1 ? 'text-error' : 'text-success'}">
-                            ${available}
+                            ${source ? available : '-'}
                         </td>
                         <td>
                             <input type="number" class="form-input form-input-sm transfer-qty text-right" 
-                                data-id="${p.id}" min="0" max="${available}" value="${Math.min(1, available)}" 
+                                data-id="${p.id}" min="0" max="${available}" value="${source ? Math.min(1, available) : 0}" 
                                 ${available < 1 ? 'disabled' : ''}>
                         </td>
                     </tr>

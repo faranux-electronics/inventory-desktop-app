@@ -155,14 +155,20 @@ module.exports = {
     adjustStock: (productId, locationId, qty, reason) =>
         request('adjust_stock', 'POST', { product_id: productId, location_id: locationId, qty, reason }),
 
+    getStockAdjustments: (productId, locationId = '') => {
+        let query = `get_stock_adjustments&product_id=${productId}`;
+        if (locationId) query += `&location_id=${locationId}`;
+        return request(query);
+    },
+
     // --- SYNC ---
     syncBatch: (page = 1, perPage = 50) =>
         request('sync_batch', 'POST', { page, per_page: perPage }),
 
-    // --- EXPORT ---
-    exportInventory: (status = 'publish', locationId = '', category = '') => {
-        const url = `${API_URL}?action=export_inventory&status=${status}&location_id=${locationId}&category=${encodeURIComponent(category)}`;
-        window.open(url, '_blank');
+    exportInventory: (status, locationId, category) => {
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const query = `export_inventory&status=${status || ''}&location_id=${locationId || ''}&category=${encodeURIComponent(category || '')}`;
+        return downloadFile(query, `Faranux_Inventory_Export_${dateStr}.csv`);
     },
 
     // --- TRANSFERS ---
