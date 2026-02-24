@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:8000/index.php';
+//const API_URL = 'http://localhost:8000/index.php';
+const API_URL = 'https://api.faranux.com';
 
 async function request(action, method = 'GET', body = null) {
     try {
