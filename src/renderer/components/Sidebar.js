@@ -1,4 +1,3 @@
-//
 const Modal = require('./Modal.js');
 
 class Sidebar {
@@ -27,6 +26,9 @@ class Sidebar {
         </div>
         
         <div class="sidebar-nav">
+            <div class="nav-item" data-view="pos" title="Point of Sale">
+                 <i class="fa-solid fa-cash-register"></i> <span class="nav-text">Point of Sale</span>
+           </div>
            <div class="nav-item" data-view="dashboard" title="Dashboard">
              <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Dashboard</span>
            </div>
