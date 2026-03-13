@@ -12,10 +12,10 @@ class POSConfirmModal {
         const { items=[], paymentMethod='cash', discount=0, discountType='value', discountRaw=0,
             notes='', subtotal=0, total=0, cashierName='', cashierEmail='',
             customerName='', customerEmail='', taxRate=0, taxName='Tax', taxInclusive=false,
-            taxOnItems=false, taxAmount=0, fees=[], shipping=0 } = data;
+            taxOnItems=false, taxAmount=0, fees=[], shipping=0, taxOn=false } = data;
 
         // When per-item tax is active, show tax-adjusted prices in the items table
-        const showItemTax = taxOnItems && taxRate > 0 && !taxInclusive;
+        const showItemTax = taxOn && taxOnItems && taxRate > 0 && !taxInclusive;
         const itemRows = items.map(i => {
             const taxedUnit  = showItemTax ? Math.round(i.price * (1 + taxRate / 100)) : i.price;
             const lineTotal  = taxedUnit * i.qty;

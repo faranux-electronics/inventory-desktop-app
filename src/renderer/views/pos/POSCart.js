@@ -116,7 +116,7 @@ class POSCart {
     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
         <div class="pos-qty-ctrl" style="height:22px;">
             <button class="pos-qty-btn pos-qty-minus" data-id="${item.id}" style="width:22px;height:22px;font-size:12px;">−</button>
-            <div class="pos-qty-val" style="width:26px;height:22px;font-size:11.5px;">${item.qty}</div>
+            <input type="number" class="pos-qty-input" data-id="${item.id}" value="${item.qty}" min="1" max="${item.maxStock}" style="min-width:36px;height:22px;font-size:11.5px;text-align:center;border:1px solid #d1d5db;border-radius:2px;padding:0 2px;">
             <button class="pos-qty-btn pos-qty-plus" data-id="${item.id}" style="width:22px;height:22px;font-size:12px;">+</button>
         </div>
         <div style="width:65px;text-align:right;flex-shrink:0;">
@@ -129,6 +129,23 @@ class POSCart {
 
         el.querySelectorAll('.pos-qty-minus').forEach(b => b.addEventListener('click', () => this.updateQty(+b.dataset.id, -1)));
         el.querySelectorAll('.pos-qty-plus').forEach(b  => b.addEventListener('click', () => this.updateQty(+b.dataset.id, +1)));
+        el.querySelectorAll('.pos-qty-input').forEach(input => {
+            input.addEventListener('input', () => {
+                const newQty = parseInt(input.value) || 0;
+                const itemId = +input.dataset.id;
+                const item = this._items.find(i => i.id === itemId);
+                if (!item) return;
+
+                // Validate qty doesn't exceed maxStock
+                if (newQty > item.maxStock) {
+                    input.value = item.maxStock;
+                    return;
+                }
+
+                const delta = newQty - item.qty;
+                if (delta !== 0) this.updateQty(itemId, delta);
+            });
+        });
         el.querySelectorAll('.pos-del-btn').forEach(b   => b.addEventListener('click', () => this.updateQty(+b.dataset.id, -9999)));
     }
 }

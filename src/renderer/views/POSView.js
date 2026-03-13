@@ -1,42 +1,42 @@
-const Toast           = require('../components/Toast.js');
-const API             = require('../services/api.js');
-const POSFilterBar    = require('./pos/POSFilterBar.js');
-const POSProductGrid  = require('./pos/POSProductGrid.js');
-const POSCart         = require('./pos/POSCart.js');
+const Toast = require('../components/Toast.js');
+const API = require('../services/api.js');
+const POSFilterBar = require('./pos/POSFilterBar.js');
+const POSProductGrid = require('./pos/POSProductGrid.js');
+const POSCart = require('./pos/POSCart.js');
 const POSPaymentPanel = require('./pos/POSPaymentPanel.js');
 const POSConfirmModal = require('./pos/POSConfirmModal.js');
-const POSReceipt      = require('./pos/POSReceipt.js');
+const POSReceipt = require('./pos/POSReceipt.js');
 
 const DEFAULT_LEFT_PCT = 20;
-const MIN_LEFT_PX      = 340;
-const MIN_RIGHT_PX     = 320;
-const ITEMS_PER_PAGE   = 80;
-const MAX_CARTS        = 6;
+const MIN_LEFT_PX = 340;
+const MIN_RIGHT_PX = 320;
+const ITEMS_PER_PAGE = 80;
+const MAX_CARTS = 6;
 
 class POSView {
     constructor(app) {
-        this.app   = app;
+        this.app = app;
         this.state = app.state;
 
         // Product filters
-        this._query      = '';
-        this._category   = '';
+        this._query = '';
+        this._category = '';
         this._stockFilter = 'all';   // all | instock | lowstock | outofstock
-        this._onSale     = false;
-        this._featured   = false;
+        this._onSale = false;
+        this._featured = false;
         this._loadingPage = false;
-        this._allLoaded   = false;
+        this._allLoaded = false;
         this._currentPage = 1;
 
         // Multi-cart state
-        this._carts       = [];   // Array of { id, name, cart, snapshot }
+        this._carts = [];   // Array of { id, name, cart, snapshot }
         this._activeCartIdx = 0;
 
-        this.filterBar    = null;
-        this.productGrid  = null;
+        this.filterBar = null;
+        this.productGrid = null;
         this.paymentPanel = null;
         this.confirmModal = null;
-        this.receipt      = null;
+        this.receipt = null;
 
         // WC payment gateways cache
         this._gatewaysCache = null;
@@ -52,34 +52,35 @@ class POSView {
         try {
             const saved = this.state.getTabState?.('pos');
             if (saved) {
-                this._query       = saved.query       || '';
-                this._category    = saved.category    || '';
+                this._query = saved.query || '';
+                this._category = saved.category || '';
                 this._stockFilter = saved.stockFilter || 'all';
-                this._onSale      = saved.onSale      || false;
-                this._featured    = saved.featured    || false;
+                this._onSale = saved.onSale || false;
+                this._featured = saved.featured || false;
                 if (saved.carts && saved.carts.length) {
                     // Snapshots only — carts will be rebuilt on render
                     this._restoredCartSnapshots = saved.carts;
-                    this._restoredActiveIdx     = saved.activeIdx || 0;
+                    this._restoredActiveIdx = saved.activeIdx || 0;
                 }
             }
-        } catch(e) {}
+        } catch (e) {
+        }
     }
 
     _saveViewState() {
         const cartSnaps = this._carts.map(c => ({
-            id:    c.id,
-            name:  c.name,
+            id: c.id,
+            name: c.name,
             items: c.cart.getItems()
         }));
         this.state.saveTabState?.('pos', {
-            query:       this._query,
-            category:    this._category,
+            query: this._query,
+            category: this._category,
             stockFilter: this._stockFilter,
-            onSale:      this._onSale,
-            featured:    this._featured,
-            carts:       cartSnaps,
-            activeIdx:   this._activeCartIdx
+            onSale: this._onSale,
+            featured: this._featured,
+            carts: cartSnaps,
+            activeIdx: this._activeCartIdx
         });
     }
 
@@ -130,17 +131,17 @@ class POSView {
     _initComponents() {
         // Filter bar (replaces old search bar)
         this.filterBar = new POSFilterBar({
-            initialQuery:       this._query,
-            initialCategory:    this._category,
+            initialQuery: this._query,
+            initialCategory: this._category,
             initialStockFilter: this._stockFilter,
-            initialOnSale:      this._onSale,
-            initialFeatured:    this._featured,
+            initialOnSale: this._onSale,
+            initialFeatured: this._featured,
             onFilter: (f) => {
-                this._query       = f.query;
-                this._category    = f.category;
+                this._query = f.query;
+                this._category = f.category;
                 this._stockFilter = f.stockFilter;
-                this._onSale      = f.onSale;
-                this._featured    = f.featured;
+                this._onSale = f.onSale;
+                this._featured = f.featured;
                 this._reloadProducts();
                 this._saveViewState();
             }
@@ -157,7 +158,7 @@ class POSView {
         // Payment panel (shared across carts)
         this.paymentPanel = new POSPaymentPanel({
             onRequestCheckout: params => this._handleRequestCheckout(params),
-            onTaxModeChange:   mode  => {
+            onTaxModeChange: mode => {
                 const cart = this._activeCart;
                 if (cart) cart.setTaxMode(mode);
             }
@@ -167,7 +168,8 @@ class POSView {
         // Modals
         this.confirmModal = new POSConfirmModal({
             onConfirm: data => this._handleConfirmedCheckout(data),
-            onCancel:  ()   => {}
+            onCancel: () => {
+            }
         });
         this.receipt = new POSReceipt({
             onNewSale: () => this._startNewSale()
@@ -219,7 +221,7 @@ class POSView {
                 this._saveViewState();
             }
         });
-        return { id: cartId, name, cart };
+        return {id: cartId, name, cart};
     }
 
     _addCart() {
@@ -301,7 +303,9 @@ class POSView {
         this._updateCartBadge(entry.cart.getItemCount());
     }
 
-    get _activeCart() { return this._carts[this._activeCartIdx]?.cart; }
+    get _activeCart() {
+        return this._carts[this._activeCartIdx]?.cart;
+    }
 
     // ─── Product loading ───────────────────────────────────────────────────────
 
@@ -435,7 +439,7 @@ class POSView {
     }
 
     _reloadProducts() {
-        this._allLoaded   = false;
+        this._allLoaded = false;
         this._currentPage = 1;
 
         // Debounce: cancel any pending reload timer so rapid filter changes
@@ -541,8 +545,8 @@ class POSView {
                         sku: p.sku,
                         barcode: p.barcode,
                         status: p.status || 'publish',
-                        categories: p.categories?.length ? [{ name: p.categories[0].name }] : [],
-                        images: p.images?.length ? [{ src: p.images[0].src }] : [],
+                        categories: p.categories?.length ? [{name: p.categories[0].name}] : [],
+                        images: p.images?.length ? [{src: p.images[0].src}] : [],
                         image_url: p.image_url || ''
                     };
                 });
@@ -568,9 +572,6 @@ class POSView {
                 this.productGrid.update(products, append);
             }
 
-            // Remove the boot overlay once the first render is done (page 1 only)
-            if (page === 1) this._hideBootSpinner();
-
             this._currentPage = page;
             if (products.length < ITEMS_PER_PAGE) {
                 this._allLoaded = true;
@@ -578,8 +579,11 @@ class POSView {
         } catch (e) {
             if (currentSession !== this._syncSession) return;
             if (!append && !hasLocalData) this.productGrid.showError(`Error: ${e.message}`);
-            if (page === 1) this._hideBootSpinner();
+
         } finally {
+            // The finally block is guaranteed to execute even if the code hits an early "return;"
+            if (page === 1) this._hideBootSpinner();
+
             // Only unlock and show "Done" if this was the most recent search
             if (currentSession === this._syncSession) {
                 this._loadingPage = false;
@@ -592,7 +596,7 @@ class POSView {
     _handleAddToCart(product) {
         const result = this._activeCart?.addProduct(product);
         if (result === false) return Toast.error('Item is out of stock');
-        if (result === 'max')  return Toast.error(`Max stock reached`);
+        if (result === 'max') return Toast.error(`Max stock reached`);
         this.productGrid.flash(product.id);
     }
 
@@ -616,13 +620,23 @@ class POSView {
         const user = this.state.getUser();
         if (!user?.branch_id) return Toast.error('You must be assigned to a branch to process sales.');
 
-        this.confirmModal.show({ ...params, items: cart.getItems() });
+        // Validate that all items have qty <= maxStock
+        const items = cart.getItems();
+        const invalidItems = items.filter(item => item.qty > item.maxStock);
+        if (invalidItems.length > 0) {
+            const itemNames = invalidItems.map(i => `${i.name} (qty: ${i.qty}, available: ${i.maxStock})`).join(', ');
+            return Toast.error(`Insufficient stock: ${itemNames}`);
+        }
+
+        this.confirmModal.show({...params, items});
     }
 
     async _handleConfirmedCheckout(data) {
-        const { paymentMethod, discount, discountType, notes, subtotal, total,
+        const {
+            paymentMethod, discount, discountType, notes, subtotal, total,
             cashierId, cashierName, cashierEmail, customerId, customerName, customerEmail,
-            taxRate, taxName, taxInclusive, taxOnItems, taxManual, taxAmount, fees, shipping } = data;
+            taxRate, taxName, taxInclusive, taxAmount, fees, shipping
+        } = data;
 
         const user = this.state.getUser();
         const cart = this._activeCart;
@@ -630,24 +644,24 @@ class POSView {
 
         const saleItems = cart.getItems();
         const payload = {
-            branch_id:      user.branch_id,
+            branch_id: user.branch_id,
             payment_method: paymentMethod,
             discount,
-            discount_type:  discountType,
+            discount_type: discountType,
             notes,
             total,
-            tax_rate:       taxRate,
-            tax_name:       taxName,
-            tax_inclusive:  taxInclusive,
-            tax_amount:     taxAmount || 0,
-            fees:           fees || [],
-            shipping:       shipping || 0,
-            items: saleItems.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name })),
-            cashier_id:     cashierId,
-            cashier_name:   cashierName,
-            cashier_email:  cashierEmail || '',
-            customer_id:    customerId,
-            customer_name:  customerName,
+            tax_rate: taxRate,
+            tax_name: taxName,
+            tax_inclusive: taxInclusive,
+            tax_amount: taxAmount || 0,
+            fees: fees || [],
+            shipping: shipping || 0,
+            items: saleItems.map(i => ({id: i.id, qty: i.qty, price: i.price, name: i.name})),
+            cashier_id: cashierId,
+            cashier_name: cashierName,
+            cashier_email: cashierEmail || '',
+            customer_id: customerId,
+            customer_name: customerName,
             customer_email: customerEmail,
         };
 
@@ -668,10 +682,10 @@ class POSView {
                     total, paymentMethod, notes,
                     taxRate, taxName, taxInclusive, taxAmount: taxAmount || 0,
                     fees, shipping,
-                    branchName:   user.branch_name || '',
+                    branchName: user.branch_name || '',
                     wcOrderId,
                     cashierName,
-                    cashierEmail:  cashierEmail || '',
+                    cashierEmail: cashierEmail || '',
                     customerName,
                     customerEmail,
                     cartName
@@ -697,17 +711,17 @@ class POSView {
         this._resizerInitialized = true;
 
         const divider = document.getElementById('posDivider');
-        const left    = document.getElementById('posLeft');
-        const root    = document.getElementById('posRoot');
+        const left = document.getElementById('posLeft');
+        const root = document.getElementById('posRoot');
         if (!divider || !left || !root) return;
         let dragging = false, startX, startW, rootW;
 
         divider.addEventListener('mousedown', e => {
             dragging = true;
-            startX   = e.clientX;
-            startW   = left.getBoundingClientRect().width;
-            rootW    = root.getBoundingClientRect().width;
-            document.body.style.cursor     = 'col-resize';
+            startX = e.clientX;
+            startW = left.getBoundingClientRect().width;
+            rootW = root.getBoundingClientRect().width;
+            document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
             divider.classList.add('pos-divider--active');
         });
@@ -719,7 +733,7 @@ class POSView {
         document.addEventListener('mouseup', () => {
             if (!dragging) return;
             dragging = false;
-            document.body.style.cursor     = '';
+            document.body.style.cursor = '';
             document.body.style.userSelect = '';
             divider.classList.remove('pos-divider--active');
         });

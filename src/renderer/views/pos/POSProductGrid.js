@@ -23,7 +23,7 @@ class ProductCardBuilder {
 
         const imgUrl = p.images?.[0]?.src || p.image_url || '';
         const img = imgUrl
-            ? `<img src="${imgUrl}" class="pos-list-thumb pos-zoomable-img" loading="lazy" decoding="async">`
+            ? `<img src="${imgUrl}" class="pos-list-thumb pos-zoomable-img" loading="lazy" decoding="async" alt="product image">`
             : `<div class="pos-list-thumb" style="display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" width="18"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`;
 
         const stockBadge = isOOS
@@ -294,7 +294,7 @@ class POSProductGrid {
             // but the copy actions above will still have worked.
             if (row.classList.contains('pos-list-row--oos')) return;
 
-            const product = this._products.find(p => p.id == row.dataset.id);
+            const product = this._products.find(p => String(p.id) === row.dataset.id);
             if (product) {
                 this.onAddToCart({
                     ...product,

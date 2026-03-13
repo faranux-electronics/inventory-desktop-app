@@ -53,8 +53,8 @@ class StateManager {
         if (category) {
             results = results.filter(p => {
                 if (p.categories && p.categories.some(c => c.slug === category || c.name === category || String(c.id) === String(category))) return true;
-                if (p.category_name && p.category_name === category) return true;
-                return false;
+                return !!(p.category_name && p.category_name === category);
+
             });
         }
 

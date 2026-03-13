@@ -95,7 +95,7 @@ class POSReceipt {
         overlay.querySelector('#rptPrintBtn').addEventListener('click', () => {
             const html = document.getElementById('rptPrintable').innerHTML;
             const w = window.open('', '_blank', 'width=380,height=620');
-            w.document.write(`<html><head><title>Receipt</title><style>
+            w.document.write(`<html lang="en"><head><title>Receipt</title><style>
                 body{font-family:monospace;font-size:12px;padding:16px;color:#111;}
                 table{width:100%;border-collapse:collapse;}
                 th,td{padding:4px 2px;border-bottom:1px dashed #ccc;font-size:12px;}

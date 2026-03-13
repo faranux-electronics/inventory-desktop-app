@@ -158,7 +158,7 @@ module.exports = {
 
     processPOSCheckout: (payload) => request('pos_checkout', 'POST', payload),
     getWCCustomers: (search = '') => request(`wc_get_customers&search=${encodeURIComponent(search)}`),
-    getWCStaff: () => request('wc_get_staff'),
+    getWCStaff: (forceRefresh = false) => request(`wc_get_staff${forceRefresh ? '&force_refresh=true' : ''}`),
     // WC Payment Gateways (enabled ones)
     getWCPaymentGateways: () => request('wc_get_payment_gateways'),
 

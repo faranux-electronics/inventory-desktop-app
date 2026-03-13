@@ -214,20 +214,33 @@ class OrderSettingsModal {
         this.state.staffList = staffList;
         this.state.fallbackMode = fallback;
 
-        const sel = this.container.querySelector('#posCashier');
-        if (!sel) return;
+        // Target either the select OR the fallback input (if recovering from an error)
+        let el = this.container.querySelector('#posCashier') || this.container.querySelector('#posCashierInput');
+        if (!el) return;
 
         if (fallback) {
             const inp = document.createElement('input');
             inp.id = 'posCashierInput'; inp.type = 'text';
-            inp.className = 'pos-input'; inp.placeholder = 'Cashier name';
-            sel.replaceWith(inp);
+            inp.className = 'pos-input';
+            inp.placeholder = '⚠️ API Error: Type name manually';
+            inp.style.borderColor = '#EF4444'; // Red error border
+            el.replaceWith(inp);
         } else {
-            sel.innerHTML = '<option value="">— Select cashier —</option>' +
+            // If it was an input (recovering from fallback), change it back to select
+            if (el.tagName === 'INPUT') {
+                const sel = document.createElement('select');
+                sel.id = 'posCashier';
+                sel.className = 'pos-select';
+                el.replaceWith(sel);
+                el = sel;
+            }
+
+            el.innerHTML = '<option value="">— Select cashier —</option>' +
                 staffList.map(u => `<option value="${u.id}" data-name="${u.display_name}" data-email="${u.email || ''}">${u.display_name}</option>`).join('');
+            el.style.borderColor = ''; // Clear error border
 
             if (this.savedCashierId) {
-                sel.value = this.savedCashierId;
+                el.value = this.savedCashierId;
                 this.onChange();
             }
         }
@@ -401,7 +414,12 @@ class OrderSettingsModal {
                     <div class="pos-people-row">
                         <div class="pos-field-group">
                             <label class="pos-field-label">Cashier</label>
-                            <select id="posCashier" class="pos-select"><option value="">Loading…</option></select>
+                            <div style="display: flex; gap: 6px;">
+                                <select id="posCashier" class="pos-select" style="flex: 1;"><option value="">Loading…</option></select>
+                                <button id="posRefreshStaffBtn" type="button" style="padding: 0 8px; border: 1px solid #E2E8F0; background: #fff; border-radius: 4px; cursor: pointer; color: #4b5563;" title="Force Refresh Staff">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.87L21 8"></path></svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="pos-field-group">
                             <label class="pos-field-label">Customer <button id="posSameAsCashier" class="pos-same-btn" type="button" style="padding:0 4px;font-size:8px;">= Cashier</button></label>
@@ -517,6 +535,10 @@ class POSPaymentPanel {
         this.container.querySelector('#posCheckoutBtn').addEventListener('click', () => {
             this._handleCheckout();
         });
+
+        this.container.querySelector('#posRefreshStaffBtn').addEventListener('click', () => {
+            this._loadStaff(true);
+        });
     }
 
     // --- External APIs (Called by POSView) ---
@@ -624,6 +646,7 @@ class POSPaymentPanel {
             subtotal: this._subtotal,
             total: calc.total,
 
+            taxOn: modalData.taxOn,
             taxRate: modalData.taxRate,
             taxName: modalData.taxName,
             taxInclusive: modalData.taxInclusive,
@@ -645,16 +668,28 @@ class POSPaymentPanel {
         });
     }
 
-    async _loadStaff() {
+    async _loadStaff(forceRefresh = false) {
+        const refreshBtn = this.container.querySelector('#posRefreshStaffBtn');
+        const selectEl = this.container.querySelector('#posCashier');
+
         try {
-            const res = await API.getWCStaff();
+            if (refreshBtn) refreshBtn.style.opacity = '0.5';
+            if (selectEl && forceRefresh) selectEl.innerHTML = `<option value="">Refreshing...</option>`;
+
+            // Request from API (Ensure api.js accepts this argument as discussed previously)
+            const res = await API.getWCStaff(forceRefresh);
+
             if (res?.status === 'success' && res.data?.length) {
                 this.modal.setStaff(res.data, false);
             } else {
-                this.modal.setStaff([], true);
+                throw new Error('Empty staff response');
             }
         } catch(e) {
+            console.error('Staff Load Error:', e);
+            // Fallback to text input with the red error styling
             this.modal.setStaff([], true);
+        } finally {
+            if (refreshBtn) refreshBtn.style.opacity = '1';
         }
     }
 
