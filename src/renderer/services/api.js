@@ -1,6 +1,6 @@
-const API_URL = 'http://localhost:8000/index.php';
+//const API_URL = 'http://localhost:8000/index.php';
 
-// const API_URL = 'https://api.faranux.com';
+const API_URL = 'https://api.faranux.com';
 
 async function request(action, method = 'GET', body = null) {
     try {
@@ -167,4 +167,5 @@ module.exports = {
 
     getTransfers: (type = 'all', direction = 'all', page = 1, search = '', branch_id = '', start = '', end = '', user_id = '') =>
         request(`get_transfers&type=${type}&direction=${direction}&page=${page}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}&branch_id=${branch_id}&user_id=${user_id}`),
+
 };
