@@ -7,7 +7,7 @@ const POSPaymentPanel = require('./pos/POSPaymentPanel.js');
 const POSConfirmModal = require('./pos/POSConfirmModal.js');
 const POSReceipt = require('./pos/POSReceipt.js');
 
-const DEFAULT_LEFT_PCT = 20;
+const DEFAULT_LEFT_PCT = 0;
 const MIN_LEFT_PX = 340;
 const MIN_RIGHT_PX = 320;
 const ITEMS_PER_PAGE = 80;
@@ -41,6 +41,10 @@ class POSView {
         // WC payment gateways cache
         this._gatewaysCache = null;
         this._taxRatesCache = null;
+
+        // Branch data for source selection
+        this._branches = [];
+        this._branchInventory = {};
 
         // Restore persisted view state
         this._loadViewState();
@@ -221,6 +225,14 @@ class POSView {
                 this._saveViewState();
             }
         });
+        // Set branch info if available
+        if (this._branches && this._branches.length) {
+            const user = this.state.getUser();
+            cart.setBranches(this._branches, user?.branch_id);
+            if (this._branchInventory && Object.keys(this._branchInventory).length > 0) {
+                cart.setBranchInventory(this._branchInventory);
+            }
+        }
         return {id: cartId, name, cart};
     }
 
@@ -312,10 +324,10 @@ class POSView {
     async _bootstrap() {
         this._showBootSpinner();
 
-        // Run meta (categories, gateways, tax) and first product page IN PARALLEL.
-        // Previously sequential — this alone saves 300-800ms on boot.
+        // Run meta (categories, gateways, tax), branches, and first product page IN PARALLEL.
         await Promise.all([
             this._loadMeta(),
+            this._loadBranches(),
             this._loadProducts(1, false)
         ]);
 
@@ -431,6 +443,54 @@ class POSView {
             }
         } catch (e) {
             console.warn('POS: meta load partial fail', e);
+        }
+    }
+
+    async _loadBranches() {
+        try {
+            this._branches = await this.state.loadLocations(false);
+            if (this._branches && this._branches.length > 0) {
+                // Load branch inventory per branch
+                await this._loadBranchInventory();
+
+                // Update all existing carts with branch info
+                this._carts.forEach(c => {
+                    const user = this.state.getUser();
+                    c.cart.setBranches(this._branches, user?.branch_id);
+                    if (this._branchInventory && Object.keys(this._branchInventory).length > 0) {
+                        c.cart.setBranchInventory(this._branchInventory);
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('POS: branch load failed', e);
+            this._branches = [];
+        }
+    }
+
+    async _loadBranchInventory() {
+        try {
+            // Format: { branch_id: { product_id: qty, ... } }
+            this._branchInventory = {};
+
+            // For each branch, load its inventory
+            for (const branch of this._branches) {
+                try {
+                    const res = await API.getBranchInventory(branch.id);
+                    if (res?.status === 'success' && res.data) {
+                        // Convert array of {id, qty} to map
+                        this._branchInventory[branch.id] = res.data.reduce((acc, item) => {
+                            acc[item.id] = parseInt(item.qty || 0);
+                            return acc;
+                        }, {});
+                    }
+                } catch (e) {
+                    console.warn(`Failed to load inventory for branch ${branch.id}`, e);
+                }
+            }
+        } catch (e) {
+            console.warn('POS: branch inventory load failed', e);
+            this._branchInventory = {};
         }
     }
 
@@ -628,6 +688,21 @@ class POSView {
             return Toast.error(`Insufficient stock: ${itemNames}`);
         }
 
+        // Validate branch-specific inventory (if available)
+        if (this._branchInventory && Object.keys(this._branchInventory).length > 0) {
+            const branchErrors = [];
+            items.forEach(item => {
+                const branchId = item.branchId;
+                const branchStock = this._branchInventory[branchId]?.[item.id] || 0;
+                if (item.qty > branchStock) {
+                    branchErrors.push(`${item.name} (requested: ${item.qty}, available in branch: ${branchStock})`);
+                }
+            });
+            if (branchErrors.length > 0) {
+                return Toast.error(`Insufficient branch stock:\n${branchErrors.join('\n')}`);
+            }
+        }
+
         this.confirmModal.show({...params, items});
     }
 
@@ -656,7 +731,7 @@ class POSView {
             tax_amount: taxAmount || 0,
             fees: fees || [],
             shipping: shipping || 0,
-            items: saleItems.map(i => ({id: i.id, qty: i.qty, price: i.price, name: i.name})),
+            items: saleItems.map(i => ({id: i.id, qty: i.qty, price: i.price, name: i.name, branch_id: i.branchId})),
             cashier_id: cashierId,
             cashier_name: cashierName,
             cashier_email: cashierEmail || '',
