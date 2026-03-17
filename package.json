@@ -1,7 +1,7 @@
 {
   "name": "faranuxinventory",
   "version": "1.0.18",
-  "description": "Faranux Inventory MIS",
+  "description": "Faranux MIS",
   "appId": "com.faranux.inventorymis",
   "main": "src/main/index.js",
   "scripts": {
@@ -24,7 +24,7 @@
   },
   "build": {
     "appId": "com.faranux.inventorymis",
-    "productName": "Faranux Inventory",
+    "productName": "Faranux MIS",
     "files": [
       "**/*",
       ".env"
@@ -47,8 +47,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Inventory Manager",
-      "deleteAppDataOnUninstall": false
+      "shortcutName": "Faranux MIS",
+      "deleteAppDataOnUninstall": false,
+      "installerSidebar": "buildResources/installerSidebar.bmp",
+      "uninstallerSidebar": "buildResources/installerSidebar.bmp"
     },
     "directories": {
       "output": "dist",
