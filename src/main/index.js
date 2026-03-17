@@ -86,6 +86,17 @@ function createWindow() {
     return win;
 }
 
+// Ignore certificate errors during development
+app.commandLine.appendSwitch('ignore-certificate-errors');
+app.commandLine.appendSwitch('ignore-certificate-errors-spki-list');
+app.commandLine.appendSwitch('ignore-certificate-revocation-list');
+app.commandLine.appendSwitch('allow-insecure-localhost');
+app.commandLine.appendSwitch('allow-running-insecure-content');
+app.commandLine.appendSwitch('allow-popups');
+app.commandLine.appendSwitch('allow-popups-to-escape-sandbox');
+app.commandLine.appendSwitch('enable-features', 'NetworkService,SharedArrayBuffer');
+
+
 app.whenReady().then(() => {
     const mainWindow = createWindow();
 
