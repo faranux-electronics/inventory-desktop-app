@@ -152,6 +152,7 @@ module.exports = {
     },
 
     getLocations: () => request('get_locations'),
+    getTrashedLocations: () => request('get_trashed_locations'),
     addLocation: (name) => request('add_location', 'POST', {name}),
     getPendingOrders: (startDate = '', endDate = '') => request(`get_pending_orders&start_date=${startDate}&end_date=${endDate}`),
     syncOrders: () => request('sync_orders', 'POST'),
