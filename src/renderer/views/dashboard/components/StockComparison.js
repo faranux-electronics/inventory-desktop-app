@@ -156,9 +156,9 @@ class StockComparison {
 
     async showSyncModal(productId, productName, wcStock, localStock, difference) {
         const locations = await this.state.loadLocations();
-        const Modal = require('../../components/Modal.js');
-        const Toast = require('../../components/Toast.js');
-        const API = require('../../services/api.js');
+        const Modal = require('../../../components/Modal.js');
+        const Toast = require('../../../components/Toast.js');
+        const API = require('../../../services/api.js');
 
         const locationOptions = locations
             .map(l => `<option value="${l.id}">${l.name}</option>`)

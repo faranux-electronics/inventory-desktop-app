@@ -1,5 +1,5 @@
 //
-const API = require('../../services/api.js');
+const API = require('../../../services/api.js');
 
 class DashboardFilters {
     constructor(dashboard) {

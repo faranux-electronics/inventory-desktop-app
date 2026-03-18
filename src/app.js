@@ -7,15 +7,15 @@ const API = require('./src/renderer/services/api.js');
 const Modal = require('./src/renderer/components/Modal.js');
 
 // Views
-const LoginView = require('./src/renderer/views/Loginview.js');
-const DashboardView = require('./src/renderer/views/Dashboardview.js');
-const BranchesView = require('./src/renderer/views/Branchesview.js');
-const TransfersView = require('./src/renderer/views/Transfersview.js');
+const LoginView = require('./src/renderer/views/auth/Loginview.js');
+const DashboardView = require('./src/renderer/views//dashboard/Dashboardview.js');
+const BranchesView = require('./src/renderer/views/branches/Branchesview.js');
+const TransfersView = require('./src/renderer/views/transfer/Transfersview.js');
 const OrdersView = require('./src/renderer/views/Ordersview.js');
-const ProfileView = require('./src/renderer/views/ProfileView.js');
-const UsersView = require('./src/renderer/views/UsersView.js');
-const ImportView = require('./src/renderer/views/ImportView.js');
-const PosView = require('./src/renderer/views/POSView.js');
+const ProfileView = require('./src/renderer/views/profile/ProfileView.js');
+const UsersView = require('./src/renderer/views/users/UsersView.js');
+const ImportView = require('./src/renderer/views/import/ImportView.js');
+const PosView = require('./src/renderer/views/pos/POSView.js');
 
 // 1. Update available - ask user if they want to download
 ipcRenderer.on('update-available', (event, info) => {
