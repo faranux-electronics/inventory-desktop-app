@@ -1,7 +1,7 @@
 const Toast = require('../../components/Toast.js');
 const API = require('../../services/api.js');
-const UserTable = require('./UserTable.js');
-const UserModals = require('./UserModals.js');
+const UserTable = require('./components/UserTable.js');
+const UserModals = require('./components/UserModals.js');
 
 class UsersView {
     constructor(app) {

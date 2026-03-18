@@ -1,6 +1,6 @@
 //
 const API = require('../../services/api.js');
-const TransferTable = require('./TransferTable.js');
+const TransferTable = require('./components/TransferTable.js');
 
 class TransfersView {
     constructor(app) {

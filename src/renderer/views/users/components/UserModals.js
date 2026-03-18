@@ -1,6 +1,6 @@
-const Toast = require('../../components/Toast.js');
-const Modal = require('../../components/Modal.js');
-const API = require('../../services/api.js');
+const Toast = require('../../../components/Toast.js');
+const Modal = require('../../../components/Modal.js');
+const API = require('../../../services/api.js');
 
 class UserModals {
     constructor(parentView) {

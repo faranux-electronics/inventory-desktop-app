@@ -1,6 +1,6 @@
-const API = require('../../services/api.js');
-const Toast = require('../../components/Toast.js');
-const PdfGenerator = require('../../utils/PdfGenerator.js');
+const API = require('../../../services/api.js');
+const Toast = require('../../../components/Toast.js');
+const PdfGenerator = require('../../../utils/PdfGenerator.js');
 const TransferModals = require('./TransferModals.js');
 
 class TransferTable {

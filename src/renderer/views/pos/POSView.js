@@ -1,11 +1,11 @@
 const Toast = require('../../components/Toast.js');
 const API = require('../../services/api.js');
-const POSFilterBar = require('./POSFilterBar.js');
-const POSProductGrid = require('./POSProductGrid.js');
-const POSCart = require('./POSCart.js');
-const POSPaymentPanel = require('./POSPaymentPanel.js');
-const POSConfirmModal = require('./POSConfirmModal.js');
-const POSReceipt = require('./POSReceipt.js');
+const POSFilterBar = require('./components/POSFilterBar.js');
+const POSProductGrid = require('./components/POSProductGrid.js');
+const POSCart = require('./components/POSCart.js');
+const POSPaymentPanel = require('./components/POSPaymentPanel.js');
+const POSConfirmModal = require('./components/POSConfirmModal.js');
+const POSReceipt = require('./components/POSReceipt.js');
 
 const DEFAULT_LEFT_PCT = 0;
 const MIN_LEFT_PX = 340;

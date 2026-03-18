@@ -6,7 +6,7 @@
  * 3. OrderSettingsModal: Modal DOM and form state (with Max Fee limits & Persistence)
  * 4. POSPaymentPanel: Orchestrator and Main Compact UI
  */
-const API = require('../../services/api.js');
+const API = require('../../../services/api.js');
 
 /* =======================================================================
    1. TotalsCalculator
