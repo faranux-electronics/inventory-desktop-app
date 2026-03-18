@@ -1,6 +1,6 @@
-// const API_URL = 'http://localhost:8000/index.php';
+const API_URL = 'http://localhost:8000/index.php';
 
-const API_URL = 'https://api.faranux.com';
+// const API_URL = 'https://api.faranux.com';
 
 async function request(action, method = 'GET', body = null) {
     try {
@@ -82,6 +82,7 @@ module.exports = {
     restoreUser: (id) => request('restore_user', 'POST', {id}),
     registerUser: (newUser) => request('register_user', 'POST', newUser),
     deleteUser: (id) => request('delete_user', 'POST', {id}),
+    permanentlyDeleteUser: (id) => request('permanently_delete_user', 'POST', {id}),
     approveUser: (id) => request('approve_user', 'POST', {id}),
     deactivateUser: (id) => request('deactivate_user', 'POST', {id}),
     updateUserRole: (id, role, allowedBranches = [], name = '', email = '') =>

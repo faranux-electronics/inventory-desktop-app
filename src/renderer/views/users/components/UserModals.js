@@ -10,7 +10,11 @@ class UserModals {
     // Helper to generate branch checkboxes for Add/Edit modals
     getBranchCheckboxes(selected = []) {
         if (!Array.isArray(selected)) {
-            try { selected = JSON.parse(selected || '[]'); } catch (e) { selected = []; }
+            try {
+                selected = JSON.parse(selected || '[]');
+            } catch (e) {
+                selected = [];
+            }
         }
         if (this.parent.locationsCache.length === 0) return '<p class="text-sm text-muted">No branches available</p>';
 
@@ -64,13 +68,25 @@ class UserModals {
                 const role = document.getElementById('addRole').value;
                 const newBranches = Array.from(document.querySelectorAll('.branch-checkbox:checked')).map(cb => cb.value);
 
-                if (!name) { Toast.error("Please enter the user's full name."); throw new Error("Validation Failed"); }
-                if (!email) { Toast.error("Email address is required."); throw new Error("Validation Failed"); }
+                if (!name) {
+                    Toast.error("Please enter the user's full name.");
+                    throw new Error("Validation Failed");
+                }
+                if (!email) {
+                    Toast.error("Email address is required.");
+                    throw new Error("Validation Failed");
+                }
 
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(email)) { Toast.error("Please enter a valid email address."); throw new Error("Validation Failed"); }
+                if (!emailRegex.test(email)) {
+                    Toast.error("Please enter a valid email address.");
+                    throw new Error("Validation Failed");
+                }
 
-                if (!pass || pass.length < 4) { Toast.error("Password must be at least 4 characters long."); throw new Error("Validation Failed"); }
+                if (!pass || pass.length < 4) {
+                    Toast.error("Password must be at least 4 characters long.");
+                    throw new Error("Validation Failed");
+                }
 
                 if (role !== 'admin' && newBranches.length === 0) {
                     Toast.warning("Don't forget to assign at least one branch to this user.");
@@ -89,7 +105,9 @@ class UserModals {
                         throw new Error(res.message);
                     }
                 } catch (err) {
-                    if (err.message !== "Validation Failed") { Toast.error("An unexpected error occurred."); }
+                    if (err.message !== "Validation Failed") {
+                        Toast.error("An unexpected error occurred.");
+                    }
                     throw err;
                 }
             }
@@ -193,7 +211,10 @@ class UserModals {
 
     async handleApprove(id) {
         const res = await API.approveUser(id);
-        if (res.status === 'success') { Toast.success("User activated"); this.parent.loadUsers(); }
+        if (res.status === 'success') {
+            Toast.success("User activated");
+            this.parent.loadUsers();
+        }
     }
 
     async handleDeactivate(id) {
@@ -203,14 +224,20 @@ class UserModals {
             confirmText: "Deactivate",
             onConfirm: async () => {
                 const res = await API.deactivateUser(id);
-                if (res.status === 'success') { Toast.success("User deactivated"); this.parent.loadUsers(); }
+                if (res.status === 'success') {
+                    Toast.success("User deactivated");
+                    this.parent.loadUsers();
+                }
             }
         });
     }
 
     async handleRestore(id) {
         const res = await API.restoreUser(id);
-        if (res.status === 'success') { Toast.success("User restored"); this.parent.loadUsers(); }
+        if (res.status === 'success') {
+            Toast.success("User restored");
+            this.parent.loadUsers();
+        }
     }
 
     async handleDelete(id, name) {
@@ -220,7 +247,34 @@ class UserModals {
             confirmText: "Delete",
             onConfirm: async () => {
                 const res = await API.deleteUser(id);
-                if (res.status === 'success') { Toast.success("User deleted"); this.parent.loadUsers(); }
+                if (res.status === 'success') {
+                    Toast.success("User deleted");
+                    this.parent.loadUsers();
+                }
+            }
+        });
+    }
+
+    async handlePermanentDelete(id, name) {
+        Modal.open({
+            title: "Permanently Delete User",
+            body: `
+                <div style="background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> <b>Warning:</b> This action cannot be undone.
+                </div>
+                <p>Are you sure you want to permanently delete <b>${name}</b>?</p>
+                <p class="text-sm text-muted mt-xs" style="margin-top: 8px;">All system records associated with this user (such as logs and transfers) will be reassigned to your account to preserve history.</p>
+            `,
+            confirmText: "Delete Permanently",
+            onConfirm: async () => {
+                let res = await API.permanentlyDeleteUser(id);
+                if (res.status === 'success') {
+                    Toast.success("User permanently deleted");
+                    await this.parent.loadUsers();
+                } else {
+                    Toast.error(res.message || "Failed to permanently delete user");
+                    throw new Error(res.message);
+                }
             }
         });
     }
