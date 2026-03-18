@@ -1,4 +1,3 @@
-//
 const Toast = require('../../components/Toast.js');
 const API = require('../../services/api.js');
 
@@ -17,8 +16,8 @@ class ProfileView {
 
         let locations = [];
         try {
-            const locRes = await API.getLocations();
-            if (locRes.status === 'success') locations = locRes.data;
+            // Use your centralized state manager instead of calling the API directly!
+            locations = await this.state.loadLocations();
         } catch (e) {
             console.warn("Could not load locations for profile branch switcher");
         }

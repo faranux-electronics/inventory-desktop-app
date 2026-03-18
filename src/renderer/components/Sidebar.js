@@ -1,13 +1,66 @@
 const Modal = require('./Modal.js');
+const API = require("../services/api");
 
 class Sidebar {
     constructor(navigateCallback, logoutCallback) {
         this.navigateCallback = navigateCallback;
         this.logoutCallback = logoutCallback;
+        this.locations = [];
+        this.userBranchId = null;
+    }
+
+    async loadLocations(stateManager) {
+        try {
+            // Fetch from your global state cache
+            this.locations = await stateManager.loadLocations();
+            this.updateBranchDisplay();
+        } catch (e) {
+            this.updateBranchDisplayFallback("Offline");
+        }
+    }
+
+    getActiveBranchName(branchId) {
+        // If strictly null or undefined, treat as Global Admin
+        if (branchId === null || branchId === undefined || branchId === '') {
+            return null;
+        }
+
+        // Look up the actual branch name from the fetched locations array
+        const loc = this.locations.find(l => String(l.id) === String(branchId));
+        return loc ? loc.name : `Branch #${branchId}`;
+    }
+
+    updateBranchDisplay() {
+        const branchName = this.getActiveBranchName(this.userBranchId);
+        // If branchName is null, fallback to Global
+        this.applyBranchNameToDOM(branchName || 'Global (All Branches)');
+    }
+
+    updateBranchDisplayFallback(fallbackText) {
+        // Used only if the API call entirely fails
+        const branchName = this.userBranchId ? `Branch #${this.userBranchId} (${fallbackText})` : 'Global (All Branches)';
+        this.applyBranchNameToDOM(branchName);
+    }
+
+    applyBranchNameToDOM(branchName) {
+        const branchEl = document.getElementById('sidebar-branch-name');
+        if (branchEl) {
+            branchEl.textContent = branchName;
+        }
+
+        const profileEl = document.getElementById('sidebar-profile-section');
+        if (profileEl) {
+            profileEl.title = `Edit Profile (Branch: ${branchName})`;
+        }
     }
 
     render(user) {
+        // Capture the user's branch ID from their session cache
+        this.userBranchId = user.branch_id;
         const isAdmin = user.role === 'admin';
+
+        // Set initial text. If they have a branch but locations aren't loaded yet, it will say "Branch #ID" temporarily.
+        let initialBranchText = this.getActiveBranchName(this.userBranchId) || 'Global (All Branches)';
 
         // Default to collapsed, but remember if the user expanded it
         const isCollapsed = localStorage.getItem('sidebar_collapsed') !== 'false';
@@ -36,9 +89,6 @@ class Sidebar {
              <i class="fa-solid fa-truck-arrow-right"></i> <span class="nav-text">Transfers</span>
            </div>
            ${isAdmin ? `
-<!--           <div class="nav-item" data-view="orders" title="Order Review">-->
-<!--             <i class="fa-solid fa-clipboard-list"></i> <span class="nav-text">Order Review</span>-->
-<!--           </div>-->
            <div class="nav-item" data-view="import" title="Import Stock">
              <i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Stock</span>
            </div>
@@ -51,11 +101,12 @@ class Sidebar {
            ` : ''}
         </div>
 
-        <div class="sidebar-profile cursor-pointer transition-colors" data-view="profile" title="Edit Profile">
+        <div class="sidebar-profile cursor-pointer transition-colors" id="sidebar-profile-section" data-view="profile" title="Edit Profile (Branch: ${initialBranchText})">
             <div class="profile-icon"><i class="fa-solid fa-circle-user"></i></div>
             <div class="user-info nav-text">
                 <div class="user-name">${user.name || 'User'}</div>
                 <div class="user-role">${user.role || 'Role'}</div>
+                <div class="user-branch" id="sidebar-branch-name" style="font-size: 10px; color: var(--primary-100);;">${initialBranchText}</div>
             </div>
             <button class="logout-btn" id="logoutBtn" title="Logout">
                 <i class="fa-solid fa-power-off"></i>

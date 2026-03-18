@@ -142,6 +142,7 @@ class App {
       </div>
     `;
         this.sidebar.attachEvents();
+        this.sidebar.loadLocations(this.state);
     }
 
     navigate(viewName) {
