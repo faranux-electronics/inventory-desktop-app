@@ -3,204 +3,299 @@ const Toast = require('../../../components/Toast.js');
 const PdfGenerator = require('../../../utils/PdfGenerator.js');
 const TransferModals = require('./TransferModals.js');
 
+// FIX: Escape helper prevents XSS from server-supplied strings inserted into innerHTML.
+function esc(str) {
+    return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 class TransferTable {
     constructor(parentView) {
         this.parent = parentView;
         this.modals = new TransferModals(parentView);
     }
 
-    render(transfers) {
-        const tbody = document.getElementById('transfersTableBody');
-        const userBranch = this.parent.state.getUserBranchId();
-        const isAdmin = this.parent.state.getUser()?.role === 'admin';
+    // ─── Public render ────────────────────────────────────────────────────────
 
-        if (transfers.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" class="text-center p-lg text-muted" style="background: #f9f9f9;">No transfers found matching your filters.</td></tr>';
+    render(transfers) {
+        const container = document.getElementById('transfersTableBody');
+        if (!container) return;
+
+        if (!transfers.length) {
+            container.innerHTML = `
+                <div class="trv-empty-row">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    <div>No transfers found matching your filters.</div>
+                </div>`;
             return;
         }
 
-        tbody.innerHTML = transfers.map(t => {
-            let actions = '';
+        const userBranch = this.parent.state.getUserBranchId();
+        const isAdmin = this.parent.state.getUser()?.role === 'admin';
 
-            if (t.status === 'pending') {
-                if (isAdmin || userBranch == t.to_loc_id) {
-                    actions += `<button class="btn btn-sm btn-primary btn-review" data-id="${t.batch_id}" style="padding: 4px 10px; font-weight: normal; font-size: 13px;">Review</button> `;
-                }
-                if (isAdmin || userBranch == t.from_loc_id) {
-                    actions += `<button class="btn btn-sm btn-ghost btn-cancel" data-id="${t.batch_id}" style="padding: 4px 10px; color: #b32d2e; border-color: transparent; font-weight: normal; font-size: 13px;">Cancel</button> `;
-                }
-            } else {
-                actions += `<button class="btn btn-sm btn-ghost btn-view" data-id="${t.batch_id}" title="View Details" style="padding: 4px 8px; border-color: transparent;"><i class="fa-solid fa-eye" style="color: #2271b1; font-size: 14px;"></i></button> `;
-                actions += `<button class="btn btn-sm btn-ghost btn-print" data-id="${t.batch_id}" title="Print PDF" style="padding: 4px 8px; border-color: transparent;"><i class="fa-solid fa-print" style="color: #50575e; font-size: 14px;"></i></button> `;
-            }
-
-            let dirIcon = '<i class="fa-solid fa-minus" style="color: #a7aaad;"></i>';
-            if (this.parent.currentTab === 'pending_incoming') {
-                dirIcon = '<i class="fa-solid fa-arrow-down" style="color: #00a32a;" title="Incoming"></i>';
-            } else if (this.parent.currentTab === 'pending_outgoing') {
-                dirIcon = '<i class="fa-solid fa-arrow-up" style="color: #d63638;" title="Outgoing"></i>';
-            } else if (userBranch) {
-                if (userBranch == t.to_loc_id) dirIcon = '<i class="fa-solid fa-arrow-down" style="color: #00a32a;" title="Incoming"></i>';
-                else if (userBranch == t.from_loc_id) dirIcon = '<i class="fa-solid fa-arrow-up" style="color: #d63638;" title="Outgoing"></i>';
-            }
-
-            let discHtml = '<span style="color: #a7aaad;">-</span>';
-            if (t.status === 'completed' || t.status === 'rejected') {
-                const diff = (parseInt(t.total_received_qty) || 0) - (parseInt(t.total_qty) || 0);
-                if (diff < 0) discHtml = `<span style="color: #d63638; font-weight: 600;">${diff}</span>`;
-                else if (diff > 0) discHtml = `<span style="color: #dba617; font-weight: 600;">+${diff}</span>`;
-                else discHtml = `<span style="color: #00a32a;"><i class="fa-solid fa-check"></i></span>`;
-            }
-
-            let statusStyle = '';
-            const st = t.status.toLowerCase();
-            if (st === 'completed') statusStyle = 'background: #e2e8f0; color: #334155; padding: 4px 12px; border-radius: 4px; font-weight: 500; font-size: 13px;';
-            else if (st === 'pending') statusStyle = 'background: #fef3c7; color: #b45309; padding: 4px 12px; border-radius: 4px; font-weight: 500; font-size: 13px;';
-            else if (st === 'rejected' || st === 'canceled') statusStyle = 'background: #fee2e2; color: #b91c1c; padding: 4px 12px; border-radius: 4px; font-weight: 500; font-size: 13px;';
-
-            const timeAgo = this.timeSince(new Date(t.created_at));
-
-            return `
-                <tr class="hover:bg-neutral-50 transition-colors" style="border-bottom: 1px solid #f0f0f1; font-size: 13px;">
-                    <td class="text-center text-muted cursor-pointer expand-toggle" data-batch="${t.batch_id}" style="padding: 12px;">
-                        <i class="fa-solid fa-chevron-right" id="icon-${t.batch_id}" style="transition: transform 0.2s; color: #a7aaad;"></i>
-                    </td>
-                    <td style="padding: 12px;">
-                        <span class="btn-view cursor-pointer" data-id="${t.batch_id}" style="color: #2271b1; font-weight: 600;">#${t.batch_id}</span>
-                    </td>
-                    <td style="padding: 12px; color: #50575e;">${timeAgo}</td>
-                    <td class="text-center" style="padding: 12px;">${dirIcon}</td>
-                    <td style="padding: 12px; color: #50575e;">${t.from_location}</td>
-                    <td style="padding: 12px; color: #50575e;">${t.to_location}</td>
-                    <td style="padding: 12px; color: #50575e;">${t.item_count} items <span style="color: #a7aaad;">(${t.total_qty} qty)</span></td>
-                    <td class="text-center" style="padding: 12px;">${discHtml}</td>
-                    <td style="padding: 12px;"><span style="${statusStyle}">${t.status.charAt(0).toUpperCase() + t.status.slice(1)}</span></td>
-                    <td style="padding: 12px;"><div class="flex gap-xs items-center">${actions}</div></td>
-                </tr>
-                <tr class="hidden" id="expanded-${t.batch_id}">
-                    <td colspan="10" class="p-0 border-b border-neutral-300" style="background: #f8f9fa;">
-                        <div id="expanded-content-${t.batch_id}" style="margin: 0.5rem 1rem 1rem 3rem; border-left: 3px solid #2271b1; background: white; border-radius: 0 4px 4px 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05);" class="p-md">
-                            <div class="text-center py-sm" style="color: #8c8f94;"><i class="fa-solid fa-spinner fa-spin"></i> Fetching transfer items...</div>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-
-        this.attachRowEvents();
+        container.innerHTML = transfers.map(t => this._rowHTML(t, userBranch, isAdmin)).join('');
+        // FIX: Scope event attachment to the container, not document, to avoid
+        // duplicate listeners on re-render and unintended matches elsewhere.
+        this._attachEvents(container);
     }
 
-    attachRowEvents() {
-        document.querySelectorAll('.expand-toggle').forEach(td => {
-            td.addEventListener('click', () => this.toggleExpand(td.dataset.batch));
+    // ─── Row HTML ─────────────────────────────────────────────────────────────
+
+    _rowHTML(t, userBranch, isAdmin) {
+        // Direction icon
+        let dirIcon = `<span class="trv-dir-neutral">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg></span>`;
+
+        // FIX: Use String() normalisation + strict equality for branch ID comparisons
+        // to avoid type-coercion bugs (e.g. "010" == 10 is false; was previously ==).
+        const uBranch = String(userBranch ?? '');
+        const toLoc = String(t.to_loc_id ?? '');
+        const fromLoc = String(t.from_loc_id ?? '');
+
+        if (this.parent.currentTab === 'pending_incoming') {
+            dirIcon = `<span class="trv-dir-incoming" title="Incoming">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            </span>`;
+        } else if (this.parent.currentTab === 'pending_outgoing') {
+            dirIcon = `<span class="trv-dir-outgoing" title="Outgoing">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 19V5M19 12l-7-7-7 7"/></svg>
+            </span>`;
+        } else if (uBranch) {
+            if (uBranch === toLoc) {
+                dirIcon = `<span class="trv-dir-incoming" title="Incoming">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                </span>`;
+            } else if (uBranch === fromLoc) {
+                dirIcon = `<span class="trv-dir-outgoing" title="Outgoing">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 19V5M19 12l-7-7-7 7"/></svg>
+                </span>`;
+            }
+        }
+
+        // Discrepancy
+        let discHtml = '<span class="trv-disc--na">—</span>';
+        if (t.status === 'completed' || t.status === 'rejected') {
+            const diff = (parseInt(t.total_received_qty) || 0) - (parseInt(t.total_qty) || 0);
+            if (diff < 0) discHtml = `<span class="trv-disc--low">${diff}</span>`;
+            else if (diff > 0) discHtml = `<span class="trv-disc--high">+${diff}</span>`;
+            else discHtml = `<span class="trv-disc--ok">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>`;
+        }
+
+        // Status badge — FIX: escape status value before injection
+        const st = esc(t.status.toLowerCase());
+        const stLabel = esc(t.status.charAt(0).toUpperCase() + t.status.slice(1));
+        const statusHtml = `<span class="trv-status trv-status--${st}">${stLabel}</span>`;
+
+        // Actions — FIX: use strict equality for permission checks
+        let actions = '';
+        if (t.status === 'pending') {
+            if (isAdmin || uBranch === toLoc) {
+                actions += `<button class="trv-action-btn trv-action-btn--primary btn-review" data-id="${esc(t.batch_id)}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Review
+                </button>`;
+            }
+            if (isAdmin || uBranch === fromLoc) {
+                actions += `<button class="trv-action-btn trv-action-btn--danger btn-cancel" data-id="${esc(t.batch_id)}">Cancel</button>`;
+            }
+        } else {
+            actions += `<button class="trv-action-btn trv-action-btn--ghost btn-view" data-id="${esc(t.batch_id)}" title="View details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>`;
+            actions += `<button class="trv-action-btn trv-action-btn--ghost btn-print" data-id="${esc(t.batch_id)}" title="Print PDF">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </button>`;
+        }
+
+        const timeAgo = this.timeSince(new Date(t.created_at));
+        const batchId = esc(t.batch_id);
+
+        return `
+        <div class="trv-row" data-batch="${batchId}">
+            <div class="trv-row-main">
+                <!-- Expand toggle -->
+                <button class="trv-expand-btn expand-toggle" data-batch="${batchId}" title="Expand details">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" id="icon-${batchId}"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <!-- Batch ID -->
+                <span class="trv-batch-id btn-view" data-id="${batchId}">#${batchId}</span>
+                <!-- Date -->
+                <span class="trv-date">${esc(timeAgo)}</span>
+                <!-- Direction -->
+                <span style="display:flex;justify-content:center;">${dirIcon}</span>
+                <!-- From -->
+                <span class="trv-branch" title="${esc(t.from_location)}">${esc(t.from_location)}</span>
+                <!-- To -->
+                <span class="trv-branch" title="${esc(t.to_location)}">${esc(t.to_location)}</span>
+                <!-- Items -->
+                <span class="trv-items-cell">${parseInt(t.item_count) || 0} items <span class="trv-items-qty">(${parseInt(t.total_qty) || 0} qty)</span></span>
+                <!-- Discrepancy -->
+                <span class="trv-disc-cell">${discHtml}</span>
+                <!-- Status -->
+                ${statusHtml}
+                <!-- Actions -->
+                <div class="trv-actions">${actions}</div>
+            </div>
+            <!-- Expandable panel (lazy-loaded) -->
+            <div class="trv-expand-panel" id="expanded-${batchId}">
+                <div id="expanded-content-${batchId}">
+                    <div style="color:#9ca3af;font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0;">
+                        <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg>
+                        Fetching items…
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // ─── Event binding ────────────────────────────────────────────────────────
+
+    // FIX: Accept container param and scope all queries to it, preventing
+    // duplicate listeners on re-render and cross-component interference.
+    _attachEvents(container) {
+        container.querySelectorAll('.expand-toggle').forEach(btn => {
+            btn.addEventListener('click', () => this._toggleExpand(btn.dataset.batch));
         });
-        document.querySelectorAll('.btn-view').forEach(btn => btn.addEventListener('click', () => this.modals.showDetailsModal(btn.dataset.id)));
-        document.querySelectorAll('.btn-review').forEach(btn => btn.addEventListener('click', () => this.modals.showReviewModal(btn.dataset.id)));
-        document.querySelectorAll('.btn-cancel').forEach(btn => btn.addEventListener('click', () => this.modals.handleCancel(btn.dataset.id)));
-        document.querySelectorAll('.btn-print').forEach(btn => btn.addEventListener('click', () => this.printTransfer(btn.dataset.id)));
+        container.querySelectorAll('.btn-view').forEach(btn => {
+            btn.addEventListener('click', () => this.modals.showDetailsModal(btn.dataset.id));
+        });
+        container.querySelectorAll('.btn-review').forEach(btn => {
+            btn.addEventListener('click', () => this.modals.showReviewModal(btn.dataset.id));
+        });
+        container.querySelectorAll('.btn-cancel').forEach(btn => {
+            btn.addEventListener('click', () => this.modals.handleCancel(btn.dataset.id));
+        });
+        container.querySelectorAll('.btn-print').forEach(btn => {
+            btn.addEventListener('click', () => this._printTransfer(btn.dataset.id));
+        });
     }
 
-    async toggleExpand(batchId) {
-        const row = document.getElementById(`expanded-${batchId}`);
-        const icon = document.getElementById(`icon-${batchId}`);
-        const content = document.getElementById(`expanded-content-${batchId}`);
+    // ─── Expand ───────────────────────────────────────────────────────────────
 
-        if (row.classList.contains('hidden')) {
-            row.classList.remove('hidden');
-            icon.style.transform = 'rotate(90deg)';
-            icon.style.color = '#2271b1';
+    async _toggleExpand(batchId) {
+        const panel = document.getElementById(`expanded-${batchId}`);
+        const icon = document.getElementById(`icon-${batchId}`);
+        const btn = panel?.previousElementSibling?.querySelector('.expand-toggle');
+        const content = document.getElementById(`expanded-content-${batchId}`);
+        if (!panel) return;
+
+        const isOpen = panel.classList.contains('trv-expand-panel--open');
+
+        if (!isOpen) {
+            panel.classList.add('trv-expand-panel--open');
+            btn?.classList.add('trv-expand-btn--open');
 
             if (content.dataset.loaded !== 'true') {
                 try {
                     const res = await API.getTransferDetails(batchId);
                     if (res.status === 'success') {
-                        const data = res.data;
-                        const items = data.items;
-
-                        const itemsHtml = items.map(i => {
-                            const diff = (i.received_qty !== null) ? i.received_qty - i.qty : null;
-                            const qtyClass = diff < 0 ? 'text-error' : (diff > 0 ? 'text-warning' : 'text-neutral-700');
-
-                            return `
-                                <tr class="hover:bg-neutral-50 transition-colors" style="border-bottom: 1px solid #f0f0f1;">
-                                    <td class="text-xs font-mono text-muted pl-md py-sm">${i.product_sku || '-'}</td>
-                                    <td class="text-sm font-semibold text-neutral-800 py-sm">${i.product_name}</td>
-                                    <td class="text-center text-sm font-bold py-sm" style="color: #2271b1;">${i.qty}</td>
-                                    <td class="text-center text-sm font-bold ${qtyClass} py-sm">${i.received_qty !== null ? i.received_qty : '-'}</td>
-                                    <td class="text-sm text-muted italic py-sm">${i.note || '-'}</td>
-                                </tr>
-                            `;
-                        }).join('');
-
-                        const firstItem = items[0] || {};
-                        const initiatedAtStr = new Date(data.created_at).toLocaleString();
-                        const approvedAtStr = firstItem.approved_at ? new Date(firstItem.approved_at).toLocaleString() : '';
-
-                        let metaHtml = `
-                            <div style="display: flex; gap: 24px; flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px dashed #dcdcde; margin-bottom: 16px; font-size: 14px;">
-                                <div style="display: flex; align-items: center; white-space: nowrap;">
-                                    <span style="color: #8c8f94; margin-right: 6px;">Initiated By:</span>
-                                    <strong style="color: #2c3338; margin-right: 12px;">${data.initiated_by}</strong> 
-                                    <span style="color: #8c8f94; font-size: 12px;"><i class="fa-regular fa-clock"></i> ${initiatedAtStr}</span>
-                                </div>
-                        `;
-
-                        if (data.status !== 'pending') {
-                            const actionVerb = data.status === 'completed' ? 'Approved' : 'Handled';
-                            metaHtml += `
-                                <div style="display: flex; align-items: center; white-space: nowrap;">
-                                    <span style="color: #8c8f94; margin-right: 6px;">${actionVerb} By:</span>
-                                    <strong style="color: #2c3338; margin-right: 12px;">${data.approved_by || 'System'}</strong> 
-                                    <span style="color: #8c8f94; font-size: 12px;"><i class="fa-regular fa-clock"></i> ${approvedAtStr}</span>
-                                </div>
-                            `;
-                        }
-                        metaHtml += `</div>`;
-
-                        content.innerHTML = `
-                            <div class="mb-sm flex justify-between items-center">
-                                <h4 class="text-sm font-bold uppercase tracking-wider" style="color: #50575e;">
-                                    <i class="fa-solid fa-box-open mr-xs" style="color: #a7aaad;"></i> Transfer Details
-                                </h4>
-                                <span style="background: #f0f0f1; color: #3c434a; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;">
-                                    ${items.length} Product${items.length !== 1 ? 's' : ''}
-                                </span>
-                            </div>
-                            ${metaHtml}
-                            <div style="border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden;">
-                                <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                                    <thead style="background: #f8f9fa; border-bottom: 1px solid #c3c4c7;">
-                                        <tr>
-                                            <th class="text-xs uppercase pl-md py-sm text-left" style="color: #646970; font-weight: 600;">SKU</th>
-                                            <th class="text-xs uppercase py-sm text-left" style="color: #646970; font-weight: 600;">Product Name</th>
-                                            <th class="text-xs uppercase text-center py-sm" style="color: #646970; font-weight: 600;">Sent Qty</th>
-                                            <th class="text-xs uppercase text-center py-sm" style="color: #646970; font-weight: 600;">Received</th>
-                                            <th class="text-xs uppercase py-sm text-left" style="color: #646970; font-weight: 600;">Notes</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody style="background: white;">${itemsHtml}</tbody>
-                                </table>
-                            </div>
-                        `;
+                        content.innerHTML = this._expandContentHTML(res.data);
                         content.dataset.loaded = 'true';
                     } else {
-                        content.innerHTML = `<div class="text-error text-center p-sm"><i class="fa-solid fa-circle-exclamation"></i> ${res.message}</div>`;
+                        // FIX: escape server error message before injection
+                        content.innerHTML = `<div style="color:var(--error-500);font-size:12px;padding:8px 0;">
+                            <i class="fa-solid fa-circle-exclamation"></i> ${esc(res.message)}
+                        </div>`;
                     }
                 } catch (e) {
-                    content.innerHTML = `<div class="text-error text-center p-sm"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load transfer items.</div>`;
+                    content.innerHTML = `<div style="color:var(--error-500);font-size:12px;padding:8px 0;">
+                        Failed to load transfer items.
+                    </div>`;
                 }
             }
         } else {
-            row.classList.add('hidden');
-            icon.style.transform = 'rotate(0deg)';
-            icon.style.color = '#a7aaad';
+            panel.classList.remove('trv-expand-panel--open');
+            btn?.classList.remove('trv-expand-btn--open');
         }
     }
 
-    async printTransfer(batchId) {
+    _expandContentHTML(data) {
+        const items = data.items || [];
+        const firstItem = items[0] || {};
+        const initStr = esc(new Date(data.created_at).toLocaleString());
+        const approvedStr = firstItem.approved_at ? esc(new Date(firstItem.approved_at).toLocaleString()) : '';
+
+        // FIX: escape all server-supplied strings before injection
+        let metaHTML = `
+            <div class="trv-expand-meta">
+                <div class="trv-expand-meta-item">
+                    <span class="trv-expand-meta-label">Initiated by</span>
+                    <strong>${esc(data.initiated_by)}</strong>
+                    <span class="trv-expand-meta-time">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" style="vertical-align:-1px;margin-right:2px;opacity:.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        ${initStr}
+                    </span>
+                </div>`;
+
+        if (data.status !== 'pending' && data.approved_by) {
+            const verb = data.status === 'completed' ? 'Approved by' : 'Handled by';
+            metaHTML += `
+                <div class="trv-expand-meta-item">
+                    <span class="trv-expand-meta-label">${esc(verb)}</span>
+                    <strong>${esc(data.approved_by)}</strong>
+                    ${approvedStr ? `<span class="trv-expand-meta-time">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" style="vertical-align:-1px;margin-right:2px;opacity:.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        ${approvedStr}
+                    </span>` : ''}
+                </div>`;
+        }
+        metaHTML += `</div>`;
+
+        const rowsHTML = items.map(i => {
+            const diff = (i.received_qty !== null) ? i.received_qty - i.qty : null;
+            let recvClass = '';
+            let recvVal = i.received_qty !== null ? esc(String(i.received_qty)) : '—';
+            if (diff !== null) {
+                if (diff < 0) recvClass = 'trv-qty-low';
+                else if (diff > 0) recvClass = 'trv-qty-high';
+                else recvClass = 'trv-qty-ok';
+            }
+            return `
+            <tr>
+                <td class="trv-sub-td" style="font-size:11px;font-family:monospace;color:var(--neutral-400);">${esc(i.product_sku) || '—'}</td>
+                <td class="trv-sub-td" style="font-weight:600;color:var(--neutral-800);">${esc(i.product_name)}</td>
+                <td class="trv-sub-td" style="text-align:center;font-weight:700;color:var(--primary-600);">${parseInt(i.qty) || 0}</td>
+                <td class="trv-sub-td ${recvClass}" style="text-align:center;font-weight:700;">${recvVal}</td>
+                <td class="trv-sub-td" style="font-style:italic;color:var(--neutral-400);">${esc(i.note) || '—'}</td>
+            </tr>`;
+        }).join('');
+
+        return `
+            ${metaHTML}
+            <div class="trv-expand-header">
+                <span class="trv-expand-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" style="vertical-align:-1px;margin-right:4px;opacity:.6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 2 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                    Transfer Items
+                </span>
+                <span class="trv-product-count">${items.length} product${items.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="trv-sub-table-wrap">
+                <table class="trv-sub-table">
+                    <thead>
+                        <tr>
+                            <th class="trv-sub-th" style="width:90px;">SKU</th>
+                            <th class="trv-sub-th">Product</th>
+                            <th class="trv-sub-th" style="text-align:center;width:80px;">Sent</th>
+                            <th class="trv-sub-th" style="text-align:center;width:80px;">Received</th>
+                            <th class="trv-sub-th">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHTML}</tbody>
+                </table>
+            </div>`;
+    }
+
+    // ─── Print ────────────────────────────────────────────────────────────────
+
+    async _printTransfer(batchId) {
         const res = await API.getTransferDetails(batchId);
         if (res.status !== 'success') return Toast.error("Failed to load details for PDF");
-
         try {
             await PdfGenerator.generateTransferPDF(batchId, res.data);
             Toast.success("PDF generated successfully");
@@ -210,19 +305,16 @@ class TransferTable {
         }
     }
 
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
     timeSince(date) {
-        const seconds = Math.floor((new Date() - date) / 1000);
-        let interval = seconds / 31536000;
-        if (interval > 1) return Math.floor(interval) + " years ago";
-        interval = seconds / 2592000;
-        if (interval > 1) return Math.floor(interval) + " months ago";
-        interval = seconds / 86400;
-        if (interval > 1) return Math.floor(interval) + " days ago";
-        interval = seconds / 3600;
-        if (interval > 1) return Math.floor(interval) + " hours ago";
-        interval = seconds / 60;
-        if (interval > 1) return Math.floor(interval) + " minutes ago";
-        return Math.floor(seconds) + " seconds ago";
+        const s = Math.floor((new Date() - date) / 1000);
+        if (s / 31536000 > 1) return Math.floor(s / 31536000) + 'y ago';
+        if (s / 2592000 > 1) return Math.floor(s / 2592000) + 'mo ago';
+        if (s / 86400 > 1) return Math.floor(s / 86400) + 'd ago';
+        if (s / 3600 > 1) return Math.floor(s / 3600) + 'h ago';
+        if (s / 60 > 1) return Math.floor(s / 60) + 'm ago';
+        return 'just now';
     }
 }
 

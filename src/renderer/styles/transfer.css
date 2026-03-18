@@ -1,0 +1,1422 @@
+/* =============================================================
+   transfer.css — Transfer view, TransferStagingPanel, LocalProductGrid
+   Uses CSS variables from variables.css. No hardcoded colors.
+   ============================================================= */
+
+@keyframes trv-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes trv-flash {
+    0%, 100% {
+        background: transparent
+    }
+    50% {
+        background: var(--success-50)
+    }
+}
+
+@keyframes trv-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+
+/* =============================================================
+   1. TRANSFER VIEW ROOT LAYOUT
+   ============================================================= */
+
+.trv-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: var(--neutral-100);
+    font-family: var(--font-family), system-ui;
+    position: absolute;
+    inset: 0;
+}
+
+/* ── Top split panel ── */
+.trv-split {
+    display: flex;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Left: product browser */
+.trv-left {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-width: 300px;
+    overflow: hidden;
+    background: #fff;
+    border-right: 1px solid var(--neutral-200);
+}
+
+.trv-left-header {
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--neutral-200);
+    background: #fff;
+}
+
+.trv-left-body {
+    flex: 1 1 0;
+    overflow: hidden;
+    position: relative;
+    background: #fff;
+}
+
+.trv-left-body .lpg-list {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+}
+
+/* Drag handle */
+.trv-divider {
+    width: 6px;
+    flex-shrink: 0;
+    background: var(--neutral-200);
+    cursor: col-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-fast);
+    z-index: 10;
+}
+
+.trv-divider:hover,
+.trv-divider--active {
+    background: var(--primary-100);
+}
+
+.trv-divider-grip {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    pointer-events: none;
+}
+
+.trv-divider-grip span {
+    width: 2px;
+    height: 12px;
+    background: var(--neutral-400);
+    border-radius: 2px;
+    display: block;
+    transition: background var(--transition-fast);
+}
+
+.trv-divider--active .trv-divider-grip span {
+    background: var(--primary-500);
+}
+
+/* Right: staging panel */
+.trv-right {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 340px;
+    min-width: 280px;
+    max-width: 480px;
+    overflow: hidden;
+    background: #fff;
+    border-left: 1px solid var(--neutral-200);
+}
+
+
+/* =============================================================
+   2. TOP-LEVEL NAV BAR + PANELS
+   ============================================================= */
+
+/* Full-width nav bar replaces the old split+history layout */
+.trv-nav-bar {
+    display: flex;
+    align-items: stretch;
+    background: #fff;
+    border-bottom: 1px solid var(--neutral-200);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+    padding: 0 var(--spacing-md) 0 0;
+    min-height: 44px;
+    flex-shrink: 0;
+    gap: 0;
+    z-index: 20;
+}
+
+.trv-nav-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 var(--spacing-md);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--neutral-500);
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    cursor: pointer;
+    transition: color var(--transition-base), border-color var(--transition-base), background var(--transition-fast);
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+}
+
+.trv-nav-tab.active {
+    color: var(--primary-600);
+    border-bottom-color: var(--primary-500);
+    font-weight: 700;
+}
+
+.trv-nav-tab:hover:not(.active) {
+    color: var(--neutral-800);
+    background: var(--neutral-50);
+}
+
+/* Visual separator between "New Transfer" and the history tabs */
+.trv-nav-sep {
+    width: 1px;
+    background: var(--neutral-200);
+    margin: 8px 4px;
+    flex-shrink: 0;
+}
+
+.trv-tab-spacer {
+    flex: 1 1 0;
+}
+
+/* Filter controls in the nav bar */
+.trv-tab-filters {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs) 0;
+    flex-shrink: 0;
+}
+
+/* Search wrapper */
+.trv-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.trv-search-icon {
+    position: absolute;
+    left: 8px;
+    color: var(--neutral-400);
+    pointer-events: none;
+}
+
+.trv-search-input {
+    padding-left: 28px !important;
+    width: 200px;
+}
+
+/* Filter inputs */
+.trv-filter-input {
+    font-size: 12px;
+    padding: 5px var(--spacing-sm);
+    border: 1px solid var(--neutral-300);
+    border-radius: var(--radius-md);
+    background: var(--neutral-50);
+    color: var(--neutral-800);
+    height: 30px;
+    box-sizing: border-box;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.trv-filter-input:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+/* Buttons */
+.trv-btn {
+    font-size: 12px;
+    padding: 0 var(--spacing-md);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--primary-500);
+    background: #fff;
+    color: var(--primary-500);
+    cursor: pointer;
+    font-weight: 600;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background var(--transition-fast), box-shadow var(--transition-fast);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.trv-btn:hover {
+    background: var(--primary-50);
+    box-shadow: var(--shadow-sm);
+}
+
+.trv-btn-ghost {
+    border-color: var(--neutral-300);
+    color: var(--neutral-600);
+}
+
+.trv-btn-ghost:hover {
+    background: var(--neutral-100);
+    box-shadow: none;
+}
+
+/* Panels */
+.trv-panel {
+    flex: 1 1 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Table panel gets scrollable overflow */
+.trv-panel--table {
+    overflow-y: auto;
+    background: var(--neutral-100);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Sticky filter toolbar above the card */
+.trv-table-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: 10px var(--spacing-md);
+    background: #fff;
+    border-bottom: 1px solid var(--neutral-200);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+    flex-shrink: 0;
+}
+
+.trv-date-sep {
+    color: var(--neutral-400);
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.trv-toolbar-spacer {
+    flex: 1 1 0;
+}
+
+.trv-table-card {
+    margin: var(--spacing-md);
+    flex-shrink: 0;
+}
+
+
+/* =============================================================
+   3. TRANSFER TABLE (card-row design)
+   ============================================================= */
+
+/* Outer wrapper */
+.trv-table-card {
+    margin: var(--spacing-md);
+    background: #fff;
+    border: 1px solid var(--neutral-200);
+    border-radius: 10px;
+    overflow: hidden;
+    overflow-x: auto;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+    flex-shrink: 0;
+}
+
+/* Column header row */
+.trv-col-header {
+    display: grid;
+    grid-template-columns: 28px 160px 85px 26px 1fr 1fr 80px 100px 96px 100px;
+    align-items: center;
+    padding: 7px var(--spacing-md);
+    background: var(--neutral-50);
+    border-bottom: 1px solid var(--neutral-200);
+    gap: 4px;
+    min-width: 700px;
+}
+
+.trv-ch {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--neutral-500);
+    white-space: nowrap;
+}
+
+.trv-ch--center {
+    text-align: center;
+}
+
+/* Individual transfer row */
+.trv-row {
+    border-bottom: 1px solid var(--neutral-100);
+    transition: background var(--transition-fast);
+    animation: trv-slide-in .18s ease;
+}
+
+.trv-row:last-child {
+    border-bottom: none;
+}
+
+.trv-row:hover > .trv-row-main {
+    background: var(--neutral-50);
+}
+
+.trv-row-main {
+    display: grid;
+    grid-template-columns: 28px 160px 85px 26px 1fr 1fr 80px 100px 96px 100px;
+    align-items: center;
+    padding: 10px var(--spacing-md);
+    gap: 4px;
+    cursor: default;
+    transition: background var(--transition-fast);
+}
+
+/* Expand toggle */
+.trv-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 1px solid var(--neutral-200);
+    background: none;
+    cursor: pointer;
+    color: var(--neutral-400);
+    transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.trv-expand-btn:hover {
+    background: var(--neutral-100);
+    color: var(--primary-500);
+    border-color: var(--primary-500);
+}
+
+.trv-expand-btn--open {
+    background: var(--primary-50);
+    border-color: var(--primary-500);
+    color: var(--primary-500);
+}
+
+.trv-expand-btn--open svg {
+    transform: rotate(90deg);
+}
+
+/* Batch ID cell */
+.trv-batch-id {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary-600);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.trv-batch-id:hover {
+    text-decoration: underline;
+}
+
+/* Date cell */
+.trv-date {
+    font-size: 12px;
+    color: var(--neutral-500);
+    white-space: nowrap;
+}
+
+/* Direction icon */
+.trv-dir-incoming {
+    color: #16a34a;
+}
+
+.trv-dir-outgoing {
+    color: #dc2626;
+}
+
+.trv-dir-neutral {
+    color: var(--neutral-400);
+}
+
+/* Branch name */
+.trv-branch {
+    font-size: 13px;
+    color: var(--neutral-700);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Items cell */
+.trv-items-cell {
+    font-size: 13px;
+    color: var(--neutral-700);
+    white-space: nowrap;
+}
+
+.trv-items-qty {
+    color: var(--neutral-400);
+    font-size: 12px;
+}
+
+/* Discrepancy */
+.trv-disc-cell {
+    text-align: center;
+}
+
+.trv-disc--ok {
+    color: #16a34a;
+}
+
+.trv-disc--low {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.trv-disc--high {
+    color: #d97706;
+    font-weight: 700;
+}
+
+.trv-disc--na {
+    color: var(--neutral-400);
+}
+
+/* Status badge */
+.trv-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    white-space: nowrap;
+}
+
+.trv-status--completed {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.trv-status--pending {
+    background: #fef9c3;
+    color: #a16207;
+}
+
+.trv-status--rejected,
+.trv-status--canceled {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+/* Actions cell */
+.trv-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.trv-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+    gap: 4px;
+}
+
+.trv-action-btn--primary {
+    background: var(--primary-500);
+    color: #fff;
+    border-color: var(--primary-500);
+}
+
+.trv-action-btn--primary:hover {
+    background: var(--primary-600);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .15);
+}
+
+.trv-action-btn--ghost {
+    background: transparent;
+    color: var(--neutral-600);
+    border-color: var(--neutral-200);
+}
+
+.trv-action-btn--ghost:hover {
+    background: var(--neutral-100);
+}
+
+.trv-action-btn--danger {
+    background: transparent;
+    color: #dc2626;
+    border-color: transparent;
+}
+
+.trv-action-btn--danger:hover {
+    background: #fef2f2;
+    border-color: #fca5a5;
+}
+
+/* Expanded detail row */
+.trv-expand-panel {
+    display: none;
+    border-top: 1px dashed var(--neutral-200);
+    background: #fafbfc;
+    padding: 14px 16px 16px 52px;
+    animation: trv-slide-in .15s ease;
+}
+
+.trv-expand-panel--open {
+    display: block;
+}
+
+/* Meta info strip inside expand */
+.trv-expand-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px dashed var(--neutral-200);
+    font-size: 13px;
+}
+
+.trv-expand-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    color: var(--neutral-700);
+}
+
+.trv-expand-meta-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--neutral-400);
+    font-weight: 600;
+}
+
+.trv-expand-meta-time {
+    font-size: 11px;
+    color: var(--neutral-400);
+}
+
+/* Items sub-table inside expand */
+.trv-sub-table-wrap {
+    border: 1px solid var(--neutral-200);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.trv-sub-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.trv-sub-th {
+    padding: 7px 12px;
+    background: var(--neutral-100);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--neutral-500);
+    text-align: left;
+    border-bottom: 1px solid var(--neutral-200);
+    white-space: nowrap;
+}
+
+.trv-sub-td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--neutral-100);
+    color: var(--neutral-700);
+    vertical-align: middle;
+}
+
+.trv-sub-table tbody tr:last-child .trv-sub-td {
+    border-bottom: none;
+}
+
+.trv-sub-table tbody tr:hover {
+    background: var(--neutral-50);
+}
+
+/* Product header strip count */
+.trv-expand-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.trv-expand-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--neutral-500);
+}
+
+.trv-product-count {
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--neutral-100);
+    color: var(--neutral-600);
+    border: 1px solid var(--neutral-200);
+    border-radius: 12px;
+    padding: 2px 10px;
+}
+
+/* Quantity diff colors */
+.trv-qty-ok {
+    color: #16a34a;
+    font-weight: 600;
+}
+
+.trv-qty-low {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.trv-qty-high {
+    color: #d97706;
+    font-weight: 600;
+}
+
+/* Empty state row */
+.trv-empty-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: 48px 24px;
+    color: var(--neutral-400);
+    font-size: 13px;
+}
+
+.trv-empty-row svg {
+    opacity: .35;
+}
+
+/* Loading skeleton */
+.trv-loading-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px var(--spacing-md);
+    border-bottom: 1px solid var(--neutral-100);
+}
+
+@keyframes trv-shimmer {
+    0% {
+        background-position: -400px 0;
+    }
+    100% {
+        background-position: 400px 0;
+    }
+}
+
+.trv-skeleton {
+    background: linear-gradient(90deg, var(--neutral-100) 25%, var(--neutral-200) 50%, var(--neutral-100) 75%);
+    background-size: 800px 100%;
+    animation: trv-shimmer 1.3s infinite;
+    border-radius: 4px;
+}
+
+/* Pagination */
+.trv-pagination {
+    border-top: 1px solid var(--neutral-200);
+    background: var(--neutral-50);
+    padding: 8px var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 12px;
+    color: var(--neutral-500);
+}
+
+.trv-pg-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--neutral-300);
+    border-radius: var(--radius-md);
+    background: #fff;
+    color: var(--neutral-600);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.trv-pg-btn:hover:not(:disabled) {
+    background: var(--neutral-100);
+}
+
+.trv-pg-btn:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.trv-pg-spacer {
+    flex: 1 1 0;
+}
+
+
+/* =============================================================
+   4. STAGING PANEL  (tsp-)
+   ============================================================= */
+
+.tsp-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #fff;
+    overflow: hidden;
+}
+
+/* Branch selectors */
+.tsp-branches {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--neutral-200);
+    background: var(--neutral-50);
+    flex-shrink: 0;
+}
+
+.tsp-branch-loading {
+    font-size: 12px;
+    color: var(--neutral-400);
+    padding: var(--spacing-xs) 0;
+    text-align: center;
+}
+
+.tsp-branch-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.tsp-branch-block {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tsp-branch-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--neutral-400);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.tsp-branch-sel {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 8px;
+    border: 1px solid var(--neutral-300);
+    border-radius: var(--radius-md);
+    background: #fff;
+    color: var(--neutral-800);
+    width: 100%;
+    cursor: pointer;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    appearance: auto;
+}
+
+.tsp-branch-sel:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.tsp-branch-arrow {
+    flex-shrink: 0;
+    color: var(--primary-500);
+    margin-top: 14px;
+}
+
+.tsp-branch-same-warn {
+    font-size: 11px;
+    color: var(--error-500);
+    background: var(--error-50);
+    border: 1px solid var(--error-500);
+    border-radius: var(--radius-sm);
+    padding: 3px 8px;
+    margin-top: 6px;
+    text-align: center;
+}
+
+/* Queue header */
+.tsp-items-wrap {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.tsp-items-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px var(--spacing-md) 6px;
+    border-bottom: 1px solid var(--neutral-100);
+    flex-shrink: 0;
+}
+
+.tsp-item-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--neutral-500);
+}
+
+.tsp-clear-btn {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+    color: var(--neutral-400);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.tsp-clear-btn:hover {
+    color: var(--error-500);
+    background: var(--error-50);
+}
+
+/* Scrollable items list */
+.tsp-items-list {
+    flex: 1 1 0;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+/* Empty state */
+.tsp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 32px 16px;
+    color: var(--neutral-400);
+    font-size: 12px;
+    text-align: center;
+}
+
+/* Item row */
+.tsp-item-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px var(--spacing-md);
+    border-bottom: 1px solid var(--neutral-100);
+    transition: background var(--transition-fast);
+}
+
+.tsp-item-row:hover {
+    background: var(--neutral-50);
+}
+
+/* Thumbnail */
+.tsp-item-thumb {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--neutral-200);
+    background: var(--neutral-100);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tsp-item-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Item info */
+.tsp-item-info {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.tsp-item-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--neutral-800);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tsp-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 2px;
+}
+
+.tsp-item-sku {
+    font-size: 11px;
+    color: var(--info-500);
+    background: var(--info-50);
+    border-radius: 3px;
+    padding: 0 4px;
+    font-family: monospace;
+}
+
+.tsp-stock-avail {
+    font-size: 11px;
+    color: var(--success-700);
+}
+
+.tsp-stock-avail.low {
+    color: var(--warning-700);
+}
+
+/* Qty controls */
+.tsp-item-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.tsp-qty-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    border: 1px solid var(--neutral-300);
+    background: var(--neutral-50);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--neutral-700);
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tsp-qty-btn:hover {
+    background: var(--primary-50);
+    border-color: var(--primary-500);
+    color: var(--primary-500);
+}
+
+.tsp-qty-input {
+    width: 38px;
+    height: 22px;
+    font-size: 12px;
+    text-align: center;
+    border: 1px solid var(--neutral-300);
+    border-radius: var(--radius-sm);
+    padding: 0 2px;
+    color: var(--neutral-800);
+    font-weight: 600;
+}
+
+.tsp-qty-input:focus {
+    outline: none;
+    border-color: var(--primary-500);
+}
+
+.tsp-del-btn {
+    font-size: 17px;
+    line-height: 1;
+    color: var(--neutral-300);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 2px;
+    flex-shrink: 0;
+    transition: color var(--transition-fast);
+}
+
+.tsp-del-btn:hover {
+    color: var(--error-500);
+}
+
+/* Footer */
+.tsp-footer {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-top: 1px solid var(--neutral-200);
+    background: var(--neutral-50);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+}
+
+.tsp-reason {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 12px;
+    font-family: var(--font-family);
+    padding: 6px var(--spacing-sm);
+    border: 1px solid var(--neutral-300);
+    border-radius: var(--radius-md);
+    resize: none;
+    color: var(--neutral-800);
+    background: #fff;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.tsp-reason:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px var(--primary-100);
+}
+
+.tsp-submit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: 10px var(--spacing-md);
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--primary-500);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
+    width: 100%;
+    letter-spacing: .02em;
+}
+
+.tsp-submit-btn:not(:disabled):hover {
+    background: var(--primary-600);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.tsp-submit-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.tsp-spin {
+    animation: trv-spin .8s linear infinite;
+}
+
+
+/* =============================================================
+   5. LOCAL PRODUCT GRID  (lpg-)
+   ============================================================= */
+
+.lpg-list {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    height: 100%;
+    background: #fff;
+}
+
+/* Row */
+.lpg-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-bottom: 1px solid var(--neutral-100);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    min-height: 52px;
+}
+
+.lpg-row:hover {
+    background: var(--neutral-50);
+}
+
+.lpg-row--oos {
+    opacity: .55;
+    cursor: not-allowed;
+    background: var(--neutral-50);
+}
+
+.lpg-row--oos:hover {
+    background: var(--neutral-50);
+}
+
+.lpg-row--flash {
+    animation: trv-flash .32s ease;
+}
+
+/* Thumbnail */
+.lpg-thumb {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: var(--radius-md);
+    object-fit: cover;
+    border: 1px solid var(--neutral-200);
+    background: var(--neutral-100);
+}
+
+.lpg-thumb--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Info block */
+.lpg-info {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.lpg-name-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+    margin-bottom: 3px;
+}
+
+.lpg-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--neutral-800);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+}
+
+.lpg-meta-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+}
+
+.lpg-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 3px;
+}
+
+/* Stock / status badges */
+.lpg-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.lpg-badge--ok {
+    background: var(--success-50);
+    color: var(--success-700);
+    border-color: var(--success-50);
+}
+
+.lpg-badge--low {
+    background: var(--warning-50);
+    color: var(--warning-700);
+    border-color: var(--warning-50);
+}
+
+.lpg-badge--oos {
+    background: var(--error-50);
+    color: var(--error-700);
+    border-color: var(--error-50);
+}
+
+.lpg-badge--backorder {
+    background: var(--warning-50);
+    color: var(--warning-700);
+    border-color: var(--warning-50);
+}
+
+.lpg-badge--sale {
+    background: var(--info-50);
+    color: var(--info-500);
+    border-color: var(--info-50);
+}
+
+.lpg-badge--feat {
+    background: var(--primary-50);
+    color: var(--primary-600);
+    border-color: var(--primary-50);
+}
+
+/* WC pool badge */
+.lpg-wc-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--neutral-600);
+    background: var(--neutral-100);
+    border: 1px solid var(--neutral-200);
+    border-radius: var(--radius-sm);
+    padding: 1px var(--spacing-xs);
+    white-space: nowrap;
+}
+
+/* Branch breakdown badges */
+.lpg-branch-badge {
+    font-size: 11px;
+    padding: 1px var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--neutral-200);
+    background: var(--neutral-100);
+    color: var(--neutral-600);
+    white-space: nowrap;
+}
+
+.lpg-branch-badge--focus {
+    border-color: var(--primary-500);
+    background: var(--primary-50);
+    color: var(--primary-600);
+}
+
+.lpg-branch-badge--zero {
+    opacity: .45;
+}
+
+.lpg-branch-badge--low {
+    border-color: var(--warning-500);
+    background: var(--warning-50);
+    color: var(--warning-700);
+}
+
+.lpg-branch-badge--high {
+    border-color: var(--success-500);
+    background: var(--success-50);
+    color: var(--success-700);
+}
+
+/* Meta chips */
+.lpg-chip {
+    display: inline-block;
+    font-size: 11px;
+    padding: 1px var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--neutral-200);
+    color: var(--neutral-600);
+    background: var(--neutral-100);
+    white-space: nowrap;
+}
+
+.lpg-chip--sku {
+    border-color: var(--info-50);
+    color: var(--info-500);
+    background: var(--info-50);
+}
+
+.lpg-chip--nosku {
+    color: var(--neutral-400);
+}
+
+/* Copy button */
+.lpg-copy-btn {
+    background: none;
+    border: none;
+    padding: 1px 2px;
+    cursor: pointer;
+    opacity: .55;
+    line-height: 1;
+    flex-shrink: 0;
+    color: var(--neutral-600);
+    transition: opacity var(--transition-fast);
+}
+
+.lpg-copy-btn:hover {
+    opacity: 1;
+}
+
+/* Price */
+.lpg-price {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--info-500);
+    white-space: nowrap;
+    flex-shrink: 0;
+    text-align: right;
+    min-width: 72px;
+}
+
+.lpg-price--none {
+    color: var(--neutral-400);
+    font-weight: 400;
+}
+
+.lpg-currency {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--neutral-500);
+}
+
+/* State screens */
+.lpg-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-2xl) var(--spacing-lg);
+    color: var(--neutral-400);
+    font-size: 13px;
+    text-align: center;
+}
+
+.lpg-state--error {
+    color: var(--error-500);
+    font-weight: 600;
+}
+
+.lpg-load-more {
+    padding: var(--spacing-md);
+    text-align: center;
+    color: var(--neutral-500);
+    font-size: 12px;
+}
+
+.lpg-spinner {
+    animation: trv-spin .75s linear infinite;
+}

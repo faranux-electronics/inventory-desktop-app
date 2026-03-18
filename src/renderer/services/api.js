@@ -1,5 +1,4 @@
 const API_URL = 'http://localhost:8000/index.php';
-
 // const API_URL = 'https://api.faranux.com';
 
 async function request(action, method = 'GET', body = null) {
@@ -135,11 +134,15 @@ module.exports = {
     },
 
     getTransferDetails: (batchId) => request(`get_transfer_details&batch_id=${batchId}`),
-    initiateTransfer: (items, fromBranchId, toBranchId) => request('initiate_transfer', 'POST', {
+
+    // FIX: reason was previously missing from the request body — it is now forwarded correctly.
+    initiateTransfer: (items, fromBranchId, toBranchId, reason = '') => request('initiate_transfer', 'POST', {
         items,
         from_branch_id: fromBranchId,
-        to_branch_id: toBranchId
+        to_branch_id: toBranchId,
+        reason,
     }),
+
     approveTransfer: (batchId, action = 'approve', itemsData = []) => request('approve_transfer', 'POST', {
         batch_id: batchId,
         action,
