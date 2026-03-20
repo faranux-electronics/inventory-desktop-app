@@ -79,14 +79,14 @@ class Sidebar {
         </div>
         
         <div class="sidebar-nav">
+           <div class="nav-item" data-view="transfers" title="Transfers">
+             <i class="fa-solid fa-truck-arrow-right"></i> <span class="nav-text">Transfers</span>
+           </div>
         ${isAdmin ? `
             <div class="nav-item" data-view="pos" title="Point of Sale">
                  <i class="fa-solid fa-cash-register"></i> <span class="nav-text">Point of Sale</span>
            </div>
            ` : ''}
-           <div class="nav-item" data-view="transfers" title="Transfers">
-             <i class="fa-solid fa-truck-arrow-right"></i> <span class="nav-text">Transfers</span>
-           </div>
            <div class="nav-item" data-view="products" title="Products">
              <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Products</span>
            </div>
