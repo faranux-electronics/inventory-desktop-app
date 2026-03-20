@@ -441,9 +441,9 @@ class TransfersView {
         const split = document.getElementById('trvSplit');
         if (!divider || !right || !split) return;
 
-        // FIX: default to 42% so the staging queue gets enough room; CSS max-width raised to 700px.
+        // FIX: default to 50% so the staging queue gets enough room; CSS max-width raised to 700px.
         const splitW = split.getBoundingClientRect().width;
-        const halfW = Math.max(360, Math.min(700, Math.round(splitW * 0.42)));
+        const halfW = Math.max(360, Math.min(700, Math.round(splitW * 0.50)));
         right.style.flex = `0 0 ${halfW}px`;
 
         let dragging = false, startX, startW;
