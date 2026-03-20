@@ -127,7 +127,7 @@ class App {
         const user = this.state.getUser();
         if (user) {
             this.renderApp(user);
-            this.navigate('pos');
+            this.navigate('transfers');
         } else {
             this.navigate('login');
         }
