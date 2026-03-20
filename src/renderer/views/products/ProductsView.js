@@ -1,6 +1,6 @@
 const Toast = require('../../components/Toast.js');
 const API = require('../../services/api.js');
-const DashboardFilters = require('./components/ProductsFilters.js');
+const ProductsFilters = require('./components/ProductsFilters.js');
 const InventoryTable = require('./components/InventoryTable.js');
 const Pagination = require('./components/Pagination.js');
 const BulkActions = require('./components/BulkActions.js');
@@ -13,7 +13,7 @@ class ProductsView {
         this.syncInProgress = false;
 
         // Restore previous state
-        const savedState = this.state.getTabState('dashboard');
+        const savedState = this.state.getTabState('products');
         if (savedState && savedState.selectedProducts) {
             savedState.selectedProducts.forEach(p => {
                 if (typeof p === 'object' && p !== null) {
@@ -26,14 +26,14 @@ class ProductsView {
         }
 
         // Initialize sub-components
-        this.filters = new DashboardFilters(this);
+        this.filters = new ProductsFilters(this);
         this.inventoryTable = new InventoryTable(this);
         this.pagination = new Pagination(this);
         this.bulkActions = new BulkActions(this);
     }
 
     saveState() {
-        this.state.saveTabState('dashboard', {
+        this.state.saveTabState('products', {
             // Save the array of actual product objects to state
             selectedProducts: Array.from(this.selectedProducts.values())
         });
