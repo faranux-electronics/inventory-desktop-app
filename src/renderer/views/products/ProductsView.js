@@ -1,11 +1,11 @@
 const Toast = require('../../components/Toast.js');
 const API = require('../../services/api.js');
-const DashboardFilters = require('./components/DashboardFilters.js');
+const DashboardFilters = require('./components/ProductsFilters.js');
 const InventoryTable = require('./components/InventoryTable.js');
 const Pagination = require('./components/Pagination.js');
 const BulkActions = require('./components/BulkActions.js');
 
-class DashboardView {
+class ProductsView {
     constructor(app) {
         this.app = app;
         this.state = app.state;
@@ -220,4 +220,4 @@ class DashboardView {
     }
 }
 
-module.exports = DashboardView;
+module.exports = ProductsView;

@@ -1,7 +1,7 @@
 //
 const API = require('../../../services/api.js');
 
-class DashboardFilters {
+class ProductsFilters {
     constructor(dashboard) {
         this.dashboard = dashboard;
         this.state = dashboard.state;
@@ -150,4 +150,4 @@ class DashboardFilters {
     }
 }
 
-module.exports = DashboardFilters;
+module.exports = ProductsFilters;

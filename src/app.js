@@ -8,7 +8,7 @@ const Modal = require('./src/renderer/components/Modal.js');
 
 // Views
 const LoginView = require('./src/renderer/views/auth/Loginview.js');
-const DashboardView = require('./src/renderer/views//dashboard/Dashboardview.js');
+const ProductsView = require('./src/renderer/views//products/ProductsView.js');
 const BranchesView = require('./src/renderer/views/branches/Branchesview.js');
 const TransfersView = require('./src/renderer/views/transfer/Transfersview.js');
 const OrdersView = require('./src/renderer/views/Ordersview.js');
@@ -109,7 +109,7 @@ class App {
 
         this.views = {
             login: new LoginView(this),
-            dashboard: new DashboardView(this),
+            products: new ProductsView(this),
             branches: new BranchesView(this),
             transfers: new TransfersView(this),
             orders: new OrdersView(this),
