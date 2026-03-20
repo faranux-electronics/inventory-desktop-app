@@ -1,7 +1,7 @@
 class Pagination {
-    constructor(dashboard) {
-        this.dashboard = dashboard;
-        this.state = dashboard.state;
+    constructor(products) {
+        this.products = products;
+        this.state = products.state;
     }
 
     render(pagination) {
@@ -76,8 +76,8 @@ class Pagination {
                 const newPage = parseInt(btn.dataset.page);
                 if (!isNaN(newPage) && !btn.disabled) {
                     this.state.setPage(newPage);
-                    this.dashboard.saveState();
-                    this.dashboard.loadData();
+                    this.products.saveState();
+                    this.products.loadData();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 }
             });

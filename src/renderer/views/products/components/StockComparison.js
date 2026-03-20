@@ -1,7 +1,7 @@
 class StockComparison {
-    constructor(dashboard) {
-        this.dashboard = dashboard;
-        this.state = dashboard.state;
+    constructor(products) {
+        this.products = products;
+        this.state = products.state;
     }
 
     async render(products) {
@@ -149,7 +149,7 @@ class StockComparison {
             th.addEventListener('click', () => {
                 const field = th.dataset.field;
                 this.state.toggleSort(field);
-                this.dashboard.loadData();
+                this.products.loadData();
             });
         });
     }
@@ -222,7 +222,7 @@ class StockComparison {
                 if (res.status === 'success') {
                     Toast.success("Stock transferred successfully");
                     this.state.invalidateInventoryCache();
-                    this.dashboard.loadData();
+                    this.products.loadData();
                 } else {
                     Toast.error(res.message);
                     throw new Error(res.message);

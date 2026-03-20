@@ -2,9 +2,9 @@
 const API = require('../../../services/api.js');
 
 class ProductsFilters {
-    constructor(dashboard) {
-        this.dashboard = dashboard;
-        this.state = dashboard.state;
+    constructor(products) {
+        this.products = products;
+        this.state = products.state;
         this.categories = [];
     }
 
@@ -109,8 +109,8 @@ class ProductsFilters {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.state.setStatus(link.dataset.status);
-                this.dashboard.saveState();
-                this.dashboard.loadData();
+                this.products.saveState();
+                this.products.loadData();
                 this.render(); // Re-render filters to update the bold "current" styling
             });
         });
@@ -118,8 +118,8 @@ class ProductsFilters {
         // Search trigger
         const triggerSearch = () => {
             this.state.setSearch(searchInput.value);
-            this.dashboard.saveState();
-            this.dashboard.loadData();
+            this.products.saveState();
+            this.products.loadData();
         };
 
         searchBtn?.addEventListener('click', triggerSearch);
@@ -130,22 +130,22 @@ class ProductsFilters {
         // Dropdown Auto-Filters
         locationFilter?.addEventListener('change', () => {
             this.state.setLocationFilter(locationFilter.value);
-            this.dashboard.saveState();
-            this.dashboard.loadData();
+            this.products.saveState();
+            this.products.loadData();
         });
 
         categoryFilter?.addEventListener('change', () => {
             this.state.setCategory(categoryFilter.value);
-            this.dashboard.saveState();
-            this.dashboard.loadData();
+            this.products.saveState();
+            this.products.loadData();
         });
 
         // Filter Button (Just a manual trigger for the dropdowns)
         applyFiltersBtn?.addEventListener('click', () => {
             this.state.setLocationFilter(locationFilter.value);
             this.state.setCategory(categoryFilter.value);
-            this.dashboard.saveState();
-            this.dashboard.loadData();
+            this.products.saveState();
+            this.products.loadData();
         });
     }
 }

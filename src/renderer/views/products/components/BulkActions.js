@@ -3,9 +3,9 @@ const Modal = require('../../../components/Modal.js');
 const API = require('../../../services/api.js');
 
 class BulkActions {
-    constructor(dashboard) {
-        this.dashboard = dashboard;
-        this.state = dashboard.state;
+    constructor(products) {
+        this.products = products;
+        this.state = products.state;
     }
 
     render() {
@@ -41,7 +41,7 @@ class BulkActions {
         });
 
         document.getElementById('clearSelectionBtn')?.addEventListener('click', () => {
-            this.dashboard.clearSelection();
+            this.products.clearSelection();
         });
     }
 
@@ -49,7 +49,7 @@ class BulkActions {
         const locations = await this.state.loadLocations();
         const user = this.state.getUser();
 
-        const products = Array.from(this.dashboard.selectedProducts.values());
+        const products = Array.from(this.products.selectedProducts.values());
 
         if (products.length === 0) {
             Toast.error("No products selected");
@@ -155,9 +155,9 @@ class BulkActions {
 
                 if (res.status === 'success') {
                     Toast.success("Transfer initiated successfully");
-                    this.dashboard.clearSelection();
+                    this.products.clearSelection();
                     this.state.invalidateInventoryCache();
-                    this.dashboard.loadData();
+                    this.products.loadData();
                 } else {
                     Toast.error(res.message || "Transfer failed");
                     throw new Error(res.message);

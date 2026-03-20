@@ -3,9 +3,9 @@ const Modal = require('../../../components/Modal.js');
 const API = require('../../../services/api.js');
 
 class InventoryTable {
-    constructor(dashboard) {
-        this.dashboard = dashboard;
-        this.state = dashboard.state;
+    constructor(products) {
+        this.products = products;
+        this.state = products.state;
     }
 
     async render(products) {
@@ -16,12 +16,12 @@ class InventoryTable {
         let mapUpdated = false;
         products.forEach(p => {
             const key = String(p.id);
-            if (this.dashboard.selectedProducts.has(key)) {
-                this.dashboard.selectedProducts.set(key, { ...p, id: key });
+            if (this.products.selectedProducts.has(key)) {
+                this.products.selectedProducts.set(key, {...p, id: key});
                 mapUpdated = true;
             }
         });
-        if (mapUpdated) this.dashboard.saveState();
+        if (mapUpdated) this.products.saveState();
 
         const mainContent = document.getElementById('mainContent');
 
@@ -43,7 +43,7 @@ class InventoryTable {
                 : '<i class="fa-solid fa-sort-down" style="color: #2271b1; margin-left: 4px;"></i>';
         };
 
-        const allCheckedOnPage = products.length > 0 && products.every(p => this.dashboard.selectedProducts.has(p.id));
+        const allCheckedOnPage = products.length > 0 && products.every(p => this.products.selectedProducts.has(p.id));
 
         const html = `
             <div class="wp-list-table-wrapper" style="background: white; border: 1px solid #c3c4c7; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
@@ -97,7 +97,7 @@ class InventoryTable {
 
     renderProductRow(product, locationMap) {
         const key = String(product.id);
-        const isSelected = this.dashboard.selectedProducts.has(key);
+        const isSelected = this.products.selectedProducts.has(key);
         const branchStock = product.stock_quantity || 0;
         const wcStock = product.wc_stock_quantity || 0;
 
@@ -176,10 +176,10 @@ class InventoryTable {
                 const id = String(cb.dataset.id);
                 const product = this.currentProducts.find(p => String(p.id) === id);
                 if (product) {
-                    this.dashboard.toggleSelection({ ...product, id }, selectAll.checked);
+                    this.products.toggleSelection({...product, id}, selectAll.checked);
                 }
             });
-            this.dashboard.loadData();
+            this.products.loadData();
         });
 
         // Individual checkboxes
@@ -188,7 +188,7 @@ class InventoryTable {
                 const id = String(cb.dataset.id);
                 const product = this.currentProducts.find(p => String(p.id) === id);
                 if (product) {
-                    this.dashboard.toggleSelection({ ...product, id });
+                    this.products.toggleSelection({...product, id});
                 }
 
                 // Update row highlight
@@ -210,8 +210,8 @@ class InventoryTable {
             th.addEventListener('click', () => {
                 const field = th.dataset.field;
                 this.state.toggleSort(field);
-                this.dashboard.saveState();
-                this.dashboard.loadData();
+                this.products.saveState();
+                this.products.loadData();
             });
         });
 
@@ -318,7 +318,7 @@ class InventoryTable {
                 if (res.status === 'success') {
                     Toast.success("Local branch stock adjusted successfully");
                     this.state.invalidateInventoryCache();
-                    this.dashboard.loadData();
+                    this.products.loadData();
                 } else {
                     Toast.error(res.message || "Adjustment failed");
                     throw new Error(res.message);
