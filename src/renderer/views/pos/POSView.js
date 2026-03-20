@@ -221,14 +221,8 @@ class POSView {
                 this._saveViewState();
             }
         });
-        // Set branch info if available
-        if (this._branches && this._branches.length) {
-            const user = this.state.getUser();
-            cart.setBranches(this._branches, user?.branch_id);
-            if (this._branchInventory && Object.keys(this._branchInventory).length > 0) {
-                cart.setBranchInventory(this._branchInventory);
-            }
-        }
+        // Branch info is stored on POSView (_branches, _branchInventory) and
+        // passed to checkout directly — POSCart has no setBranches method.
         return {id: cartId, name, cart};
     }
 
@@ -445,17 +439,10 @@ class POSView {
         try {
             this._branches = await this.state.loadLocations(false);
             if (this._branches && this._branches.length > 0) {
-                // Load branch inventory per branch
                 await this._loadBranchInventory();
-
-                // Update all existing carts with branch info
-                this._carts.forEach(c => {
-                    const user = this.state.getUser();
-                    c.cart.setBranches(this._branches, user?.branch_id);
-                    if (this._branchInventory && Object.keys(this._branchInventory).length > 0) {
-                        c.cart.setBranchInventory(this._branchInventory);
-                    }
-                });
+                // Branch info is held on this._branches and this._branchInventory.
+                // POSCart has no setBranches method — branch context is passed
+                // directly at checkout time via _processCheckout().
             }
         } catch (e) {
             console.warn('POS: branch load failed', e);

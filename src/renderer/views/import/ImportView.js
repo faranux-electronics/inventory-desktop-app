@@ -155,22 +155,30 @@ class ImportView {
     }
 
     async init() {
+        // Guard: if the user navigated away before this async init resolves,
+        // mainTabNew will be null. Bail out rather than throw.
+        const isStale = () => !document.getElementById('mainTabNew');
+
         try {
             const locRes = await API.getLocations();
+            if (isStale()) return;   // DOM replaced while awaiting — abort
             if (locRes.status === 'success') {
                 this.locationsCache = locRes.data;
                 const tbody = document.getElementById('branchGuideTable');
-                tbody.innerHTML = this.locationsCache.map(l => `
-                    <tr>
-                        <td style="padding: 8px; font-weight: 600; color: #2271b1; width: 50px; text-align: center; border-right: 1px solid #f0f0f1;">${l.id}</td>
-                        <td style="padding: 8px; font-size: 12px; color: #50575e;">${l.name}</td>
-                    </tr>
-                `).join('');
+                if (tbody) {
+                    tbody.innerHTML = this.locationsCache.map(l => `
+                        <tr>
+                            <td style="padding: 8px; font-weight: 600; color: #2271b1; width: 50px; text-align: center; border-right: 1px solid #f0f0f1;">${l.id}</td>
+                            <td style="padding: 8px; font-size: 12px; color: #50575e;">${l.name}</td>
+                        </tr>
+                    `).join('');
+                }
             }
         } catch (e) {
             console.error("Failed to load locations for guide");
         }
 
+        if (isStale()) return;   // Check again before attaching events
         this.attachEvents();
     }
 
@@ -329,8 +337,8 @@ class ImportView {
                                                 </thead>
                                                 <tbody>
                                                     ${meta.imported_items.map(item => {
-                                        const bName = locMap[String(item.branch)] || 'Unknown Branch';
-                                        return `
+                                    const bName = locMap[String(item.branch)] || 'Unknown Branch';
+                                    return `
                                                         <tr class="hover:bg-neutral-50">
                                                             <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; font-family: monospace; font-weight: 600; color: #2c3338;">${item.sku}</td>
                                                             <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; color: #50575e;">${bName} [${item.branch}]</td>
@@ -338,16 +346,17 @@ class ImportView {
                                                             <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; text-align: right; color: #00a32a; font-weight: 600;">${item.new}</td>
                                                         </tr>
                                                         `;
-                                                    }).join('')}
+                                }).join('')}
                                                 </tbody>
                                             </table>
                                         </div>
                                     </details>
                                 </div>`;
-                                    }
-                                    } catch(e) {}
+                            }
+                        } catch (e) {
+                        }
                     }
-                    
+
                     return `
                                     <tr class="hover:bg-neutral-50" style="border-bottom: 1px solid #f0f0f1; font-size: 13px;">
                                     <td style="padding: 12px 16px; color: #50575e; white-space: nowrap; vertical-align: top;">${date}</td>
@@ -376,7 +385,7 @@ class ImportView {
                                 </div>
                             </div>
                                 `;
-                    
+
                     paginationContainer.querySelectorAll('.btn-hist-page').forEach(btn => {
                         btn.addEventListener('click', (e) => {
                             if (!btn.disabled) this.loadHistory(parseInt(btn.dataset.page));
@@ -405,10 +414,10 @@ class ImportView {
         let csvContent = "Date,User,Action,SKU,Branch Name,Branch ID,Stock Before,Stock After\n";
 
         this.historyLogs.forEach(log => {
-            const date = log.created_at; 
+            const date = log.created_at;
             const user = (log.user_name || 'System User').replace(/"/g, '""');
             const action = log.action;
-            
+
             let hasItems = false;
             if (log.metadata) {
                 try {
