@@ -73,6 +73,14 @@ async function downloadFile(action, filename) {
 }
 
 module.exports = {
+    getBaseUrl: () => API_URL,
+    getToken: () => {
+        try {
+            return JSON.parse(localStorage.getItem('faranux_user'))?.api_token || '';
+        } catch (e) {
+            return '';
+        }
+    },
     login: (email, password) => request('login', 'POST', {email, password}),
     googleLogin: (token) => request('google_login', 'POST', {token}),
     updateProfile: (data) => request('update_profile', 'POST', data),
@@ -98,6 +106,7 @@ module.exports = {
         if (endDate) query += `&end_date=${encodeURIComponent(endDate)}`;
         return request(query);
     },
+    getSyncState: () => request('sync_state'),
 
     // Not being used
     getStockComparison: (page = 1, search = '', category = '', locationId = '', status = 'publish', sortBy = 'difference', sortOrder = 'DESC') =>
