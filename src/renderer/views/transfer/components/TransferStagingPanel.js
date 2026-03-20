@@ -74,6 +74,13 @@ class TransferStagingPanel {
         return [...this._items];
     }
 
+    /** Restore a previously-captured item list (e.g. after view re-render). */
+    setItems(items) {
+        if (!Array.isArray(items) || !items.length) return;
+        this._items = items.map(i => ({...i}));
+        this._renderItems();
+    }
+
     clear() {
         this._items = [];
         this._renderItems();
@@ -129,14 +136,18 @@ class TransferStagingPanel {
     // ─── Private ─────────────────────────────────────────────────────────────
 
     _getSourceQty(productId, productFallback = null) {
-        // If the inventory map is loaded and has this branch, use it (most accurate)
+        // 1. Prefer the live per-branch map if we have it (most accurate)
         if (this._fromId && this._branchInventory[this._fromId]) {
-            return parseInt(this._branchInventory[this._fromId][productId] || 0);
+            const qty = this._branchInventory[this._fromId][productId];
+            if (qty !== undefined) return parseInt(qty || 0);
         }
-        // Inventory map not yet loaded — fall back to the product's stock_quantity.
-        if (productFallback) {
+
+        // 2. FALLBACK TO THE STOCK THAT CAME FROM THE GRID
+        //    (this is the value that already passed the location_id filter)
+        if (productFallback && productFallback.stock_quantity !== undefined) {
             return parseInt(productFallback.stock_quantity || 0);
         }
+
         return 0;
     }
 
@@ -243,7 +254,14 @@ class TransferStagingPanel {
         const focusedType = document.activeElement?.classList?.contains('tsp-qty-input') ? 'input' : null;
 
         el.innerHTML = this._items.map(item => {
-            const stockLeft = this._getSourceQty(item.id, item);
+            // FIX: staging items carry {maxStock} set at add-time, not stock_quantity.
+            // _getSourceQty's stock_quantity fallback is undefined on staging items,
+            // returning 0 for products loaded on scroll page 2+ (not in the
+            // page-1 _branchInventory map).  Prefer the live map; fall back to maxStock.
+            const invQty = this._fromId && this._branchInventory[this._fromId]?.[item.id] !== undefined
+                ? parseInt(this._branchInventory[this._fromId][item.id])
+                : null;
+            const stockLeft = invQty !== null ? invQty : item.maxStock;
             const stockLabel = this._fromId
                 ? `<span class="tsp-stock-avail ${stockLeft < 5 ? 'low' : ''}">${stockLeft} avail.</span>`
                 : '';

@@ -38,10 +38,6 @@ class POSView {
         this.confirmModal = null;
         this.receipt = null;
 
-        // WC payment gateways cache
-        this._gatewaysCache = null;
-        this._taxRatesCache = null;
-
         // Branch data for source selection
         this._branches = [];
         this._branchInventory = {};
@@ -333,7 +329,7 @@ class POSView {
 
         // After first paint, silently warm the offline catalog in the background
         // so that future searches are instant even without a network connection.
-        this._warmCatalogInBackground();
+        await this._warmCatalogInBackground();
     }
 
     _showBootSpinner() {
@@ -434,7 +430,6 @@ class POSView {
                 this.filterBar.populateCategories(catRes.data || []);
             }
             if (gwRes?.status === 'success') {
-                this._gatewaysCache = gwRes.data;
                 this.paymentPanel.setPaymentMethods(gwRes.data);
             }
             if (taxRes?.status === 'success') {
@@ -469,25 +464,30 @@ class POSView {
     }
 
     async _loadBranchInventory() {
+        // Build { branch_id: { product_id: qty } } from the stock_breakdown field
+        // that getInventory already returns for every product — one request instead
+        // of one-per-branch, using the same approach as TransfersView.
         try {
-            // Format: { branch_id: { product_id: qty, ... } }
             this._branchInventory = {};
 
-            // For each branch, load its inventory
-            for (const branch of this._branches) {
-                try {
-                    const res = await API.getBranchInventory(branch.id);
-                    if (res?.status === 'success' && res.data) {
-                        // Convert array of {id, qty} to map
-                        this._branchInventory[branch.id] = res.data.reduce((acc, item) => {
-                            acc[item.id] = parseInt(item.qty || 0);
-                            return acc;
-                        }, {});
-                    }
-                } catch (e) {
-                    console.warn(`Failed to load inventory for branch ${branch.id}`, e);
-                }
-            }
+            // Fetch all published products without a location filter so we receive
+            // the full stock_breakdown for every branch in a single round-trip.
+            const res = await API.getInventory(1, '', '', 'publish', 'name', 'ASC', '');
+            if (res?.status !== 'success') return;
+
+            (res.data || []).forEach(p => {
+                if (!p.stock_breakdown) return;
+                p.stock_breakdown.toString().split(',').forEach(pair => {
+                    // Split on last colon so location names containing colons parse correctly.
+                    const colonIdx = pair.lastIndexOf(':');
+                    if (colonIdx === -1) return;
+                    const lid = pair.substring(0, colonIdx).trim();
+                    const qty = parseInt(pair.substring(colonIdx + 1).trim() || 0);
+                    if (!lid) return;
+                    if (!this._branchInventory[lid]) this._branchInventory[lid] = {};
+                    this._branchInventory[lid][p.id] = qty;
+                });
+            });
         } catch (e) {
             console.warn('POS: branch inventory load failed', e);
             this._branchInventory = {};

@@ -104,9 +104,10 @@ class TransferModals {
                     itemsData.push({
                         id: id,
                         received_qty: val,
-                        note: (modalBody.getElementById
-                            ? modalBody.getElementById(`note-${id}`)
-                            : document.getElementById(`note-${id}`))?.value.trim() || ''
+                        // FIX: HTMLElement has no getElementById — it was always undefined
+                        // (falsy), so the ternary always fell through to document.getElementById,
+                        // defeating the scoping fix.  Use querySelector('#…') instead.
+                        note: modalBody.querySelector(`#note-${id}`)?.value.trim() || ''
                     });
                 });
 

@@ -17,6 +17,9 @@ class LocalProductCardBuilder {
         const wcStock = parseInt(p.wc_stock_quantity || 0);
         const isOOS = localStock <= 0;
         const isLow = localStock > 0 && localStock <= 5;
+        const isBackordered = p.stock_status === 'onbackorder';
+        const onSale = !!p.on_sale;
+        const feat = !!p.featured;
 
         const div = document.createElement('div');
         div.className = 'lpg-row' + (isOOS ? ' lpg-row--oos' : '');
@@ -34,8 +37,7 @@ class LocalProductCardBuilder {
                    </svg>
                </div>`;
 
-        // ── Stock badges ───────────────────────────────────────────────────
-        const isBackordered = p.stock_status === 'onbackorder';
+        // ── Row 1: stock + WC + sale + featured (mirrors POS row1) ────────
         let primaryBadge;
         if (isBackordered) {
             primaryBadge = `<span class="lpg-badge lpg-badge--backorder">Backorder</span>`;
@@ -47,13 +49,16 @@ class LocalProductCardBuilder {
             primaryBadge = `<span class="lpg-badge lpg-badge--ok">${localStock} local</span>`;
         }
 
+        const wcLabel = wcStock > 0
+            ? `<span class="lpg-wc-badge" title="WooCommerce pool stock">WC: ${wcStock}</span>`
+            : '';
+
         // ── Branch breakdown badges ────────────────────────────────────────
         let breakdownHtml = '';
         if (p.stock_breakdown) {
             const badges = p.stock_breakdown.toString().split(',').map(pair => {
                 // FIX: Split on last colon so location names containing colons are
-                // parsed correctly; previously a naive split(':')[0/1] would
-                // mis-parse such names and corrupt the qty cap in the staging panel.
+                // parsed correctly.
                 const colonIdx = pair.lastIndexOf(':');
                 if (colonIdx === -1) return '';
                 const lid = pair.substring(0, colonIdx).trim();
@@ -69,17 +74,11 @@ class LocalProductCardBuilder {
                 else if (qty < 5) cls += ' lpg-branch-badge--low';
                 else if (qty > 50) cls += ' lpg-branch-badge--high';
 
-                // FIX: escape name (from server locationMap) before injection
                 return `<span class="${esc(cls)}" title="${esc(name)}">${esc(name)}: <strong>${qty}</strong></span>`;
             }).filter(Boolean).join('');
 
             if (badges) breakdownHtml = `<div class="lpg-breakdown">${badges}</div>`;
         }
-
-        // ── WC pool secondary label ────────────────────────────────────────
-        const wcLabel = wcStock > 0
-            ? `<span class="lpg-wc-badge" title="WooCommerce pool stock">WC: ${wcStock}</span>`
-            : '';
 
         // ── Price ──────────────────────────────────────────────────────────
         const price = parseInt(p.price || 0);
@@ -87,7 +86,7 @@ class LocalProductCardBuilder {
             ? `<div class="lpg-price">${price.toLocaleString()} <span class="lpg-currency">Frw</span></div>`
             : `<div class="lpg-price lpg-price--none">—</div>`;
 
-        // ── Meta chips ─────────────────────────────────────────────────────
+        // ── Row 2: SKU + copy-SKU + category + barcode (mirrors POS row2) ─
         const catName = p.category || p.category_name || p.categories?.[0]?.name || '';
 
         const copyIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -102,20 +101,25 @@ class LocalProductCardBuilder {
         div.innerHTML = `
             ${imgHtml}
             <div class="lpg-info">
+                <!-- Name row: name + copy-name only -->
                 <div class="lpg-name-row">
                     <span class="lpg-name">${esc(p.name)}</span>
                     <button class="lpg-copy-btn" data-copy="${esc(p.name)}" data-label="Name" title="Copy name">${copyIcon}</button>
-                    ${p.on_sale ? `<span class="lpg-badge lpg-badge--sale">Sale</span>` : ''}
-                    ${p.featured ? `<span class="lpg-badge lpg-badge--feat">★</span>` : ''}
                 </div>
+                <!-- Meta row 1: stock + WC + branch breakdown + sale + feat (all stock context together) -->
                 <div class="lpg-meta-row">
                     ${primaryBadge}
                     ${wcLabel}
+                    ${breakdownHtml}
+                    ${onSale ? `<span class="lpg-badge lpg-badge--sale">Sale</span>` : ''}
+                    ${feat ? `<span class="lpg-badge lpg-badge--feat">★ Featured</span>` : ''}
+                </div>
+                <!-- Meta row 2: SKU + copy-SKU + category + barcode -->
+                <div class="lpg-meta-row lpg-meta-row--2">
                     ${skuChip}
                     ${catName ? `<span class="lpg-chip">${esc(catName)}</span>` : ''}
                     ${p.barcode ? `<span class="lpg-chip">EAN: ${esc(p.barcode)}</span>` : ''}
                 </div>
-                ${breakdownHtml}
             </div>
             ${priceHtml}`;
 
@@ -219,7 +223,11 @@ class LocalProductGrid {
 
     update(products, append = false) {
         this._removeLoadMore();
+
         if (!append) {
+            // FIX: assign _products so refreshCards(), flash(), and the click handler
+            // can all find products. Without this, this._products stays [] forever
+            // and every row click silently does nothing.
             this._products = [...products];
             this._list.innerHTML = '';
         } else {

@@ -20,15 +20,11 @@ class TransferTable {
         const container = document.getElementById('transfersTableBody');
         if (!container) return;
 
+        // Clear any old open panels before re-render
+        container.querySelectorAll('.trv-expand-panel--open').forEach(p => p.classList.remove('trv-expand-panel--open'));
+
         if (!transfers.length) {
-            container.innerHTML = `
-                <div class="trv-empty-row">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                        <polyline points="9 22 9 12 15 12 15 22"/>
-                    </svg>
-                    <div>No transfers found matching your filters.</div>
-                </div>`;
+            container.innerHTML = `<div class="trv-empty-row">No transfers found.</div>`;
             return;
         }
 
@@ -180,7 +176,8 @@ class TransferTable {
 
     async _toggleExpand(batchId) {
         const panel = document.getElementById(`expanded-${batchId}`);
-        const icon = document.getElementById(`icon-${batchId}`);
+        // FIX: `icon` was queried here but never used — SVG rotation is handled
+        // entirely by the .trv-expand-btn--open CSS rule.  Removed dead variable.
         const btn = panel?.previousElementSibling?.querySelector('.expand-toggle');
         const content = document.getElementById(`expanded-content-${batchId}`);
         if (!panel) return;
