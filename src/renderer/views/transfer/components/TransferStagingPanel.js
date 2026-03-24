@@ -23,8 +23,9 @@ class TransferStagingPanel {
 
     setBranches(branches, userBranchId) {
         this._branches = branches || [];
-        // Default source to user's branch
-        if (!this._fromId && userBranchId) this._fromId = String(userBranchId);
+        // Lock source to user's own branch
+        this._userBranchId = userBranchId ? String(userBranchId) : null;
+        if (userBranchId) this._fromId = String(userBranchId);
         this._renderBranchSelectors();
         this._renderItems();
     }
@@ -160,8 +161,17 @@ class TransferStagingPanel {
             return;
         }
 
-        const opts = (excludeId) => this._branches.map(b => `
-            <option value="${esc(b.id)}" ${String(b.id) === excludeId ? 'selected' : ''}>${esc(b.name)}</option>`).join('');
+        // FROM: locked to user's own branch — only that option, select disabled
+        const fromBranch = this._branches.find(b => String(b.id) === this._userBranchId);
+        const fromOpts = fromBranch
+            ? `<option value="${esc(fromBranch.id)}" selected>${esc(fromBranch.name)}</option>`
+            : `<option value="">— No branch assigned —</option>`;
+
+        // TO: exclude user's own branch so they can't transfer to themselves
+        const toOpts = this._branches
+            .filter(b => String(b.id) !== this._userBranchId)
+            .map(b => `<option value="${esc(b.id)}" ${String(b.id) === this._toId ? 'selected' : ''}>${esc(b.name)}</option>`)
+            .join('');
 
         el.innerHTML = `
             <div class="tsp-branch-row">
@@ -170,7 +180,7 @@ class TransferStagingPanel {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 8 16 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>
                         FROM
                     </label>
-                    <select class="tsp-branch-sel" id="tspFromBranch">${opts(this._fromId)}</select>
+                    <select class="tsp-branch-sel" id="tspFromBranch" disabled>${fromOpts}</select>
                 </div>
                 <div class="tsp-branch-arrow">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -180,7 +190,7 @@ class TransferStagingPanel {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
                         TO
                     </label>
-                    <select class="tsp-branch-sel" id="tspToBranch">${opts(this._toId)}</select>
+                    <select class="tsp-branch-sel" id="tspToBranch">${toOpts}</select>
                 </div>
             </div>`;
 
@@ -349,7 +359,8 @@ class TransferStagingPanel {
     }
 
     _handleSubmit() {
-        const fromId = this._el?.querySelector('#tspFromBranch')?.value || this._fromId;
+        // FROM is a disabled select — read from the stored state, not the DOM value
+        const fromId = this._fromId;
         const toId = this._el?.querySelector('#tspToBranch')?.value || this._toId;
         const reason = (this._el?.querySelector('#tspReason')?.value || '').trim();
 
