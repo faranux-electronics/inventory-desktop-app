@@ -1,5 +1,6 @@
-// const API_URL = 'http://localhost:8000/index.php';
-const API_URL = 'https://api.faranux.com';
+const API_URL = 'http://localhost:8000/index.php';
+
+// const API_URL = 'https://api.faranux.com';
 
 async function request(action, method = 'GET', body = null) {
     try {
@@ -164,6 +165,7 @@ module.exports = {
     },
 
     getLocations: () => request('get_locations'),
+    updateBranchPriority: (priorities) => request('update_branch_priority', 'POST', {priorities}),
     getTrashedLocations: () => request('get_trashed_locations'),
     addLocation: (name) => request('add_location', 'POST', {name}),
     getPendingOrders: (startDate = '', endDate = '') => request(`get_pending_orders&start_date=${startDate}&end_date=${endDate}`),

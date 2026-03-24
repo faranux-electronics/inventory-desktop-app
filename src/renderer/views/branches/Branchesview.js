@@ -7,19 +7,19 @@ class BranchesView {
         this.app = app;
         this.state = app.state;
 
-        // Restore previous tab state if exists
         const savedState = this.state.getTabState('branches');
         if (savedState) {
             this.currentTab = savedState.currentTab || 'active';
         } else {
             this.currentTab = 'active';
         }
+
+        this.draggedRow = null;
+        this.isOrderChanged = false;
     }
 
     saveState() {
-        this.state.saveTabState('branches', {
-            currentTab: this.currentTab
-        });
+        this.state.saveTabState('branches', {currentTab: this.currentTab});
     }
 
     render() {
@@ -32,11 +32,14 @@ class BranchesView {
                     <button class="btn btn-sm" id="addBranchBtn" style="border: 1px solid #2271b1; color: #2271b1; background: white; padding: 4px 12px; font-weight: 500; border-radius: 3px;">
                         Add New
                     </button>
+                    <button class="btn btn-sm btn-primary hidden" id="savePriorityBtn" style="padding: 4px 12px; border-radius: 3px;">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Priority Order
+                    </button>
                 </div>
 
                 <div class="tabs" style="border-bottom: 1px solid #c3c4c7;">
                     <button class="tab-btn ${this.currentTab === 'active' ? 'active' : ''}" data-tab="active" style="padding: 8px 16px; font-weight: 500; font-size: 13px;">
-                        Active
+                        Active (Priority Ordered)
                     </button>
                     <button class="tab-btn ${this.currentTab === 'trash' ? 'active' : ''}" data-tab="trash" style="padding: 8px 16px; font-weight: 500; font-size: 13px;">
                         Trash
@@ -59,18 +62,26 @@ class BranchesView {
                 this.currentTab = btn.dataset.tab;
                 this.saveState();
                 this.loadBranches();
+
+                // Hide save button if switching to trash
+                const saveBtn = document.getElementById('savePriorityBtn');
+                if (saveBtn) saveBtn.classList.add('hidden');
+                this.isOrderChanged = false;
             });
         });
 
         document.getElementById('addBranchBtn')?.addEventListener('click', () => {
             this.showAddBranchModal();
         });
+
+        document.getElementById('savePriorityBtn')?.addEventListener('click', () => {
+            this.savePriorityOrder();
+        });
     }
 
     async loadBranches() {
         const container = document.getElementById('branchesContent');
         if (!container) return;
-
         container.innerHTML = '<div style="padding: 40px; text-align: center; color: #646970;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
 
         try {
@@ -99,16 +110,26 @@ class BranchesView {
 
             const html = `
                 <div style="background: white; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                    <div style="padding: 8px 16px; background: #fffbe5; border-bottom: 1px solid #c3c4c7; font-size: 12px; color: #666;">
+                        <i class="fa-solid fa-circle-info text-info-500"></i> <b>Drag and drop</b> rows to reorder fulfillment priority. Top branch is fulfilled first.
+                    </div>
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
                         <thead style="background: #f8f9fa; border-bottom: 1px solid #c3c4c7;">
                             <tr>
+                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600; width: 60px;">Priority</th>
                                 <th style="padding: 10px 16px; color: #2c3338; font-weight: 600; width: 80px;">ID</th>
                                 <th style="padding: 10px 16px; color: #2c3338; font-weight: 600;">Name</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            ${branches.map(b => `
-                                <tr class="hover:bg-neutral-50" style="border-bottom: 1px solid #f0f0f1;">
+                        <tbody id="sortableBranchesList">
+                            ${branches.map((b, index) => `
+                                <tr class="hover:bg-neutral-50 branch-row" draggable="true" data-id="${b.id}" style="border-bottom: 1px solid #f0f0f1; cursor: grab;">
+                                    <td style="padding: 12px 16px; color: #888; text-align: center;">
+                                        <i class="fa-solid fa-grip-vertical" style="color: #ccc; margin-right: 5px;"></i>
+                                        <span class="priority-badge" style="background: ${index === 0 ? '#d1fae5' : '#e2e8f0'}; color: ${index === 0 ? '#065f46' : '#475569'}; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">
+                                            ${index + 1}
+                                        </span>
+                                    </td>
                                     <td style="padding: 12px 16px; color: #50575e; font-family: monospace;">#${b.id}</td>
                                     <td style="padding: 12px 16px; vertical-align: top;">
                                         <div style="font-weight: 600; color: #2271b1; font-size: 14px; margin-bottom: 4px;">
@@ -129,11 +150,13 @@ class BranchesView {
 
             container.innerHTML = html;
             this.attachItemEvents();
+            this.attachDragAndDropEvents(); // Attach the D&D logic
         } else {
             container.innerHTML = `<div style="padding: 40px; text-align: center; color: #d63638;">${res.message}</div>`;
         }
     }
 
+    // (Trashed Branches logic remains identical to your previous file, omitted here for brevity, keep your loadTrashedBranches() exactly as it was)
     async loadTrashedBranches() {
         const container = document.getElementById('branchesContent');
         const res = await API.getTrashedLocations();
@@ -211,6 +234,114 @@ class BranchesView {
         });
     }
 
+    /* --- HTML5 DRAG AND DROP LOGIC --- */
+    attachDragAndDropEvents() {
+        const tbody = document.getElementById('sortableBranchesList');
+        if (!tbody) return;
+
+        const rows = tbody.querySelectorAll('.branch-row');
+
+        rows.forEach(row => {
+            row.addEventListener('dragstart', (e) => {
+                this.draggedRow = row;
+                e.dataTransfer.effectAllowed = 'move';
+                row.style.opacity = '0.5';
+            });
+
+            row.addEventListener('dragend', () => {
+                this.draggedRow.style.opacity = '1';
+                this.draggedRow = null;
+                this.recalculatePriorityBadges();
+            });
+
+            row.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Necessary to allow dropping
+                e.dataTransfer.dropEffect = 'move';
+
+                // Determine if we are hovering over the top or bottom half of the row
+                const bounding = row.getBoundingClientRect();
+                const offset = bounding.y + (bounding.height / 2);
+
+                if (e.clientY - offset > 0) {
+                    row.style.borderBottom = "2px solid #2271b1";
+                    row.style.borderTop = "";
+                } else {
+                    row.style.borderTop = "2px solid #2271b1";
+                    row.style.borderBottom = "";
+                }
+            });
+
+            row.addEventListener('dragleave', () => {
+                row.style.borderBottom = "1px solid #f0f0f1";
+                row.style.borderTop = "";
+            });
+
+            row.addEventListener('drop', (e) => {
+                e.preventDefault();
+                row.style.borderBottom = "1px solid #f0f0f1";
+                row.style.borderTop = "";
+
+                if (this.draggedRow !== row) {
+                    const bounding = row.getBoundingClientRect();
+                    const offset = bounding.y + (bounding.height / 2);
+
+                    if (e.clientY - offset > 0) {
+                        row.after(this.draggedRow);
+                    } else {
+                        row.before(this.draggedRow);
+                    }
+
+                    // Reveal the save button because order changed
+                    this.isOrderChanged = true;
+                    document.getElementById('savePriorityBtn').classList.remove('hidden');
+                }
+            });
+        });
+    }
+
+    recalculatePriorityBadges() {
+        const rows = document.querySelectorAll('#sortableBranchesList .branch-row');
+        rows.forEach((row, index) => {
+            const badge = row.querySelector('.priority-badge');
+            badge.textContent = index + 1;
+
+            // Highlight the primary branch (index 0)
+            if (index === 0) {
+                badge.style.background = '#d1fae5';
+                badge.style.color = '#065f46';
+            } else {
+                badge.style.background = '#e2e8f0';
+                badge.style.color = '#475569';
+            }
+        });
+    }
+
+    async savePriorityOrder() {
+        const rows = document.querySelectorAll('#sortableBranchesList .branch-row');
+        const priorityArray = Array.from(rows).map(row => row.dataset.id);
+
+        const btn = document.getElementById('savePriorityBtn');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+        btn.disabled = true;
+
+        try {
+            const res = await API.updateBranchPriority(priorityArray);
+            if (res.status === 'success') {
+                Toast.success("Branch priority updated!");
+                this.isOrderChanged = false;
+                btn.classList.add('hidden');
+            } else {
+                Toast.error(res.message || "Failed to save priorities");
+            }
+        } catch (e) {
+            Toast.error("Network error saving priorities");
+        } finally {
+            btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Priority Order';
+            btn.disabled = false;
+        }
+    }
+
+    /* Modal / Action logic remains exactly as is */
     showAddBranchModal() {
         Modal.open({
             title: "Add New Branch",
@@ -232,7 +363,7 @@ class BranchesView {
                 const res = await API.addLocation(name);
                 if (res.status === 'success') {
                     Toast.success("Branch created successfully");
-                    this.state.setLocations(null); // Force reload
+                    this.state.setLocations(null);
                     this.loadBranches();
                 } else {
                     Toast.error(res.message || "Failed to create branch");
@@ -263,7 +394,7 @@ class BranchesView {
                 const res = await API.updateLocation(id, name);
                 if (res.status === 'success') {
                     Toast.success("Branch updated successfully");
-                    this.state.setLocations(null); // Force reload
+                    this.state.setLocations(null);
                     this.loadBranches();
                 } else {
                     Toast.error(res.message || "Failed to update branch");
@@ -288,7 +419,7 @@ class BranchesView {
                 const res = await API.deleteLocation(id);
                 if (res.status === 'success') {
                     Toast.success("Branch moved to trash");
-                    this.state.setLocations(null); // Force reload
+                    this.state.setLocations(null);
                     this.loadBranches();
                 } else {
                     Toast.error(res.message || "Failed to delete branch");
@@ -302,7 +433,7 @@ class BranchesView {
         const res = await API.restoreLocation(id);
         if (res.status === 'success') {
             Toast.success(`${name} restored successfully`);
-            this.state.setLocations(null); // Force reload
+            this.state.setLocations(null);
             this.loadBranches();
         } else {
             Toast.error(res.message || "Failed to restore branch");
