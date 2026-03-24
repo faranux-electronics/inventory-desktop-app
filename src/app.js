@@ -16,6 +16,7 @@ const ProfileView = require('./src/renderer/views/profile/ProfileView.js');
 const UsersView = require('./src/renderer/views/users/UsersView.js');
 const ImportView = require('./src/renderer/views/import/ImportView.js');
 const PosView = require('./src/renderer/views/pos/POSView.js');
+const LogsView = require("./src/renderer/views/logger/LogsView");
 
 // 1. Update available - ask user if they want to download
 ipcRenderer.on('update-available', (event, info) => {
@@ -116,7 +117,8 @@ class App {
             import: new ImportView(this),
             profile: new ProfileView(this),
             users: new UsersView(this),
-            pos: new PosView(this)
+            pos: new PosView(this),
+            logs: new LogsView(this)
         };
 
         this.currentView = null;

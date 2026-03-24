@@ -100,6 +100,9 @@ class Sidebar {
            <div class="nav-item" data-view="users" title="Users">
              <i class="fa-solid fa-users-gear"></i> <span class="nav-text">Users</span>
            </div>
+           <div class="nav-item" data-view="logs" title="System Logs">
+             <i class="fa-solid fa-terminal"></i> <span class="nav-text">Logs</span>
+           </div>
            ` : ''}
         </div>
 
