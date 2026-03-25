@@ -109,7 +109,6 @@ module.exports = {
     },
     getSyncState: () => request('sync_state'),
 
-    // Not being used
     getStockComparison: (page = 1, search = '', category = '', locationId = '', status = 'publish', sortBy = 'difference', sortOrder = 'DESC') =>
         request(`get_stock_comparison&page=${page}&search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}&location_id=${locationId}&status=${status}&sort_by=${sortBy}&sort_order=${sortOrder}`),
     wcFetchOrders: (status = 'any', page = 1) => request(`wc_fetch_orders&status=${status}&page=${page}`),
@@ -143,11 +142,8 @@ module.exports = {
         return request(q);
     },
 
-    // getTransferDetails: (batchId) => request(`get_transfer_details&batch_id=${batchId}`),
-
     getTransferDetails: (batchId) => request(`?action=get_transfer_details&batch_id=${encodeURIComponent(batchId)}`),
 
-    // FIX: reason was previously missing from the request body — it is now forwarded correctly.
     initiateTransfer: (items, fromBranchId, toBranchId, reason = '') => request('initiate_transfer', 'POST', {
         items,
         from_branch_id: fromBranchId,
@@ -177,12 +173,14 @@ module.exports = {
     processPOSCheckout: (payload) => request('pos_checkout', 'POST', payload),
     getWCCustomers: (search = '') => request(`wc_get_customers&search=${encodeURIComponent(search)}`),
     getWCStaff: (forceRefresh = false) => request(`wc_get_staff${forceRefresh ? '&force_refresh=true' : ''}`),
-    // WC Payment Gateways (enabled ones)
     getWCPaymentGateways: () => request('wc_get_payment_gateways'),
-
-    // WC Tax Rates
     getWCTaxRates: () => request('wc_get_tax_rates'),
 
     getTransfers: (type = 'all', direction = 'all', page = 1, search = '', branch_id = '', start = '', end = '', user_id = '') =>
         request(`get_transfers&type=${type}&direction=${direction}&page=${page}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}&branch_id=${branch_id}&user_id=${user_id}`),
+
+    // --- NOTIFICATION ENDPOINTS ---
+    getNotifications: () => request('get_notifications'),
+    markNotificationRead: (notificationId) => request('mark_notification_read', 'POST', {notification_id: notificationId}),
+    markAllNotificationsRead: () => request('mark_all_notifications_read', 'POST'),
 };

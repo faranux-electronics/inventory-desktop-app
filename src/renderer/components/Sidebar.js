@@ -19,6 +19,20 @@ class Sidebar {
         }
     }
 
+    // NEW: Handles updating the visual count on the notification bell
+    updateBadgeCount(count) {
+        const badge = document.getElementById('global-notification-badge');
+        if (!badge) return;
+
+        if (count > 0) {
+            // Prevent the badge from stretching too wide
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
     getActiveBranchName(branchId) {
         // If strictly null or undefined, treat as Global Admin
         if (branchId === null || branchId === undefined || branchId === '') {
@@ -44,25 +58,18 @@ class Sidebar {
 
     applyBranchNameToDOM(branchName) {
         const branchEl = document.getElementById('sidebar-branch-name');
-        if (branchEl) {
-            branchEl.textContent = branchName;
-        }
+        if (branchEl) branchEl.textContent = branchName;
 
         const profileEl = document.getElementById('sidebar-profile-section');
-        if (profileEl) {
-            profileEl.title = `Edit Profile (Branch: ${branchName})`;
-        }
+        if (profileEl) profileEl.title = `Edit Profile (Branch: ${branchName})`;
     }
 
     render(user) {
-        // Capture the user's branch ID from their session cache
         this.userBranchId = user.branch_id;
         const isAdmin = user.role === 'admin';
 
-        // Set initial text. If they have a branch but locations aren't loaded yet, it will say "Branch #ID" temporarily.
         let initialBranchText = this.getActiveBranchName(this.userBranchId) || 'Global (All Branches)';
 
-        // Default to collapsed, but remember if the user expanded it
         const isCollapsed = localStorage.getItem('sidebar_collapsed') !== 'false';
         const collapsedClass = isCollapsed ? 'collapsed' : '';
 
@@ -82,6 +89,7 @@ class Sidebar {
            <div class="nav-item" data-view="transfers" title="Transfers">
              <i class="fa-solid fa-truck-arrow-right"></i> <span class="nav-text">Transfers</span>
            </div>
+           
         ${isAdmin ? `
             <div class="nav-item" data-view="pos" title="Point of Sale">
                  <i class="fa-solid fa-cash-register"></i> <span class="nav-text">Point of Sale</span>
@@ -104,6 +112,12 @@ class Sidebar {
              <i class="fa-solid fa-terminal"></i> <span class="nav-text">Logs</span>
            </div>
            ` : ''}
+           
+           <div class="nav-item" data-view="nots" title="Notifications">
+             <i class="fa-solid fa-bell"></i> 
+             <span class="nav-text">Notifications</span>
+             <span id="global-notification-badge" class="badge" style="display:none; margin-left: auto; background: var(--error-500, #ef4444); color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: bold;">0</span>
+           </div>
         </div>
 
         <div class="sidebar-profile cursor-pointer transition-colors" id="sidebar-profile-section" data-view="profile" title="Edit Profile (Branch: ${initialBranchText})">
@@ -111,7 +125,7 @@ class Sidebar {
             <div class="user-info nav-text">
                 <div class="user-name">${user.name || 'User'}</div>
                 <div class="user-role">${user.role || 'Role'}</div>
-                <div class="user-branch" id="sidebar-branch-name" style="font-size: 10px; color: var(--primary-100);;">${initialBranchText}</div>
+                <div class="user-branch" id="sidebar-branch-name" style="font-size: 10px; color: var(--primary-100);">${initialBranchText}</div>
             </div>
             <button class="logout-btn" id="logoutBtn" title="Logout">
                 <i class="fa-solid fa-power-off"></i>
@@ -122,20 +136,16 @@ class Sidebar {
     }
 
     attachEvents() {
-        // Toggle Sidebar Logic
         const sidebarToggle = document.getElementById('sidebarToggle');
         const mainSidebar = document.getElementById('mainSidebar');
 
         if (sidebarToggle && mainSidebar) {
             sidebarToggle.addEventListener('click', () => {
                 mainSidebar.classList.toggle('collapsed');
-                // Save preference locally
-                const isCollapsed = mainSidebar.classList.contains('collapsed');
-                localStorage.setItem('sidebar_collapsed', isCollapsed);
+                localStorage.setItem('sidebar_collapsed', mainSidebar.classList.contains('collapsed'));
             });
         }
 
-        // Navigation Click Events
         document.querySelectorAll('.nav-item, .sidebar-profile').forEach(item => {
             item.addEventListener('click', (e) => {
                 // Ignore if clicked the logout button specifically
