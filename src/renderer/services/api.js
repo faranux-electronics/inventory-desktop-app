@@ -142,7 +142,7 @@ module.exports = {
         return request(q);
     },
 
-    getTransferDetails: (batchId) => request(`?action=get_transfer_details&batch_id=${encodeURIComponent(batchId)}`),
+    getTransferDetails: (batchId) => request(`get_transfer_details&batch_id=${encodeURIComponent(batchId)}`),
 
     initiateTransfer: (items, fromBranchId, toBranchId, reason = '') => request('initiate_transfer', 'POST', {
         items,
