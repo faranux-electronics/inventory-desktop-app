@@ -143,7 +143,9 @@ module.exports = {
         return request(q);
     },
 
-    getTransferDetails: (batchId) => request(`get_transfer_details&batch_id=${batchId}`),
+    // getTransferDetails: (batchId) => request(`get_transfer_details&batch_id=${batchId}`),
+
+    getTransferDetails: (batchId) => request(`?action=get_transfer_details&batch_id=${encodeURIComponent(batchId)}`),
 
     // FIX: reason was previously missing from the request body — it is now forwarded correctly.
     initiateTransfer: (items, fromBranchId, toBranchId, reason = '') => request('initiate_transfer', 'POST', {

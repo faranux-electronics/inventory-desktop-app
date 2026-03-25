@@ -111,13 +111,18 @@ class TransferTable {
 
         const timeAgo = this.timeSince(new Date(t.created_at));
         const batchId = esc(t.batch_id);
+        // FIX: Automatic transfer batch IDs (e.g. "Automatic on order #38740") contain
+        // spaces and "#", making them invalid HTML element IDs — getElementById() returns
+        // null for such IDs, causing the expand panel to silently do nothing.
+        // Use a sanitised key for DOM IDs only; keep batchId for display & API calls.
+        const domId = batchId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         return `
         <div class="trv-row" data-batch="${batchId}">
             <div class="trv-row-main">
                 <!-- Expand toggle -->
                 <button class="trv-expand-btn expand-toggle" data-batch="${batchId}" title="Expand details">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" id="icon-${batchId}"><polyline points="9 18 15 12 9 6"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" id="icon-${domId}"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
                 <!-- Batch ID -->
                 <span class="trv-batch-id btn-view" data-id="${batchId}">#${batchId}</span>
@@ -139,8 +144,8 @@ class TransferTable {
                 <div class="trv-actions">${actions}</div>
             </div>
             <!-- Expandable panel (lazy-loaded) -->
-            <div class="trv-expand-panel" id="expanded-${batchId}">
-                <div id="expanded-content-${batchId}">
+            <div class="trv-expand-panel" id="expanded-${domId}">
+                <div id="expanded-content-${domId}">
                     <div style="color:#9ca3af;font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0;">
                         <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg>
                         Fetching items…
@@ -175,11 +180,11 @@ class TransferTable {
     // ─── Expand ───────────────────────────────────────────────────────────────
 
     async _toggleExpand(batchId) {
-        const panel = document.getElementById(`expanded-${batchId}`);
-        // FIX: `icon` was queried here but never used — SVG rotation is handled
-        // entirely by the .trv-expand-btn--open CSS rule.  Removed dead variable.
+        // Derive the same sanitised DOM key used when the row was rendered.
+        const domId = batchId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const panel = document.getElementById(`expanded-${domId}`);
         const btn = panel?.previousElementSibling?.querySelector('.expand-toggle');
-        const content = document.getElementById(`expanded-content-${batchId}`);
+        const content = document.getElementById(`expanded-content-${domId}`);
         if (!panel) return;
 
         const isOpen = panel.classList.contains('trv-expand-panel--open');
