@@ -153,7 +153,6 @@ app.whenReady().then(() => {
     });
 
     // ─── Auto Updater Events (Safely guarded against loading states) ──────
-
     autoUpdater.on('checking-for-update', () => log.info('Checking for update...'));
     autoUpdater.on('update-not-available', (info) => log.info('Update not available.', info));
 
