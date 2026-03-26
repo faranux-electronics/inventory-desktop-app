@@ -136,34 +136,37 @@ app.whenReady().then(() => {
         }
     });
 
+    // ─── Auto Updater Events ────────────────────────────────────────────────
+
     autoUpdater.on('update-available', (info) => {
-        if(mainWindow) mainWindow.webContents.send('update-available', info);
+        log.info('Update available:', info.version);
+        if (mainWindow) mainWindow.webContents.send('update-available', info);
     });
 
     autoUpdater.on('error', (err) => {
-        if(mainWindow) mainWindow.webContents.send('update-error', err.message);
+        log.error('Update error:', err.message);
+        if (mainWindow) mainWindow.webContents.send('update-error', err.message);
     });
 
     autoUpdater.on('download-progress', (progressObj) => {
-        if(mainWindow) mainWindow.webContents.send('download-progress', progressObj);
+        if (mainWindow) mainWindow.webContents.send('download-progress', progressObj);
     });
 
-    // NATIVE DIALOG FOR INSTALLATION
+    // FIX: Send IPC to renderer so the Modal is shown — removed native dialog
     autoUpdater.on('update-downloaded', (info) => {
-        const dialogOpts = {
-            type: 'info',
-            buttons: ['Restart & Install', 'Later'],
-            title: 'Update Ready',
-            message: `Version ${info.version} has been downloaded and is ready to install.`,
-            detail: 'The application will restart to apply the updates.'
-        };
-
-        dialog.showMessageBox(dialogOpts).then((returnValue) => {
-            if (returnValue.response === 0) {
-                isQuitting = true;
-                autoUpdater.quitAndInstall();
+        log.info('Update downloaded:', info.version);
+        // Wait for renderer to be ready before sending, then send the event
+        // so the custom Modal can prompt the user to restart & install.
+        if (mainWindow) {
+            // If the window is ready, send immediately; otherwise wait.
+            if (mainWindow.webContents.isLoading()) {
+                mainWindow.webContents.once('did-finish-load', () => {
+                    mainWindow.webContents.send('update-downloaded', info);
+                });
+            } else {
+                mainWindow.webContents.send('update-downloaded', info);
             }
-        });
+        }
     });
 
     ipcMain.on('download-update', () => autoUpdater.downloadUpdate());

@@ -6,6 +6,7 @@ const State = require('./src/renderer/services/state.js');
 const API = require('./src/renderer/services/api.js');
 const Modal = require('./src/renderer/components/Modal.js');
 const NotificationManager = require('./src/renderer/services/NotificationManager.js');
+const initUpdater = require('./src/updater.js');
 
 // Views
 const LoginView = require('./src/renderer/views/auth/Loginview.js');
@@ -19,22 +20,6 @@ const ImportView = require('./src/renderer/views/import/ImportView.js');
 const PosView = require('./src/renderer/views/pos/POSView.js');
 const LogsView = require("./src/renderer/views/logger/LogsView.js");
 const NotsView = require('./src/renderer/views/notifications/NotsView.js');
-
-// Download progress listener
-ipcRenderer.on('download-progress', (event, progressObj) => {
-    const percent = Math.round(progressObj.percent);
-    const existingToast = document.getElementById('update-progress-toast');
-    if (existingToast) {
-        existingToast.querySelector('.toast-msg').textContent = `Downloading update: ${percent}%`;
-    } else {
-        Toast.info(`Downloading update: ${percent}%`, 3000);
-    }
-});
-
-// Update error
-ipcRenderer.on('update-error', (event, errorStr) => {
-    Toast.error(`Update error: ${errorStr}`);
-});
 
 class App {
     constructor() {
@@ -122,6 +107,11 @@ class App {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new App();
+
+    // FIX: Initialize the updater here so IPC listeners are registered
+    // as soon as the renderer is ready. This ensures update-available,
+    // update-downloaded, and update-error modals/toasts always fire.
+    initUpdater();
 });
 
 module.exports = App;
