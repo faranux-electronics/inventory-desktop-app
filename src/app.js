@@ -106,12 +106,13 @@ class App {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    window.app = new App();
-
-    // FIX: Initialize the updater here so IPC listeners are registered
-    // as soon as the renderer is ready. This ensures update-available,
-    // update-downloaded, and update-error modals/toasts always fire.
+    // FIX: initUpdater() is called BEFORE new App() so IPC listeners are
+    // registered as early as possible — ensuring update-downloaded fires
+    // even when electron-updater emits it immediately on startup because
+    // the update was already downloaded in a previous session.
     initUpdater();
+
+    window.app = new App();
 });
 
 module.exports = App;

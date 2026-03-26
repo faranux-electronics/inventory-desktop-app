@@ -30,9 +30,10 @@ function initUpdater() {
         Toast.info(`Downloading update: ${percent}%`, 1500);
     });
 
-    // Fired when download is complete (including on app restart if update was
-    // already downloaded previously — this is the key fix for the "opens and
-    // finds already-downloaded update" scenario)
+    // Fired when download is complete — including on app restart if the update
+    // was already downloaded in a previous session. The loading guard in
+    // index.js (main process) ensures this IPC arrives only after the
+    // renderer is fully ready, so the Modal will always open.
     ipcRenderer.on('update-downloaded', (event, info) => {
         Modal.open({
             title: '✅ Update Ready to Install',

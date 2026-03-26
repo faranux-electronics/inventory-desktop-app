@@ -140,25 +140,41 @@ app.whenReady().then(() => {
 
     autoUpdater.on('update-available', (info) => {
         log.info('Update available:', info.version);
-        if (mainWindow) mainWindow.webContents.send('update-available', info);
+        if (mainWindow) {
+            // FIX: Guard against renderer not being ready yet
+            if (mainWindow.webContents.isLoading()) {
+                mainWindow.webContents.once('did-finish-load', () => {
+                    mainWindow.webContents.send('update-available', info);
+                });
+            } else {
+                mainWindow.webContents.send('update-available', info);
+            }
+        }
     });
 
     autoUpdater.on('error', (err) => {
         log.error('Update error:', err.message);
-        if (mainWindow) mainWindow.webContents.send('update-error', err.message);
+        if (mainWindow) {
+            if (mainWindow.webContents.isLoading()) {
+                mainWindow.webContents.once('did-finish-load', () => {
+                    mainWindow.webContents.send('update-error', err.message);
+                });
+            } else {
+                mainWindow.webContents.send('update-error', err.message);
+            }
+        }
     });
 
     autoUpdater.on('download-progress', (progressObj) => {
         if (mainWindow) mainWindow.webContents.send('download-progress', progressObj);
     });
 
-    // FIX: Send IPC to renderer so the Modal is shown — removed native dialog
+    // FIX: Guard so the modal fires even when the update was already
+    // downloaded from a previous session and electron-updater fires
+    // update-downloaded immediately on startup before the renderer is ready.
     autoUpdater.on('update-downloaded', (info) => {
         log.info('Update downloaded:', info.version);
-        // Wait for renderer to be ready before sending, then send the event
-        // so the custom Modal can prompt the user to restart & install.
         if (mainWindow) {
-            // If the window is ready, send immediately; otherwise wait.
             if (mainWindow.webContents.isLoading()) {
                 mainWindow.webContents.once('did-finish-load', () => {
                     mainWindow.webContents.send('update-downloaded', info);
