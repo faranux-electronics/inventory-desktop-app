@@ -1,6 +1,6 @@
 {
   "name": "faranuxinventory",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "description": "Faranux MIS",
   "appId": "com.faranux.inventorymis",
   "main": "src/main/index.js",
