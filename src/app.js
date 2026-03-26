@@ -31,24 +31,6 @@ ipcRenderer.on('download-progress', (event, progressObj) => {
     }
 });
 
-// Update downloaded - ask to install
-ipcRenderer.on('update-downloaded', (event, info) => {
-    Modal.open({
-        title: "Update Ready",
-        body: `
-            <div class="text-center p-md">
-                <p class="mb-sm">Version ${info.version} has been downloaded.</p>
-                <p class="text-sm text-muted">The app needs to restart to install the update.</p>
-            </div>
-        `,
-        confirmText: "Restart & Install",
-        cancelText: "Later",
-        onConfirm: () => {
-            ipcRenderer.send('quit-and-install');
-        }
-    });
-});
-
 // Update error
 ipcRenderer.on('update-error', (event, errorStr) => {
     Toast.error(`Update error: ${errorStr}`);

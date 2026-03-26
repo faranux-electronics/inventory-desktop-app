@@ -1,4 +1,4 @@
-const {app, BrowserWindow, ipcMain, shell, Tray, Menu} = require('electron');
+const {app, BrowserWindow, ipcMain, shell, Tray, Menu, dialog} = require('electron');
 const http = require('http');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
@@ -139,17 +139,35 @@ app.whenReady().then(() => {
     autoUpdater.on('update-available', (info) => {
         if(mainWindow) mainWindow.webContents.send('update-available', info);
     });
+
     autoUpdater.on('error', (err) => {
         if(mainWindow) mainWindow.webContents.send('update-error', err.message);
     });
+
     autoUpdater.on('download-progress', (progressObj) => {
         if(mainWindow) mainWindow.webContents.send('download-progress', progressObj);
     });
+
+    // NATIVE DIALOG FOR INSTALLATION
     autoUpdater.on('update-downloaded', (info) => {
-        if(mainWindow) mainWindow.webContents.send('update-downloaded', info);
+        const dialogOpts = {
+            type: 'info',
+            buttons: ['Restart & Install', 'Later'],
+            title: 'Update Ready',
+            message: `Version ${info.version} has been downloaded and is ready to install.`,
+            detail: 'The application will restart to apply the updates.'
+        };
+
+        dialog.showMessageBox(dialogOpts).then((returnValue) => {
+            if (returnValue.response === 0) {
+                isQuitting = true;
+                autoUpdater.quitAndInstall();
+            }
+        });
     });
 
     ipcMain.on('download-update', () => autoUpdater.downloadUpdate());
+
     ipcMain.on('quit-and-install', () => {
         isQuitting = true;
         autoUpdater.quitAndInstall();
