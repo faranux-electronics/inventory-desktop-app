@@ -20,26 +20,7 @@ const PosView = require('./src/renderer/views/pos/POSView.js');
 const LogsView = require("./src/renderer/views/logger/LogsView.js");
 const NotsView = require('./src/renderer/views/notifications/NotsView.js');
 
-// 1. Update available - ask user if they want to download
-ipcRenderer.on('update-available', (event, info) => {
-    Modal.open({
-        title: "Update Available",
-        body: `
-            <div class="text-center p-md">
-                <p class="mb-sm">Version ${info.version} is available.</p>
-                <p class="text-sm text-muted">Do you want to download it now?</p>
-            </div>
-        `,
-        confirmText: "Download",
-        cancelText: "Later",
-        onConfirm: () => {
-            ipcRenderer.send('download-update');
-            Toast.info("Downloading update in background...");
-        }
-    });
-});
-
-// 2. Download progress
+// Download progress listener
 ipcRenderer.on('download-progress', (event, progressObj) => {
     const percent = Math.round(progressObj.percent);
     const existingToast = document.getElementById('update-progress-toast');
@@ -50,7 +31,7 @@ ipcRenderer.on('download-progress', (event, progressObj) => {
     }
 });
 
-// 3. Update downloaded - ask to install
+// Update downloaded - ask to install
 ipcRenderer.on('update-downloaded', (event, info) => {
     Modal.open({
         title: "Update Ready",
@@ -68,7 +49,7 @@ ipcRenderer.on('update-downloaded', (event, info) => {
     });
 });
 
-// 4. Update error
+// Update error
 ipcRenderer.on('update-error', (event, errorStr) => {
     Toast.error(`Update error: ${errorStr}`);
 });

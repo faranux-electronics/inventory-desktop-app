@@ -16,10 +16,6 @@ autoUpdater.setFeedURL({
 
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
-
-// Added this line to disable auto-download so your custom UI prompt works
-autoUpdater.autoDownload = false;
-
 log.info('App starting...');
 
 let authServer = null;
