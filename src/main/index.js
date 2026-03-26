@@ -109,7 +109,7 @@ app.whenReady().then(() => {
     createWindow();
 
     // Create System Tray
-    const iconPath = path.join(__dirname, 'src', 'assets', 'logo1.png');
+    const iconPath = path.join(__dirname, '../assets/logo1.png');
     tray = new Tray(iconPath);
 
     const contextMenu = Menu.buildFromTemplate([
@@ -124,7 +124,7 @@ app.whenReady().then(() => {
         }
     ]);
 
-    tray.setToolTip('Faranux Inventory');
+    tray.setToolTip('Faranux MIS');
     tray.setContextMenu(contextMenu);
 
     tray.on('click', () => {
@@ -223,6 +223,10 @@ app.on('will-quit', async (e) => {
     e.preventDefault();
     await cleanupAuthServer();
     app.exit(0);
+});
+
+ipcMain.handle('get-app-version', () => {
+    return app.getVersion();
 });
 
 // Google Login handler

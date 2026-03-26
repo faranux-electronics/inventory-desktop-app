@@ -21,7 +21,7 @@ class LoginView {
             <div class="login-icon">
               <i class="fa-solid fa-box-open"></i>
             </div>
-            <h2 class="login-title">Faranux Inventory</h2>
+            <h2 class="login-title">Faranux MIS</h2>
             <p class="text-muted text-sm">Sign in to continue</p>
           </div>
 
@@ -60,6 +60,13 @@ class LoginView {
           <button id="cancelGoogleBtn" class="btn btn-ghost w-full mt-sm" style="display: none;">
             Cancel
           </button>
+
+          <!-- App Version (added here) -->
+          <div class="text-center mt-lg pt-md border-t border-neutral-200">
+            <span class="text-xs text-neutral-400">
+              Faranux MIS <strong id="version-display">v1.1.17</strong>
+            </span>
+          </div>
         </div>
       </div>
     `;
@@ -165,6 +172,25 @@ class LoginView {
             }
             Toast.info('Login cancelled');
         });
+
+        // ← NEW: Load version asynchronously
+        this.loadAppVersion();
+    }
+
+    // NEW METHOD - Fetch and display version
+    async loadAppVersion() {
+        try {
+            const version = await ipcRenderer.invoke('get-app-version');
+            const versionEl = document.getElementById('version-display');
+            if (versionEl) {
+                versionEl.textContent = `v${version}`;
+            }
+        } catch (err) {
+            console.error('Could not load app version:', err);
+            // Fallback in case of any error
+            const versionEl = document.getElementById('version-display');
+            if (versionEl) versionEl.textContent = 'v1.1.17';
+        }
     }
 
     async handleGoogleLogin() {
