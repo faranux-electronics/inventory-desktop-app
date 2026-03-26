@@ -16,7 +16,11 @@ autoUpdater.setFeedURL({
 
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
-autoUpdater.autoDownload = false;   // ← This is the key fix
+
+autoUpdater.autoDownload = false;           // ← This fixes the modal not showing
+autoUpdater.autoInstallOnAppQuit = false;   // prevents surprise restart
+autoUpdater.allowDowngrade = false;
+
 log.info('App starting...');
 
 let authServer = null;
@@ -56,6 +60,8 @@ function createWindow() {
             contextIsolation: false,
         }
     });
+
+    mainWindow.setTitle(`Faranux MIS v${app.getVersion()}`);
 
     mainWindow.loadFile('index.html');
 
