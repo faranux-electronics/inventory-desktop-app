@@ -16,6 +16,7 @@ autoUpdater.setFeedURL({
 
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
+autoUpdater.autoDownload = false;   // ← This is the key fix
 log.info('App starting...');
 
 let authServer = null;
