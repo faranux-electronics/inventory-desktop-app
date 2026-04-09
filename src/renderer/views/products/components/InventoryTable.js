@@ -370,7 +370,7 @@ class InventoryTable {
             body: `<div id="historyModalBody" style="min-height: 120px; display: flex; align-items: center; justify-content: center;">
                        <i class="fa-solid fa-spinner fa-spin" style="color: #2271b1; font-size: 20px;"></i>
                    </div>`,
-            confirmText: null,  // No confirm button — view-only modal
+            confirmText: false,  // view-only — no confirm button
             cancelText: 'Close'
         });
 

@@ -121,6 +121,7 @@ module.exports = {
     getCategories: () => request('get_categories'),
 
     wcGetCategories: () => request('wc_get_categories'),
+    getStockAdjustments: (productId) => request(`get_stock_adjustments&product_id=${productId}`),
     adjustStock: (productId, locationId, qty, reason) => request('adjust_stock', 'POST', {
         product_id: productId,
         location_id: locationId,
