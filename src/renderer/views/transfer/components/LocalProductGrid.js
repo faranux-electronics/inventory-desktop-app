@@ -45,12 +45,13 @@ class LocalProductCardBuilder {
             primaryBadge = `<span class="lpg-badge lpg-badge--oos">OOS</span>`;
         } else if (isLow) {
             primaryBadge = `<span class="lpg-badge lpg-badge--low">Low (${localStock})</span>`;
-        } else {
-            primaryBadge = `<span class="lpg-badge lpg-badge--ok">${localStock} local</span>`;
         }
+        // else {
+        //     primaryBadge = `<span class="lpg-badge lpg-badge--ok">${localStock} local</span>`;
+        // }
 
         const wcLabel = wcStock > 0
-            ? `<span class="lpg-wc-badge" title="WooCommerce pool stock">WC: ${wcStock}</span>`
+            ? `<span class="lpg-wc-badge" title="WooCommerce pool stock">Total Stock: ${wcStock}</span>`
             : '';
 
         // ── Branch breakdown badges ────────────────────────────────────────
@@ -108,7 +109,7 @@ class LocalProductCardBuilder {
                 </div>
                 <!-- Meta row 1: stock + WC + branch breakdown + sale + feat (all stock context together) -->
                 <div class="lpg-meta-row">
-                    ${primaryBadge}
+                    ${primaryBadge || ''}
                     ${wcLabel}
                     ${breakdownHtml}
                     ${onSale ? `<span class="lpg-badge lpg-badge--sale">Sale</span>` : ''}
