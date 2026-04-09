@@ -138,14 +138,6 @@ class ProductsView {
             }
         });
 
-        // FIX: skip loadData() on return-navigation if data was already loaded
-        // and the cache hasn't been invalidated. Just re-attach pagination events
-        // so the restored HTML remains interactive.
-        if (this._dataLoaded) {
-            this.pagination.attachEvents();
-            return;
-        }
-
         await this.loadData();
     }
 
@@ -265,8 +257,13 @@ class ProductsView {
 
             if (res.status === 'success') {
                 this.state.setInventoryData(res.data || [], res.pagination?.pages || 1, res.pagination?.total || 0);
-                this.inventoryTable.render(res.data || []);
-                this.pagination.render(res.pagination || {});
+
+                // Cache the data locally so we can restore it instantly on tab switch
+                this._cachedData = res.data || [];
+                this._cachedPagination = res.pagination || {};
+
+                await this.inventoryTable.render(this._cachedData);
+                this.pagination.render(this._cachedPagination);
                 this._dataLoaded = true;
             } else {
                 mainContent.innerHTML = `<div class="card p-lg text-center text-error">${res.message}</div>`;
