@@ -91,7 +91,7 @@ class TransferTable {
         // Actions — FIX: use strict equality for permission checks
         let actions = '';
         if (t.status === 'pending') {
-            if (isAdmin || uBranch === toLoc) {
+            if ((isAdmin || uBranch === toLoc) && uBranch !== fromLoc) {
                 actions += `<button class="trv-action-btn trv-action-btn--primary btn-review" data-id="${esc(t.batch_id)}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     Review
