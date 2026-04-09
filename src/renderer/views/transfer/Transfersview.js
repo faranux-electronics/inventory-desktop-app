@@ -85,10 +85,17 @@ class TransfersView {
                 <button class="trv-nav-tab ${this.currentTab === 'history' ? 'active' : ''}" data-tab="history">History</button>
             </div>
 
-            <div class="trv-panel" id="trvPanelNew" style="${isNew ? '' : 'display:none;'}">
+            <div class="trv-panel" id="trvPanelNew" style="${isNew ? '' : 'display:none;'};">
                 <div class="trv-split" id="trvSplit">
                     <div class="trv-left" id="trvLeft">
-                        <div class="trv-left-header" id="trvFilterBarMount"></div>
+                        <div class="trv-left-header" style="display: flex; gap: 8px; align-items: center;">
+                            <div id="trvFilterBarMount" style="flex: 1;"></div>
+                            <select id="trvStockSort" class="trv-filter-input" style="max-width: 140px;" title="Sort by local stock">
+                                <option value="">Default Sort</option>
+                                <option value="desc">Highest Stock</option>
+                                <option value="asc">Lowest Stock</option>
+                            </select>
+                        </div>
                         <div class="trv-left-body" id="trvGridMount"></div>
                     </div>
                     <div class="trv-divider" id="trvDivider"><div class="trv-divider-grip"><span></span><span></span><span></span></div></div>
@@ -155,6 +162,17 @@ class TransfersView {
 
         this.tableComponent = new TransferTable(this);
         this._attachHistoryEvents();
+
+        // ── Attach Sorting Listener ──────────────────────────────────────────
+        document.getElementById('trvStockSort')?.addEventListener('change', (e) => {
+            const dir = e.target.value;
+            if (dir && this.productGrid.sortByStock) {
+                this.productGrid.sortByStock(dir);
+            } else if (!dir) {
+                // Restore default API sorting if cleared
+                this._reloadProducts();
+            }
+        });
     }
 
     async _bootstrap() {
@@ -212,7 +230,15 @@ class TransfersView {
             API.getInventory(1, this._query, fromId, 'publish', 'name', 'ASC', this._category)
                 .then(res => {
                     if (session !== this._syncSession) return;
+
                     this.productGrid.update(res?.data || [], false);
+
+                    // Auto-apply local sorting if selected
+                    const sortDir = document.getElementById('trvStockSort')?.value;
+                    if (sortDir && this.productGrid.sortByStock) {
+                        this.productGrid.sortByStock(sortDir);
+                    }
+
                     this._currentPage = 1;
                     if (1 >= (res?.pagination?.pages || 1)) this._allLoaded = true;
                     this._lastProductFilterFrom = fromId;
@@ -259,6 +285,13 @@ class TransfersView {
             if (session !== this._syncSession) return;
 
             this.productGrid.update(res?.data || [], append);
+
+            // Auto-apply local sorting to the newly merged data if selected
+            const sortDir = document.getElementById('trvStockSort')?.value;
+            if (sortDir && this.productGrid.sortByStock) {
+                this.productGrid.sortByStock(sortDir);
+            }
+
             this._currentPage = page;
             if (page >= (res?.pagination?.pages || 1)) this._allLoaded = true;
             this._lastProductFilterFrom = fromId;

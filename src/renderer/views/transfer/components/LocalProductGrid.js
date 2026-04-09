@@ -248,6 +248,34 @@ class LocalProductGrid {
     }
 
     /**
+     * Sort current products by local stock quantity and re-render.
+     * @param {'asc'|'desc'} direction - 'desc' for highest stock first, 'asc' for lowest first
+     */
+    sortByStock(direction = 'desc') {
+        if (!this._products || !this._products.length) return;
+
+        // 1. Sort the internal array
+        this._products.sort((a, b) => {
+            const stockA = parseInt(a.stock_quantity || 0, 10);
+            const stockB = parseInt(b.stock_quantity || 0, 10);
+            return direction === 'asc' ? stockA - stockB : stockB - stockA;
+        });
+
+        // 2. Clear the current list
+        this._list.innerHTML = '';
+
+        // 3. Re-build and append the sorted cards
+        const frag = document.createDocumentFragment();
+        this._products.forEach(p => frag.appendChild(
+            LocalProductCardBuilder.build(p, this._locationMap, this._focusBranchId)
+        ));
+        this._list.appendChild(frag);
+
+        // Note: We don't need to call _setupDelegation() again because the
+        // click/hover event listeners are attached to `this._list`, not the individual rows.
+    }
+
+    /**
      * Re-render cards in place after locationMap or focusBranch changes,
      * WITHOUT clearing scroll position.
      */
