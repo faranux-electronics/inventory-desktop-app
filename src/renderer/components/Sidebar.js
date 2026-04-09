@@ -94,11 +94,9 @@ class Sidebar {
             <div class="nav-item" data-view="pos" title="Point of Sale">
                  <i class="fa-solid fa-cash-register"></i> <span class="nav-text">Point of Sale</span>
            </div>
-           ` : ''}
            <div class="nav-item" data-view="products" title="Products">
              <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Products</span>
            </div>
-           ${isAdmin ? `
            <div class="nav-item" data-view="import" title="Import Stock">
              <i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Stock</span>
            </div>
