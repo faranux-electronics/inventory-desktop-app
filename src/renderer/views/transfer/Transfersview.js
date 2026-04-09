@@ -359,7 +359,22 @@ class TransfersView {
 
         const res = await API.getTransfers(type, dir, this.filters.page, this.filters.search, '', this.filters.start, this.filters.end, '');
         if (res.status === 'success') {
-            this.tableComponent.render(res.data || []);
+            let transfers = res.data || [];
+
+            // FIX: enforce directional filtering client-side so a user never sees
+            // their own outgoing transfer in Incoming (or vice versa), regardless
+            // of what the server returns.  Admins have no branch and skip the filter.
+            if (this._userBranchId) {
+                if (this.currentTab === 'pending_incoming') {
+                    // Only transfers arriving AT the user's branch
+                    transfers = transfers.filter(t => String(t.to_loc_id) === this._userBranchId);
+                } else if (this.currentTab === 'pending_outgoing') {
+                    // Only transfers sent FROM the user's branch
+                    transfers = transfers.filter(t => String(t.from_loc_id) === this._userBranchId);
+                }
+            }
+
+            this.tableComponent.render(transfers);
             this._renderPagination(res.pagination || {total: 0, page: 1, pages: 1});
         } else {
             tbody.innerHTML = `<div class="trv-empty-row" style="color:var(--error-500);">${esc(res.message)}</div>`;
