@@ -1,10 +1,10 @@
 const {app, BrowserWindow, ipcMain, shell, Tray, Menu} = require('electron');
 const http = require('http');
 const path = require('path');
-const { autoUpdater } = require('electron-updater');
+const {autoUpdater} = require('electron-updater');
 const log = require('electron-log');
 
-require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
+require('dotenv').config({path: path.join(app.getAppPath(), '.env')});
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
@@ -17,8 +17,8 @@ autoUpdater.setFeedURL({
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
-autoUpdater.autoDownload = false;           // ← This fixes the modal not showing
-autoUpdater.autoInstallOnAppQuit = false;   // prevents surprise restart
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
 autoUpdater.allowDowngrade = false;
 
 log.info('App starting...');
@@ -37,6 +37,11 @@ function cleanupAuthServer() {
 
     if (authServer) {
         return new Promise((resolve) => {
+            // Forcefully drop any hanging browser connections to free port 4200 instantly
+            if (authServer.closeAllConnections) {
+                authServer.closeAllConnections();
+            }
+
             authServer.close(() => {
                 authServer = null;
                 resolve();
@@ -69,9 +74,9 @@ function createWindow() {
     mainWindow.webContents.setWindowOpenHandler(({url}) => {
         if (url.startsWith('http://') || url.startsWith('https://')) {
             shell.openExternal(url);
-            return { action: 'deny' };
+            return {action: 'deny'};
         }
-        return { action: 'allow' };
+        return {action: 'allow'};
     });
 
     // Handle navigation attempts
@@ -112,122 +117,159 @@ app.commandLine.appendSwitch('allow-popups');
 app.commandLine.appendSwitch('allow-popups-to-escape-sandbox');
 app.commandLine.appendSwitch('enable-features', 'NetworkService,SharedArrayBuffer');
 
-app.whenReady().then(() => {
-    createWindow();
+// Request a single instance lock
+const gotTheLock = app.requestSingleInstanceLock();
 
-    // Create System Tray
-    const iconPath = path.join(__dirname, '../assets/logo1.png');
-    tray = new Tray(iconPath);
-
-    const contextMenu = Menu.buildFromTemplate([
-        {label: 'Show Faranux MIS', click: () => mainWindow.show()},
-        {type: 'separator'},
-        {
-            label: 'Quit',
-            click: () => {
-                isQuitting = true;
-                app.quit();
-            }
-        }
-    ]);
-
-    tray.setToolTip('Faranux MIS');
-    tray.setContextMenu(contextMenu);
-
-    tray.on('click', () => {
-        mainWindow.show();
-    });
-
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
-        else mainWindow.show();
-    });
-
-    // Handle bringing window to front when notification is clicked
-    ipcMain.on('show-window', () => {
+if (!gotTheLock) {
+    // Instantly kill the duplicate, bypassing lifecycle events.
+    app.exit(0);
+} else {
+    // Listen for a second instance trying to open
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
         if (mainWindow) {
-            if (mainWindow.isMinimized()) mainWindow.restore();
-            mainWindow.show();
+            if (mainWindow.isMinimized()) {
+                mainWindow.restore();
+            }
+            if (!mainWindow.isVisible()) {
+                mainWindow.show();
+            }
             mainWindow.focus();
         }
     });
 
-    // IPC handler for opening URLs in external browser manually
-    ipcMain.on('open-external', (event, url) => {
-        if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-            shell.openExternal(url);
-        }
-    });
+    app.whenReady().then(() => {
+        createWindow();
 
-    // ─── Auto Updater Events (Safely guarded against loading states) ──────
-    autoUpdater.on('checking-for-update', () => log.info('Checking for update...'));
-    autoUpdater.on('update-not-available', (info) => log.info('Update not available.', info));
+        // Create System Tray
+        const iconPath = path.join(__dirname, '../assets/logo1.png');
+        tray = new Tray(iconPath);
 
-    autoUpdater.on('update-available', (info) => {
-        log.info('Update available:', info.version);
-        if (mainWindow) {
-            if (mainWindow.webContents.isLoading()) {
-                mainWindow.webContents.once('did-finish-load', () => {
+        const contextMenu = Menu.buildFromTemplate([
+            {label: 'Show Faranux MIS', click: () => mainWindow.show()},
+            {type: 'separator'},
+            {
+                label: 'Quit',
+                click: () => {
+                    isQuitting = true;
+                    app.quit();
+                }
+            }
+        ]);
+
+        tray.setToolTip('Faranux MIS');
+        tray.setContextMenu(contextMenu);
+
+        tray.on('click', () => {
+            mainWindow.show();
+        });
+
+        app.on('activate', () => {
+            if (BrowserWindow.getAllWindows().length === 0) createWindow();
+            else mainWindow.show();
+        });
+
+        // Handle bringing window to front when notification is clicked
+        ipcMain.on('show-window', () => {
+            if (mainWindow) {
+                if (mainWindow.isMinimized()) mainWindow.restore();
+                mainWindow.show();
+                mainWindow.focus();
+            }
+        });
+
+        // IPC handler for opening URLs in external browser manually
+        ipcMain.on('open-external', (event, url) => {
+            if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                shell.openExternal(url);
+            }
+        });
+
+        // ─── Auto Updater Events ──────
+        autoUpdater.on('checking-for-update', () => log.info('Checking for update...'));
+        autoUpdater.on('update-not-available', (info) => log.info('Update not available.', info));
+
+        autoUpdater.on('update-available', (info) => {
+            log.info('Update available:', info.version);
+            if (mainWindow) {
+                if (mainWindow.webContents.isLoading()) {
+                    mainWindow.webContents.once('did-finish-load', () => {
+                        mainWindow.webContents.send('update-available', info);
+                    });
+                } else {
                     mainWindow.webContents.send('update-available', info);
-                });
-            } else {
-                mainWindow.webContents.send('update-available', info);
+                }
             }
-        }
-    });
+        });
 
-    autoUpdater.on('error', (err) => {
-        log.error('Update error:', err.message);
-        if (mainWindow) {
-            if (mainWindow.webContents.isLoading()) {
-                mainWindow.webContents.once('did-finish-load', () => {
+        autoUpdater.on('error', (err) => {
+            log.error('Update error:', err.message);
+            if (mainWindow) {
+                if (mainWindow.webContents.isLoading()) {
+                    mainWindow.webContents.once('did-finish-load', () => {
+                        mainWindow.webContents.send('update-error', err.message);
+                    });
+                } else {
                     mainWindow.webContents.send('update-error', err.message);
-                });
-            } else {
-                mainWindow.webContents.send('update-error', err.message);
+                }
             }
-        }
-    });
+        });
 
-    autoUpdater.on('download-progress', (progressObj) => {
-        if (mainWindow) mainWindow.webContents.send('download-progress', progressObj);
-    });
+        autoUpdater.on('download-progress', (progressObj) => {
+            if (mainWindow) mainWindow.webContents.send('download-progress', progressObj);
+        });
 
-    autoUpdater.on('update-downloaded', (info) => {
-        log.info('Update downloaded:', info.version);
-        if (mainWindow) {
-            if (mainWindow.webContents.isLoading()) {
-                mainWindow.webContents.once('did-finish-load', () => {
+        autoUpdater.on('update-downloaded', (info) => {
+            log.info('Update downloaded:', info.version);
+            if (mainWindow) {
+                if (mainWindow.webContents.isLoading()) {
+                    mainWindow.webContents.once('did-finish-load', () => {
+                        mainWindow.webContents.send('update-downloaded', info);
+                    });
+                } else {
                     mainWindow.webContents.send('update-downloaded', info);
-                });
-            } else {
-                mainWindow.webContents.send('update-downloaded', info);
+                }
             }
-        }
-    });
+        });
 
-    ipcMain.on('download-update', () => {
-        log.info('User chose to download update');
-        autoUpdater.downloadUpdate();
-    });
+        ipcMain.on('download-update', () => {
+            log.info('User chose to download update');
+            autoUpdater.downloadUpdate();
+        });
 
-    ipcMain.on('quit-and-install', () => {
-        log.info('User chose to quit and install');
-        isQuitting = true;
-        autoUpdater.quitAndInstall();
+        ipcMain.on('quit-and-install', () => {
+            log.info('User chose to quit and install');
+            isQuitting = true;
+            autoUpdater.quitAndInstall();
+        });
     });
-});
+}
 
 app.on('window-all-closed', () => {
     cleanupAuthServer();
-    // Intentionally omitted app.quit() so tray stays alive on Windows/Linux
     if (process.platform === 'darwin') {
-        app.quit(); // Standard macOS behavior
+        app.quit();
     }
 });
 
 app.on('will-quit', async (e) => {
     e.preventDefault();
+
+    // Clean up the tray icon so it doesn't linger in Windows
+    if (tray && !tray.isDestroyed()) {
+        tray.destroy();
+    }
+
+    await cleanupAuthServer();
+    app.exit(0);
+});
+
+// Catch terminal close (Ctrl+C) to free up port 4200 during development
+process.on('SIGINT', async () => {
+    await cleanupAuthServer();
+    app.exit(0);
+});
+
+process.on('SIGTERM', async () => {
     await cleanupAuthServer();
     app.exit(0);
 });
@@ -238,7 +280,6 @@ ipcMain.handle('get-app-version', () => {
 
 // Google Login handler
 ipcMain.handle('login-google', async () => {
-    // Clean up any existing server first
     await cleanupAuthServer();
 
     return new Promise((resolve, reject) => {
@@ -247,7 +288,6 @@ ipcMain.handle('login-google', async () => {
             return;
         }
 
-        // Timeout: reject after 5 minutes if no response
         authTimeout = setTimeout(async () => {
             await cleanupAuthServer();
             reject(new Error("Authentication timeout - please try again"));
@@ -290,10 +330,9 @@ ipcMain.handle('login-google', async () => {
                                         access_token: params.get('access_token')
                                     })
                                 }).then(() => {
-                                    document.querySelector('h1').textContent = "Success!";
-                                    document.querySelector('p').textContent = "You can close this tab and return to the app.";
+                                    document.querySelector('h1').textContent = "Login Successful!";
+                                    document.querySelector('p').textContent = "You can safely close this browser tab. Your app is ready.";
                                     document.querySelector('.spinner').style.display = 'none';
-                                    setTimeout(() => window.close(), 1000);
                                 }).catch(err => {
                                     document.querySelector('h1').textContent = "Error";
                                     document.querySelector('p').textContent = "Failed to send token to app.";
@@ -320,6 +359,19 @@ ipcMain.handle('login-google', async () => {
                             res.writeHead(200);
                             res.end('Auth successful');
                             resolve(data.id_token);
+
+                            // Steal focus back to the Electron app
+                            if (mainWindow) {
+                                if (mainWindow.isMinimized()) {
+                                    mainWindow.restore();
+                                }
+                                mainWindow.show();
+
+                                // Toggle always on top to force Windows to bring it to the absolute front
+                                mainWindow.setAlwaysOnTop(true);
+                                mainWindow.focus();
+                                mainWindow.setAlwaysOnTop(false);
+                            }
                         } catch (e) {
                             reject(e);
                         } finally {
