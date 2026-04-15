@@ -109,14 +109,8 @@ module.exports = {
     },
     getSyncState: () => request('sync_state'),
 
-    getStockComparison: (page = 1, search = '', category = '', locationId = '', status = 'publish', sortBy = 'difference', sortOrder = 'DESC') =>
-        request(`get_stock_comparison&page=${page}&search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}&location_id=${locationId}&status=${status}&sort_by=${sortBy}&sort_order=${sortOrder}`),
-    wcFetchOrders: (status = 'any', page = 1) => request(`wc_fetch_orders&status=${status}&page=${page}`),
-    wcUpdateOrderStatus: (orderId, status) => request('wc_update_order_status', 'POST', {order_id: orderId, status}),
-    wcUpdateStock: (productId, quantity) => request('wc_update_product_stock', 'POST', {
-        product_id: productId,
-        quantity
-    }),
+    getNavPermissions: () => request('get_nav_permissions'),
+    saveNavPermissions: (permissions) => request('save_nav_permissions', 'POST', {permissions}),
 
     getCategories: () => request('get_categories'),
 
