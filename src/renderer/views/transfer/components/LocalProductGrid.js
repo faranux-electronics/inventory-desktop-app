@@ -42,7 +42,7 @@ class LocalProductCardBuilder {
         if (isBackordered) {
             primaryBadge = `<span class="lpg-badge lpg-badge--backorder">Backorder</span>`;
         } else if (isOOS) {
-            primaryBadge = `<span class="lpg-badge lpg-badge--oos">OOS</span>`;
+            primaryBadge = `<span class="lpg-badge lpg-badge--oos">Out of Stock</span>`;
         } else if (isLow) {
             primaryBadge = `<span class="lpg-badge lpg-badge--low">Low (${localStock})</span>`;
         }
