@@ -60,10 +60,10 @@ class InventoryTable {
                             <th class="sortable" data-field="sku" style="width: 15%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
                                 SKU ${sortIcon('sku')}
                             </th>
-                            <th style="width: 25%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
-                                Stock Details
+                            <th class="sortable" data-field="stock_quantity" style="width: 25%; padding: 8px 10px; font-weight: 600; color: #2c3338; cursor: pointer;" title="Sort by Stock">
+                                Stock Details ${sortIcon('stock_quantity')}
                             </th>
-                            <th class="sortable" data-field="category" style="width: 15%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                                <th class="sortable" data-field="category" style="width: 15%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
                                 Category ${sortIcon('category')}
                             </th>
                             <th class="sortable" data-field="price" style="width: 12%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
@@ -87,7 +87,8 @@ class InventoryTable {
                 .stock-distribution-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
                 .stock-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; border: 1px solid #c3c4c7; background: #f8f9fa; color: #3c434a; }
                 .stock-badge.high { background: #edfaef; border-color: #68de7c; color: #007017; }
-                .stock-badge.low { background: #fcf0f1; border-color: #f1acaa; color: #d63638; }
+                .stock-badge.low { background: #fae1e3; border-color: #f49c9a; color: #d31e20; }
+                .stock-badge.oos { background: #fae1e3; border-color: #f49c9a; color: #da2527; }
             </style>
         `;
 
@@ -105,65 +106,72 @@ class InventoryTable {
             ? `<img src="${product.image_url}" alt="${product.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #c3c4c7;" onerror="this.style.display='none'">`
             : `<div style="width: 40px; height: 40px; background: #f0f0f1; border: 1px solid #c3c4c7; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #a7aaad; font-size: 10px;">None</div>`;
 
-        // Build Stock Distribution Badges
-        let distributionHtml = '<span style="color: #a7aaad; font-size: 11px; font-style: italic;">No local stock</span>';
+        // --- UPDATED BADGE LOGIC ---
+        // 1. Convert the stock_breakdown string into a searchable object (e.g., { "1": 14, "2": 0 })
+        const breakdownMap = {};
         if (product.stock_breakdown) {
-            const badges = product.stock_breakdown.toString().split(',').map(pair => {
+            product.stock_breakdown.toString().split(',').forEach(pair => {
                 const [lid, qty] = pair.split(':');
-                const name = locationMap[lid] || `Loc #${lid}`;
-                const q = parseInt(qty);
-
-                if (q === 0) return '';
-
-                let badgeClass = '';
-                if (q > 50) badgeClass = 'high';
-                else if (q < 5) badgeClass = 'low';
-
-                return `<span class="stock-badge ${badgeClass}">${name}: ${q}</span>`;
-            }).filter(Boolean).join('');
-
-            if (badges) distributionHtml = `<div class="stock-distribution-badges">${badges}</div>`;
+                breakdownMap[lid] = parseInt(qty) || 0;
+            });
         }
 
+        // 2. Loop through ALL branches to guarantee they always show up
+        const badges = Object.keys(locationMap).map(lid => {
+            const name = locationMap[lid] || `Loc #${lid}`;
+            // If the branch isn't in the breakdown yet, default to 0
+            const q = breakdownMap[lid] || 0;
+
+            let badgeClass = '';
+            if (q === 0) badgeClass = 'oos'; // Assigning an 'oos' class for 0 stock
+            else if (q > 50) badgeClass = 'high';
+            else if (q < 5) badgeClass = 'low';
+
+            return `<span class="stock-badge ${badgeClass}">${name}: ${q}</span>`;
+        }).join('');
+
+        const distributionHtml = `<div class="stock-distribution-badges">${badges}</div>`;
+        // ---------------------------
+
         return `
-            <tr style="border-bottom: 1px solid #f0f0f1; ${isSelected ? 'background-color: #f0f6fb !important;' : ''}">
-                <td style="padding: 10px; vertical-align: top;">
-                    <input type="checkbox" class="form-checkbox product-checkbox" 
-                           data-id="${product.id}" ${isSelected ? 'checked' : ''}>
-                </td>
-                <td style="padding: 10px; vertical-align: top;">${imageHtml}</td>
-                <td style="padding: 10px; vertical-align: top;">
-                    <strong style="color: #2271b1; font-size: 14px;">${product.name}</strong>
-                    ${product.status !== 'publish' ? `<span style="background: #fcf0f1; color: #d63638; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 1px solid #f1acaa;">${product.status}</span>` : ''}
-                    
-                    <div class="row-actions">
-                        <span class="edit"><a class="btn-adjust" data-id="${product.id}" data-name="${product.name.replace(/"/g, '&quot;')}" data-breakdown="${product.stock_breakdown || ''}">Adjust Stock</a></span>
-                        <span> | </span><span class="history"><a class="btn-history" data-id="${product.id}" data-name="${product.name.replace(/"/g, '&quot;')}">History</a></span>
-                        ${product.product_url ? ` | <span class="view"><a href="${product.product_url}" target="_blank">View on Web</a></span>` : ''}
-                    </div>
-                </td>
-                <td style="padding: 10px; vertical-align: top; font-family: monospace; color: #50575e; font-size: 13px;">
-                    ${product.sku || '-'}
-                </td>
-                <td style="padding: 10px; vertical-align: top;">
-                    <div style="font-size: 12px; color: #50575e; margin-bottom: 2px;">
-                        <span style="display: inline-block; width: 65px;">WC Pool:</span>
-                        <strong style="color: #1d2327;">${wcStock}</strong>
-                    </div>
-                    <div style="font-size: 12px; color: #50575e; margin-bottom: 6px;">
-                        <span style="display: inline-block; width: 65px;">Total Local:</span>
-                        <strong style="color: #1d2327;">${branchStock}</strong>
-                    </div>
-                    ${distributionHtml}
-                </td>
-                <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
-                    ${product.category || '-'}
-                </td>
-                <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
-                    ${parseInt(product.price || 0).toLocaleString()} Frw
-                </td>
-            </tr>
-        `;
+        <tr style="border-bottom: 1px solid #f0f0f1; ${isSelected ? 'background-color: #f0f6fb !important;' : ''}">
+            <td style="padding: 10px; vertical-align: top;">
+                <input type="checkbox" class="form-checkbox product-checkbox" 
+                       data-id="${product.id}" ${isSelected ? 'checked' : ''}>
+            </td>
+            <td style="padding: 10px; vertical-align: top;">${imageHtml}</td>
+            <td style="padding: 10px; vertical-align: top;">
+                <strong style="color: #2271b1; font-size: 14px;">${product.name}</strong>
+                ${product.status !== 'publish' ? `<span style="background: #fcf0f1; color: #d63638; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 1px solid #f1acaa;">${product.status}</span>` : ''}
+                
+                <div class="row-actions">
+                    <span class="edit"><a class="btn-adjust" data-id="${product.id}" data-name="${product.name.replace(/"/g, '&quot;')}" data-breakdown="${product.stock_breakdown || ''}">Adjust Stock</a></span>
+                    <span> | </span><span class="history"><a class="btn-history" data-id="${product.id}" data-name="${product.name.replace(/"/g, '&quot;')}">History</a></span>
+                    ${product.product_url ? ` | <span class="view"><a href="${product.product_url}" target="_blank">View on Web</a></span>` : ''}
+                </div>
+            </td>
+            <td style="padding: 10px; vertical-align: top; font-family: monospace; color: #50575e; font-size: 13px;">
+                ${product.sku || '-'}
+            </td>
+            <td style="padding: 10px; vertical-align: top;">
+                <div style="font-size: 12px; color: #50575e; margin-bottom: 2px;">
+                    <span style="display: inline-block; width: 65px;">WC Pool:</span>
+                    <strong style="color: #1d2327;">${wcStock}</strong>
+                </div>
+                <div style="font-size: 12px; color: #50575e; margin-bottom: 6px;">
+                    <span style="display: inline-block; width: 65px;">Total Local:</span>
+                    <strong style="color: #1d2327;">${branchStock}</strong>
+                </div>
+                ${distributionHtml}
+            </td>
+            <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
+                ${product.category || '-'}
+            </td>
+            <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
+                ${parseInt(product.price || 0).toLocaleString()} Frw
+            </td>
+        </tr>
+    `;
     }
 
     attachTableEvents() {
