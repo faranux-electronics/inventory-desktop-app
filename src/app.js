@@ -13,7 +13,6 @@ const LoginView = require('./src/renderer/views/auth/Loginview.js');
 const ProductsView = require('./src/renderer/views//products/ProductsView.js');
 const BranchesView = require('./src/renderer/views/branches/Branchesview.js');
 const TransfersView = require('./src/renderer/views/transfer/Transfersview.js');
-const OrdersView = require('./src/renderer/views/Ordersview.js');
 const ProfileView = require('./src/renderer/views/profile/ProfileView.js');
 const ImportView = require('./src/renderer/views/import/ImportView.js');
 const PosView = require('./src/renderer/views/pos/POSView.js');
@@ -36,7 +35,6 @@ class App {
             products: new ProductsView(this),
             branches: new BranchesView(this),
             transfers: new TransfersView(this),
-            orders: new OrdersView(this),
             import: new ImportView(this),
             profile: new ProfileView(this),
             access: new AccessView(this),
