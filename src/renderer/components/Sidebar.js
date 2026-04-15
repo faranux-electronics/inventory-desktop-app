@@ -1,5 +1,6 @@
 const Modal = require('./Modal.js');
 const API = require("../services/api");
+const NAV_ITEMS = require('../config/navRegistry.js');
 
 class Sidebar {
     constructor(navigateCallback, logoutCallback) {
@@ -11,7 +12,6 @@ class Sidebar {
 
     async loadLocations(stateManager) {
         try {
-            // Fetch from your global state cache
             this.locations = await stateManager.loadLocations();
             this.updateBranchDisplay();
         } catch (e) {
@@ -19,13 +19,10 @@ class Sidebar {
         }
     }
 
-    // NEW: Handles updating the visual count on the notification bell
     updateBadgeCount(count) {
         const badge = document.getElementById('global-notification-badge');
         if (!badge) return;
-
         if (count > 0) {
-            // Prevent the badge from stretching too wide
             badge.textContent = count > 99 ? '99+' : count;
             badge.style.display = 'inline-block';
         } else {
@@ -34,47 +31,67 @@ class Sidebar {
     }
 
     getActiveBranchName(branchId) {
-        // If strictly null or undefined, treat as Global Admin
-        if (branchId === null || branchId === undefined || branchId === '') {
-            return null;
-        }
-
-        // Look up the actual branch name from the fetched locations array
+        if (branchId === null || branchId === undefined || branchId === '') return null;
         const loc = this.locations.find(l => String(l.id) === String(branchId));
         return loc ? loc.name : `Branch #${branchId}`;
     }
 
     updateBranchDisplay() {
         const branchName = this.getActiveBranchName(this.userBranchId);
-        // If branchName is null, fallback to Global
         this.applyBranchNameToDOM(branchName || 'Global (All Branches)');
     }
 
     updateBranchDisplayFallback(fallbackText) {
-        // Used only if the API call entirely fails
-        const branchName = this.userBranchId ? `Branch #${this.userBranchId} (${fallbackText})` : 'Global (All Branches)';
+        const branchName = this.userBranchId
+            ? `Branch #${this.userBranchId} (${fallbackText})`
+            : 'Global (All Branches)';
         this.applyBranchNameToDOM(branchName);
     }
 
     applyBranchNameToDOM(branchName) {
         const branchEl = document.getElementById('sidebar-branch-name');
         if (branchEl) branchEl.textContent = branchName;
-
         const profileEl = document.getElementById('sidebar-profile-section');
         if (profileEl) profileEl.title = `Edit Profile (Branch: ${branchName})`;
     }
 
-    render(user) {
+    /**
+     * Resolve which nav items are visible for the current user.
+     * Priority: server-stored permissions > defaultRoles fallback.
+     * `locked` items always pass through regardless of config.
+     */
+    _getVisibleItems(role, navPermissions) {
+        return NAV_ITEMS.filter(item => {
+            if (item.locked) return true;
+
+            // If we have a server-side permission record for this role+key, use it
+            if (navPermissions && navPermissions[role] && item.key in navPermissions[role]) {
+                return navPermissions[role][item.key];
+            }
+
+            // Fall back to registry defaults
+            return item.defaultRoles.includes(role);
+        });
+    }
+
+    render(user, navPermissions = null) {
         this.userBranchId = user.branch_id;
-        const isAdmin = user.role === 'admin';
+        const role = user.role;
 
-        let initialBranchText = this.getActiveBranchName(this.userBranchId) || 'Global (All Branches)';
-
+        const visibleItems = this._getVisibleItems(role, navPermissions);
+        const initialBranchText = this.getActiveBranchName(this.userBranchId) || 'Global (All Branches)';
         const isCollapsed = localStorage.getItem('sidebar_collapsed') !== 'false';
-        const collapsedClass = isCollapsed ? 'collapsed' : '';
+
+        const navHtml = visibleItems.map(item => `
+            <div class="nav-item" data-view="${item.key}" title="${item.label}">
+                <i class="fa-solid ${item.icon}"></i>
+                <span class="nav-text">${item.label}</span>
+                ${item.badge ? `<span id="global-notification-badge" class="badge" style="display:none; margin-left: auto; background: var(--error-500, #ef4444); color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: bold;">0</span>` : ''}
+            </div>
+        `).join('');
 
         return `
-      <div class="sidebar ${collapsedClass}" id="mainSidebar">
+      <div class="sidebar ${isCollapsed ? 'collapsed' : ''}" id="mainSidebar">
         <div class="sidebar-header">
             <div class="sidebar-brand" title="Faranux Inventory">
                <img src="src/assets/logo1.png" alt="Faranux Inventory" class="brand-logo" />
@@ -84,40 +101,9 @@ class Sidebar {
                 <i class="fa-solid fa-bars"></i>
             </button>
         </div>
-        
         <div class="sidebar-nav">
-           <div class="nav-item" data-view="transfers" title="Transfers">
-             <i class="fa-solid fa-truck-arrow-right"></i> <span class="nav-text">Transfers</span>
-           </div>
-           
-        ${isAdmin ? `
-            <div class="nav-item" data-view="pos" title="Point of Sale">
-                 <i class="fa-solid fa-cash-register"></i> <span class="nav-text">Point of Sale</span>
-           </div>
-           <div class="nav-item" data-view="products" title="Products">
-             <i class="fa-solid fa-chart-line"></i> <span class="nav-text">Products</span>
-           </div>
-           <div class="nav-item" data-view="import" title="Import Stock">
-             <i class="fa-solid fa-file-import"></i> <span class="nav-text">Import Stock</span>
-           </div>
-           <div class="nav-item" data-view="branches" title="Branches">
-             <i class="fa-solid fa-store"></i> <span class="nav-text">Branches</span>
-           </div>
-           <div class="nav-item" data-view="users" title="Users">
-             <i class="fa-solid fa-users-gear"></i> <span class="nav-text">Users</span>
-           </div>
-           <div class="nav-item" data-view="logs" title="System Logs">
-             <i class="fa-solid fa-terminal"></i> <span class="nav-text">Logs</span>
-           </div>
-           ` : ''}
-           
-           <div class="nav-item" data-view="nots" title="Notifications">
-             <i class="fa-solid fa-bell"></i> 
-             <span class="nav-text">Notifications</span>
-             <span id="global-notification-badge" class="badge" style="display:none; margin-left: auto; background: var(--error-500, #ef4444); color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: bold;">0</span>
-           </div>
+           ${navHtml}
         </div>
-
         <div class="sidebar-profile cursor-pointer transition-colors" id="sidebar-profile-section" data-view="profile" title="Edit Profile (Branch: ${initialBranchText})">
             <div class="profile-icon"><i class="fa-solid fa-circle-user"></i></div>
             <div class="user-info nav-text">
@@ -146,15 +132,12 @@ class Sidebar {
 
         document.querySelectorAll('.nav-item, .sidebar-profile').forEach(item => {
             item.addEventListener('click', (e) => {
-                // Ignore if clicked the logout button specifically
                 if (e.target.closest('#logoutBtn')) return;
-
                 const view = item.dataset.view;
-                if(view) this.navigateCallback(view);
+                if (view) this.navigateCallback(view);
             });
         });
 
-        // Logout Event
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', (e) => {
@@ -164,9 +147,7 @@ class Sidebar {
                     body: `<div class="text-center p-md"><p>Are you sure you want to log out?</p></div>`,
                     confirmText: "Logout",
                     cancelText: "Cancel",
-                    onConfirm: async () => {
-                        this.logoutCallback();
-                    }
+                    onConfirm: async () => this.logoutCallback()
                 });
             });
         }
@@ -175,13 +156,10 @@ class Sidebar {
     setActive(viewName) {
         document.querySelectorAll('.nav-item').forEach(el => {
             el.classList.remove('active');
-            if (el.dataset.view === viewName) {
-                el.classList.add('active');
-            }
+            if (el.dataset.view === viewName) el.classList.add('active');
         });
-
         const profile = document.querySelector('.sidebar-profile');
-        if(profile) {
+        if (profile) {
             profile.style.background = viewName === 'profile' ? 'rgba(255,255,255,0.05)' : '';
         }
     }

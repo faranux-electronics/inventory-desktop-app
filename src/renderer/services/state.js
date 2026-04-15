@@ -262,6 +262,16 @@ class StateManager {
         this.tabStates.clear();
         this.saveToStorage('faranux_tab_states', {});
     }
+
+    getNavPermissions() {
+        return this.navPermissions || null;
+    }
+
+    setNavPermissions(permissions) {
+        this.navPermissions = permissions;
+        // Optionally persist across sessions:
+        // this.saveToStorage('faranux_nav_permissions', permissions);
+    }
 }
 
 module.exports = new StateManager();

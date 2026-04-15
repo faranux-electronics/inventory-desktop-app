@@ -1,5 +1,5 @@
 // Main Application Entry Point
-const { ipcRenderer } = require('electron');
+const {ipcRenderer} = require('electron');
 const Sidebar = require('./src/renderer/components/Sidebar.js');
 const Toast = require('./src/renderer/components/Toast.js');
 const State = require('./src/renderer/services/state.js');
@@ -15,11 +15,11 @@ const BranchesView = require('./src/renderer/views/branches/Branchesview.js');
 const TransfersView = require('./src/renderer/views/transfer/Transfersview.js');
 const OrdersView = require('./src/renderer/views/Ordersview.js');
 const ProfileView = require('./src/renderer/views/profile/ProfileView.js');
-const UsersView = require('./src/renderer/views/users/UsersView.js');
 const ImportView = require('./src/renderer/views/import/ImportView.js');
 const PosView = require('./src/renderer/views/pos/POSView.js');
 const LogsView = require("./src/renderer/views/logger/LogsView.js");
 const NotsView = require('./src/renderer/views/notifications/NotsView.js');
+const AccessView = require('./src/renderer/views/users/AccessView');
 
 class App {
     constructor() {
@@ -39,7 +39,7 @@ class App {
             orders: new OrdersView(this),
             import: new ImportView(this),
             profile: new ProfileView(this),
-            users: new UsersView(this),
+            access: new AccessView(this),
             pos: new PosView(this),
             logs: new LogsView(this),
             nots: new NotsView(this)
@@ -59,7 +59,7 @@ class App {
         }
     }
 
-    renderApp(user) {
+    async renderApp(user) {
         const app = document.getElementById('app');
         app.innerHTML = `
       ${this.sidebar.render(user)}
@@ -69,6 +69,15 @@ class App {
     `;
         this.sidebar.attachEvents();
         this.sidebar.loadLocations(this.state);
+
+        const navRes = await API.getNavPermissions();
+        if (navRes.status === 'success') {
+            this.state.setNavPermissions(navRes.data);
+            // Re-render sidebar with permissions
+            document.getElementById('mainSidebar').outerHTML =
+                this.sidebar.render(user, navRes.data) // see note below*
+            this.sidebar.attachEvents();
+        }
 
         if (!this.notifManager) {
             this.notifManager = new NotificationManager(this.sidebar);
@@ -85,7 +94,10 @@ class App {
             view.render();
         } else {
             const user = this.state.getUser();
-            if (!user) { this.navigate('login'); return; }
+            if (!user) {
+                this.navigate('login');
+                return;
+            }
             if (!document.querySelector('.sidebar')) this.renderApp(user);
             this.sidebar.setActive(viewName);
             view.render();
