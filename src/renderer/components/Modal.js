@@ -46,7 +46,7 @@ class Modal {
           ${body}
         </div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" id="modal-cancel">${cancelText}</button>
+          ${cancelText ? `<button class="btn btn-secondary" id="modal-cancel">${cancelText}</button>` : ''}
           <button class="btn ${confirmClass}" id="modal-confirm">${confirmText}</button>
         </div>
       </div>
