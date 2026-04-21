@@ -69,7 +69,7 @@ class PdfGenerator {
         doc.setTextColor(...lightText);
         doc.text("Date:", 14, 38);
         doc.setTextColor(...darkText);
-        doc.text(new Date(data.created_at).toLocaleDateString(), 25, 38);
+        doc.text(new Date(data.created_at).toLocaleDateString('en-GB'), 25, 38);
 
         // Status Info
         doc.setTextColor(...lightText);
