@@ -151,6 +151,7 @@ module.exports = {
         action,
         items_data: itemsData
     }),
+    resolveDiscrepancy: (batchId) => request('resolve_discrepancy', 'POST', {batch_id: batchId}), // NEW
     cancelTransfer: (batchId, reason = '') => request('cancel_transfer', 'POST', {batch_id: batchId, reason}),
     exportTransfersCsv: (type = 'all', direction = 'all', search = '', start = '', end = '') => {
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');

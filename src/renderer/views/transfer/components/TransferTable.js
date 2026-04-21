@@ -74,9 +74,19 @@ class TransferTable {
 
         // Discrepancy
         let discHtml = '<span class="trv-disc--na">—</span>';
+        let hasUnresolvedDiscrepancy = false; // Add a flag
+
         if (t.status === 'completed' || t.status === 'rejected') {
             const diff = (parseInt(t.total_received_qty) || 0) - (parseInt(t.total_qty) || 0);
-            if (diff < 0) discHtml = `<span class="trv-disc--low">${diff}</span>`;
+            if (diff < 0) {
+                // Check if it's resolved!
+                if (parseInt(t.discrepancy_resolved) === 1) {
+                    discHtml = `<span class="trv-disc--low" style="opacity: 0.5; text-decoration: line-through;" title="Resolved">${diff}</span> <span style="font-size: 10px; color: var(--success-500);">Resolved</span>`;
+                } else {
+                    discHtml = `<span class="trv-disc--low">${diff}</span>`;
+                    hasUnresolvedDiscrepancy = true;
+                }
+            }
             else if (diff > 0) discHtml = `<span class="trv-disc--high">+${diff}</span>`;
             else discHtml = `<span class="trv-disc--ok">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>
@@ -107,6 +117,11 @@ class TransferTable {
             actions += `<button class="trv-action-btn trv-action-btn--ghost btn-print" data-id="${esc(t.batch_id)}" title="Print PDF">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             </button>`;
+
+            // NEW: Add the Resolve button if needed
+            if (hasUnresolvedDiscrepancy && (isAdmin || uBranch === fromLoc)) {
+                actions += `<button class="trv-action-btn trv-action-btn--primary btn-resolve" data-id="${esc(t.batch_id)}" title="Mark Discrepancy as Resolved">Resolve</button>`;
+            }
         }
 
         const timeAgo = this.timeSince(new Date(t.created_at));
@@ -174,6 +189,21 @@ class TransferTable {
         });
         container.querySelectorAll('.btn-print').forEach(btn => {
             btn.addEventListener('click', () => this._printTransfer(btn.dataset.id));
+        });
+
+        // NEW: Handle the Resolve button click
+        container.querySelectorAll('.btn-resolve').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                if (confirm('Are you sure you want to mark this discrepancy as resolved? Make sure you have adjusted the stock manually if the item was found.')) {
+                    const res = await API.resolveDiscrepancy(btn.dataset.id);
+                    if (res.status === 'success') {
+                        Toast.success(res.message);
+                        await this.parent.loadTransfers(); // Reload the table
+                    } else {
+                        Toast.error(res.message);
+                    }
+                }
+            });
         });
     }
 
