@@ -314,36 +314,50 @@
 }
 
 /* =============================================================
-   3. TRANSFER TABLE (card-row design)
+   3. TRANSFER TABLE (RESPONSIVE + FITTED)
    ============================================================= */
 
-/* FIX: Removed duplicate stub .trv-table-card here (had only margin + flex-shrink);
-   both properties are already present in the full definition below. */
-
-/* Outer wrapper */
 .trv-table-card {
     margin: 12px;
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
     border-radius: 10px;
     overflow: hidden;
-    overflow-x: auto;
+    overflow-x: hidden; /* FIX: prevent horizontal scroll */
     box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
     flex-shrink: 0;
 }
 
-/* Column header row */
-.trv-col-header {
+/* Header + rows share same grid */
+.trv-col-header,
+.trv-row-main {
     display: grid;
-    /* FIX: was 675px fixed + 2fr → horizontal scroll on laptop screens.
-       Reduced fixed columns; actions now auto so buttons always fit. */
-    grid-template-columns: 26px 148px 78px 24px 1fr 1fr 70px 88px 88px auto;
+    grid-template-columns:
+        24px
+        minmax(120px, 1.15fr)
+        minmax(72px, .7fr)
+        24px
+        minmax(105px, 1fr)
+        minmax(105px, 1fr)
+        minmax(86px, .8fr)
+        minmax(86px, .6fr)  /* Discrepancy: widened from 64px to 86px so the text fits */
+        54px                /* Status: shrunk to a fixed width just for the icon */
+        minmax(132px, auto);
     align-items: center;
+    gap: 6px;
+}
+
+/* Allow shrinking (CRITICAL FIX) */
+.trv-col-header > *,
+.trv-row-main > * {
+    min-width: 0;
+}
+
+/* Header styling */
+.trv-col-header {
     padding: 7px 12px;
     background: #E2E8F0;
     border-bottom: 1px solid #E2E8F0;
-    gap: 4px;
-    min-width: 620px;
 }
 
 .trv-ch {
@@ -359,30 +373,125 @@
     text-align: center;
 }
 
-/* Individual transfer row */
+/* Row */
 .trv-row {
     border-bottom: 1px solid #E2E8F0;
-    transition: background .1s;
-    animation: trv-slide-in .18s ease;
 }
 
-.trv-row:last-child {
-    border-bottom: none;
+.trv-row-main {
+    padding: 8px 12px;
+    transition: background .1s;
 }
 
 .trv-row:hover > .trv-row-main {
     background: rgba(38, 137, 196, 0.04);
 }
 
-.trv-row-main {
-    display: grid;
-    /* FIX: must match .trv-col-header exactly */
-    grid-template-columns: 26px 148px 78px 24px 1fr 1fr 70px 88px 88px auto;
+/* TEXT OVERFLOW FIX */
+.trv-batch-id,
+.trv-date,
+.trv-items-cell,
+.trv-branch {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Batch */
+.trv-batch-id {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(38, 137, 196, 0.9);
+    cursor: pointer;
+}
+
+/* Date */
+.trv-date {
+    font-size: 12px;
+    color: rgba(36, 59, 83, 0.6);
+}
+
+/* Branch */
+.trv-branch {
+    font-size: 13px;
+    color: rgba(36, 59, 83, 0.8);
+}
+
+/* Items */
+.trv-items-cell {
+    font-size: 13px;
+    color: rgba(36, 59, 83, 0.8);
+}
+
+.trv-items-qty {
+    color: rgba(36, 59, 83, 0.4);
+    font-size: 12px;
+}
+
+/* Status Icon Badge */
+.trv-status-icon {
+    display: inline-flex;
     align-items: center;
-    padding: 10px 12px;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.trv-status-icon--completed {
+    background: #D1FAE5;
+    color: #16a34a;
+}
+
+.trv-status-icon--pending {
+    background: #FEF3C7;
+    color: #d97706;
+}
+
+.trv-status-icon--rejected,
+.trv-status-icon--canceled {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+/* Center the STATUS header text */
+.trv-col-header > *:nth-child(9) {
+    text-align: center;
+}
+
+/* Actions */
+.trv-actions {
+    display: flex;
+    flex-wrap: wrap; /* FIX: prevents overflow */
     gap: 4px;
-    cursor: default;
-    transition: background .1s;
+}
+
+.trv-action-btn {
+    height: 24px;
+    padding: 0 8px;
+    font-size: 11px;
+}
+
+/* Responsive tightening */
+@media (max-width: 1366px) {
+    .trv-col-header,
+    .trv-row-main {
+        grid-template-columns:
+            22px
+            minmax(108px, 1fr)
+            minmax(64px, .6fr)
+            22px
+            minmax(92px, .95fr)
+            minmax(92px, .95fr)
+            minmax(74px, .7fr)
+            minmax(82px, .6fr) /* Discrepancy */
+            50px               /* Status */
+            minmax(112px, auto);
+    }
+
+    .trv-row-main {
+        padding: 8px 10px;
+    }
 }
 
 /* Expand toggle */
@@ -417,26 +526,6 @@
     transform: rotate(90deg);
 }
 
-/* Batch ID cell */
-.trv-batch-id {
-    font-size: 13px;
-    font-weight: 700;
-    color: rgba(38, 137, 196, 0.9);
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.trv-batch-id:hover {
-    text-decoration: underline;
-}
-
-/* Date cell */
-.trv-date {
-    font-size: 12px;
-    color: rgba(36, 59, 83, 0.6);
-    white-space: nowrap;
-}
-
 /* Direction icon */
 .trv-dir-incoming {
     color: #16a34a;
@@ -448,27 +537,6 @@
 
 .trv-dir-neutral {
     color: rgba(36, 59, 83, 0.4);
-}
-
-/* Branch name */
-.trv-branch {
-    font-size: 13px;
-    color: rgba(36, 59, 83, 0.8);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* Items cell */
-.trv-items-cell {
-    font-size: 13px;
-    color: rgba(36, 59, 83, 0.8);
-    white-space: nowrap;
-}
-
-.trv-items-qty {
-    color: rgba(36, 59, 83, 0.4);
-    font-size: 12px;
 }
 
 /* Discrepancy */
@@ -494,18 +562,7 @@
     color: rgba(36, 59, 83, 0.4);
 }
 
-/* Status badge */
-.trv-status {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 10px;
-    border-radius: 5px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    white-space: nowrap;
-}
-
+/* Status badge colors */
 .trv-status--completed {
     background: #E2E8F0;
     color: rgba(36, 59, 83, 0.7);
@@ -522,22 +579,13 @@
     color: #b91c1c;
 }
 
-/* Actions cell */
-.trv-actions {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
+/* Actions buttons styles */
 .trv-action-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 28px;
-    padding: 0 10px;
     border-radius: 5px;
     border: 1px solid transparent;
-    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;

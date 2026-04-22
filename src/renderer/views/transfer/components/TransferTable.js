@@ -81,7 +81,10 @@ class TransferTable {
             if (diff < 0) {
                 // Check if it's resolved!
                 if (parseInt(t.discrepancy_resolved) === 1) {
-                    discHtml = `<span class="trv-disc--low" style="opacity: 0.5; text-decoration: line-through;" title="Resolved">${diff}</span> <span style="font-size: 10px; color: var(--success-500);">Resolved</span>`;
+                    discHtml = `<div style="display:flex; align-items:center; justify-content:center; gap:4px;">
+                        <span class="trv-disc--low" style="opacity: 0.5; text-decoration: line-through;" title="Resolved">${diff}</span> 
+                        <span style="font-size: 10px; font-weight: 600; color: var(--success-500);">Resolved</span>
+                    </div>`;
                 } else {
                     discHtml = `<span class="trv-disc--low">${diff}</span>`;
                     hasUnresolvedDiscrepancy = true;
@@ -93,12 +96,23 @@ class TransferTable {
             </span>`;
         }
 
-        // Status badge — FIX: escape status value before injection
+        // Status badge (Converted to compact icon)
         const st = esc(t.status.toLowerCase());
         const stLabel = esc(t.status.charAt(0).toUpperCase() + t.status.slice(1));
-        const statusHtml = `<span class="trv-status trv-status--${st}">${stLabel}</span>`;
 
-        // Actions — FIX: use strict equality for permission checks
+        let stIcon = '';
+        if (st === 'completed') {
+            stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>';
+        } else if (st === 'pending') {
+            stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+        } else {
+            stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        }
+
+        // The div centers the icon perfectly under the header
+        const statusHtml = `<div style="display:flex; justify-content:center; width:100%;"><span class="trv-status-icon trv-status-icon--${st}" title="${stLabel}">${stIcon}</span></div>`;
+
+        // Actions
         let actions = '';
         if (t.status === 'pending') {
             if ((isAdmin || uBranch === toLoc) && uBranch !== fromLoc) {
@@ -118,47 +132,39 @@ class TransferTable {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             </button>`;
 
-            // NEW: Add the Resolve button if needed
+            // Add the Resolve button if needed (compact SVG style)
             if (hasUnresolvedDiscrepancy && (isAdmin || uBranch === fromLoc)) {
-                actions += `<button class="trv-action-btn trv-action-btn--primary btn-resolve" data-id="${esc(t.batch_id)}" title="Mark Discrepancy as Resolved">Resolve</button>`;
+                actions += `<button class="trv-action-btn trv-action-btn--primary btn-resolve" data-id="${esc(t.batch_id)}" title="Mark Discrepancy as Resolved" style="padding: 0 8px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>`;
             }
         }
 
         const timeAgo = this.timeSince(new Date(t.created_at));
         const batchId = esc(t.batch_id);
         // FIX: Automatic transfer batch IDs (e.g. "Automatic on order #38740") contain
-        // spaces and "#", making them invalid HTML element IDs — getElementById() returns
-        // null for such IDs, causing the expand panel to silently do nothing.
-        // Use a sanitised key for DOM IDs only; keep batchId for display & API calls.
+        // spaces and "#", making them invalid HTML element IDs.
         const domId = batchId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         return `
         <div class="trv-row" data-batch="${batchId}">
             <div class="trv-row-main">
-                <!-- Expand toggle -->
                 <button class="trv-expand-btn expand-toggle" data-batch="${batchId}" title="Expand details">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" id="icon-${domId}"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
-                <!-- Batch ID -->
-                <span class="trv-batch-id btn-view" data-id="${batchId}">#${batchId}</span>
-                <!-- Date -->
-                <span class="trv-date">${esc(timeAgo)}</span>
-                <!-- Direction -->
+                <span class="trv-batch-id btn-view" data-id="${batchId}" title="${batchId}">#${batchId}</span>
+                <span class="trv-date" title="${esc(new Date(t.created_at).toLocaleString())}">${esc(timeAgo)}</span>
                 <span style="display:flex;justify-content:center;">${dirIcon}</span>
-                <!-- From -->
                 <span class="trv-branch" title="${esc(t.from_location)}">${esc(t.from_location)}</span>
-                <!-- To -->
                 <span class="trv-branch" title="${esc(t.to_location)}">${esc(t.to_location)}</span>
-                <!-- Items -->
-                <span class="trv-items-cell">${parseInt(t.item_count) || 0} items <span class="trv-items-qty">(${parseInt(t.total_qty) || 0} qty)</span></span>
-                <!-- Discrepancy -->
+                <span class="trv-items-cell" title="${parseInt(t.item_count) || 0} items (${parseInt(t.total_qty) || 0} qty)">
+                    ${parseInt(t.item_count) || 0} items 
+                    <span class="trv-items-qty">(${parseInt(t.total_qty) || 0} qty)</span>
+                </span>
                 <span class="trv-disc-cell">${discHtml}</span>
-                <!-- Status -->
                 ${statusHtml}
-                <!-- Actions -->
                 <div class="trv-actions">${actions}</div>
             </div>
-            <!-- Expandable panel (lazy-loaded) -->
             <div class="trv-expand-panel" id="expanded-${domId}">
                 <div id="expanded-content-${domId}">
                     <div style="color:#9ca3af;font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0;">
@@ -191,7 +197,7 @@ class TransferTable {
             btn.addEventListener('click', () => this._printTransfer(btn.dataset.id));
         });
 
-        // NEW: Handle the Resolve button click
+        // Handle the Resolve button click
         container.querySelectorAll('.btn-resolve').forEach(btn => {
             btn.addEventListener('click', async () => {
                 if (confirm('Are you sure you want to mark this discrepancy as resolved? Make sure you have adjusted the stock manually if the item was found.')) {
