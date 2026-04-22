@@ -283,40 +283,11 @@ class ImportForm {
 
         try {
             const res = await API.importStock(this.parsedData, mode);
+
             if (res.status === 'success') {
+                // Perfect run: clear UI and refresh history
                 Toast.success(res.message);
 
-                if (res.errors && res.errors.length > 0) {
-                    // FIX: Take a snapshot of the parsed data BEFORE we clear it!
-                    const dataSnapshot = [...this.parsedData];
-
-                    Modal.open({
-                        title: "Import Finished with Warnings",
-                        cancelText: null,
-                        body: `
-                            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; gap: 10px;">
-                                <p class="text-neutral-700" style="margin: 0; font-size: 13px;">Some rows were skipped because the SKU was not found in the local database:</p>
-                                <button id="btnDownloadErrors" class="btn btn-sm btn-secondary" style="flex-shrink: 0; background: white; border: 1px solid #c3c4c7;">
-                                    <i class="fa-solid fa-download"></i> Download CSV
-                                </button>
-                            </div>
-                            <div style="max-height: 200px; overflow-y: auto; background: #fef2f2; color: #b91c1c; padding: 10px; border-radius: 4px; font-size: 12px; font-family: monospace; border: 1px solid #fca5a5;">
-                                ${res.errors.join('<br>')}
-                            </div>
-                        `,
-                        confirmText: "Close"
-                    });
-
-                    // Attach listener using the snapshot
-                    const downloadBtn = document.getElementById('btnDownloadErrors');
-                    if (downloadBtn) {
-                        downloadBtn.addEventListener('click', () => {
-                            this.downloadFailedRowsCsv(res.errors, dataSnapshot);
-                        });
-                    }
-                }
-
-                // Safely clear the UI and state now
                 document.getElementById('csvFileInput').value = '';
                 document.getElementById('previewContainer').classList.add('hidden');
                 this.parsedData = [];
@@ -324,6 +295,36 @@ class ImportForm {
                 if (document.getElementById('viewHistory') && !document.getElementById('viewHistory').classList.contains('hidden')) {
                     if (typeof this.loadHistory === 'function') this.loadHistory();
                     if (this.parent && typeof this.parent.historyComponent?.loadHistory === 'function') this.parent.historyComponent.loadHistory();
+                }
+
+            } else if (res.status === 'validation_error') {
+                // Aborted run: show errors, allow download, DO NOT clear the UI
+                Toast.error("Import aborted due to errors.");
+
+                const dataSnapshot = [...this.parsedData];
+
+                Modal.open({
+                    title: "Import Aborted: Errors Found",
+                    cancelText: null,
+                    body: `
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; gap: 10px;">
+                            <p class="text-neutral-700" style="margin: 0; font-size: 13px;"><b>0 items were imported.</b> Please fix the errors below and try again:</p>
+                            <button id="btnDownloadErrors" class="btn btn-sm btn-secondary" style="flex-shrink: 0; background: white; border: 1px solid #c3c4c7;">
+                                <i class="fa-solid fa-download"></i> Download CSV
+                            </button>
+                        </div>
+                        <div style="max-height: 200px; overflow-y: auto; background: #fef2f2; color: #b91c1c; padding: 10px; border-radius: 4px; font-size: 12px; font-family: monospace; border: 1px solid #fca5a5;">
+                            ${res.errors.join('<br>')}
+                        </div>
+                    `,
+                    confirmText: "Close"
+                });
+
+                const downloadBtn = document.getElementById('btnDownloadErrors');
+                if (downloadBtn) {
+                    downloadBtn.addEventListener('click', () => {
+                        this.downloadFailedRowsCsv(res.errors, dataSnapshot);
+                    });
                 }
 
             } else {
