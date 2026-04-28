@@ -22,6 +22,7 @@ class PdfGenerator {
         }
 
         const doc = new jsPDF();
+        const pageHeight = doc.internal.pageSize.height;
 
         // --- Color Palette ---
         const primaryColor = [165, 28, 28];   // Faranux Red
@@ -131,7 +132,7 @@ class PdfGenerator {
             styles: {
                 font: 'helvetica',
                 fontSize: 10,
-                cellPadding: 5
+                cellPadding: {top: 2, bottom: 2, left: 4, right: 4}
             },
             columnStyles: {
                 0: { fontStyle: 'bold', textColor: lightText, cellWidth: 30 },
@@ -139,11 +140,18 @@ class PdfGenerator {
                 2: { halign: 'center', cellWidth: 25 },
                 3: { halign: 'center', fontStyle: 'bold', cellWidth: 30 },
                 4: { cellWidth: 'auto' }
-            }
+            },
+            margin: {bottom: 30} // Give space for footer
         });
 
         // --- 4. Signatures ---
-        const finalY = doc.lastAutoTable.finalY + 40;
+        let finalY = doc.lastAutoTable.finalY + 40;
+
+        // Check if there is enough space for the signatures, otherwise move to next page
+        if (finalY + 20 > pageHeight - 30) {
+            doc.addPage();
+            finalY = 40;
+        }
 
         doc.setLineWidth(0.5);
         doc.setDrawColor(...lightText);
@@ -158,12 +166,16 @@ class PdfGenerator {
         doc.line(115, finalY, 176, finalY);
         doc.text("Receiver Signature", 115, finalY + 6);
 
-        // Footer
-        doc.setFontSize(8);
-        doc.setTextColor(156, 163, 175);
-        doc.text("Generated securely by Faranux Inventory System", 14, 285);
+        // --- 5. Footer (Loop across all pages) ---
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(156, 163, 175);
+            doc.text("Generated securely by Faranux Inventory System", 14, 285);
+        }
 
-        // --- 5. Save the PDF (Electron Fix) ---
+        // --- 6. Save the PDF (Electron Fix) ---
         const pdfBlob = doc.output('blob');
         const blobUrl = URL.createObjectURL(pdfBlob);
 
@@ -197,6 +209,7 @@ class PdfGenerator {
         }
 
         const doc = new jsPDF({format: 'a4'});
+        const pageHeight = doc.internal.pageSize.height;
 
         // --- Color Palette ---
         const primaryColor = [165, 28, 28];   // Faranux Red
@@ -297,7 +310,7 @@ class PdfGenerator {
             styles: {
                 font: 'helvetica',
                 fontSize: 10,
-                cellPadding: 5
+                cellPadding: {top: 2, bottom: 2, left: 4, right: 4}
             },
             columnStyles: {
                 0: {fontStyle: 'bold', textColor: lightText, cellWidth: 30},
@@ -305,7 +318,8 @@ class PdfGenerator {
                 2: {halign: 'center', cellWidth: 20},
                 3: {halign: 'right', cellWidth: 35},
                 4: {halign: 'right', fontStyle: 'bold', cellWidth: 35}
-            }
+            },
+            margin: {bottom: 35} // Give space for footer
         });
 
         // --- 4. Totals ---
@@ -315,7 +329,18 @@ class PdfGenerator {
         doc.setFontSize(10);
         doc.setTextColor(...darkText);
 
+        // Helper to check for space and add a new page if the totals/notes will overflow
+        const checkPageOverflow = (neededHeight) => {
+            if (finalY + neededHeight > pageHeight - 35) {
+                doc.addPage();
+                finalY = 25; // Reset Y to top of new page
+                return true;
+            }
+            return false;
+        };
+
         const addTotalRow = (label, amount, isBold = false, color = darkText) => {
+            checkPageOverflow(7); // Check if we have space for a row
             doc.setFont("helvetica", isBold ? "bold" : "normal");
             doc.setTextColor(...color);
             doc.text(label, pageX - 45, finalY, {align: 'right'});
@@ -344,6 +369,7 @@ class PdfGenerator {
         }
 
         // Thick divider for Total Paid
+        checkPageOverflow(10);
         finalY -= 3;
         doc.setDrawColor(...darkText);
         doc.setLineWidth(0.5);
@@ -355,22 +381,29 @@ class PdfGenerator {
 
         // Render Notes Left-aligned under the table
         if (data.notes) {
+            const splitNotes = doc.splitTextToSize(data.notes, 100);
+            const notesHeight = (splitNotes.length * 5) + 10;
+
+            checkPageOverflow(notesHeight);
+
             finalY += 5;
             doc.setFontSize(10);
             doc.setFont("helvetica", "italic");
             doc.setTextColor(...lightText);
-            doc.text("Notes:", 14, doc.lastAutoTable.finalY + 10);
-
-            const splitNotes = doc.splitTextToSize(data.notes, 100);
-            doc.text(splitNotes, 14, doc.lastAutoTable.finalY + 16);
+            doc.text("Notes:", 14, finalY);
+            doc.text(splitNotes, 14, finalY + 6);
         }
 
-        // --- 5. Footer ---
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(156, 163, 175);
-        doc.text("Thank you for your purchase!", 105, 280, {align: 'center'});
-        doc.text("Generated securely by Faranux Electronics System", 105, 285, {align: 'center'});
+        // --- 5. Footer (Loop across all pages) ---
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(156, 163, 175);
+            doc.text("Thank you for your purchase!", 105, 280, {align: 'center'});
+            doc.text("Generated securely by Faranux Electronics System", 105, 285, {align: 'center'});
+        }
 
         // --- 6. Output PDF ---
         const pdfBlob = doc.output('blob');
