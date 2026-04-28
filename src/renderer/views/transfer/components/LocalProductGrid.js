@@ -51,7 +51,7 @@ class LocalProductCardBuilder {
         // }
 
         const wcLabel = wcStock > 0
-            ? `<span class="lpg-wc-badge" title="WooCommerce pool stock">Total Stock: ${wcStock}</span>`
+            ? `<span class="lpg-wc-badge" title="WooCommerce pool stock">Available Stock: ${wcStock}</span>`
             : '';
 
         // ── Branch breakdown badges ────────────────────────────────────────
