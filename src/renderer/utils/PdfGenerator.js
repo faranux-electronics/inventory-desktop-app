@@ -176,6 +176,214 @@ class PdfGenerator {
         document.body.removeChild(a);
         URL.revokeObjectURL(blobUrl);
     }
+
+    /**
+     * Generates an A4 PDF Receipt for the POS
+     * @param {object} data - The sale details from POSReceipt
+     */
+    static async generateReceiptPDF(data) {
+        let jsPDF;
+        let autoTable;
+
+        try {
+            jsPDF = require('jspdf').jsPDF;
+            autoTable = require('jspdf-autotable');
+
+            if (autoTable && typeof autoTable !== 'function' && autoTable.default) {
+                autoTable = autoTable.default;
+            }
+        } catch (e) {
+            throw new Error("PDF libraries missing. Please run: npm install jspdf jspdf-autotable");
+        }
+
+        const doc = new jsPDF({format: 'a4'});
+
+        // --- Color Palette ---
+        const primaryColor = [165, 28, 28];   // Faranux Red
+        const darkText = [31, 41, 55];        // Slate 800
+        const lightText = [107, 114, 128];    // Gray 500
+        const borderColor = [229, 231, 235];  // Gray 200
+
+        // --- 1. Document Header ---
+        try {
+            if (FARANUX_LOGO_BASE64 && FARANUX_LOGO_BASE64.length > 100) {
+                doc.addImage(FARANUX_LOGO_BASE64, 'PNG', 156, 15, 40, 17);
+            }
+        } catch (e) {
+            console.warn("Failed to load logo into PDF", e);
+        }
+
+        doc.setFontSize(24);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...primaryColor);
+        doc.text("SALES RECEIPT", 14, 22);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-RW', {year: 'numeric', month: 'short', day: '2-digit'});
+        const timeStr = now.toLocaleTimeString('en-RW', {hour: '2-digit', minute: '2-digit'});
+        const receiptId = data.wcOrderId ? `WC-${data.wcOrderId}` : 'POS-' + Date.now().toString(36).toUpperCase();
+
+        // Order Info
+        doc.setTextColor(...lightText);
+        doc.text("Receipt No:", 14, 32);
+        doc.setTextColor(...darkText);
+        doc.setFont("helvetica", "bold");
+        doc.text(receiptId, 36, 32);
+
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...lightText);
+        doc.text("Date:", 14, 38);
+        doc.setTextColor(...darkText);
+        doc.text(`${dateStr} · ${timeStr}`, 25, 38);
+
+        // Divider Line
+        doc.setDrawColor(...borderColor);
+        doc.setLineWidth(0.5);
+        doc.line(14, 44, 196, 44);
+
+        // --- 2. Addresses & Meta ---
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...primaryColor);
+        doc.text("STORE DETAILS", 14, 54);
+        doc.text("CUSTOMER DETAILS", 115, 54);
+
+        doc.setFontSize(11);
+        doc.setTextColor(...darkText);
+        doc.text(data.branchName || 'Faranux Electronics', 14, 60);
+
+        const custName = (data.customerName && data.customerName.toLowerCase() !== 'walk-in')
+            ? data.customerName
+            : 'Walk-in Customer';
+        doc.text(custName, 115, 60);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...lightText);
+        doc.text(`Cashier: ${data.cashierName || 'Admin'}`, 14, 66);
+        if (data.customerEmail) doc.text(data.customerEmail, 115, 66);
+        doc.text(`Payment: ${data.paymentMethod ? data.paymentMethod.toUpperCase() : 'CASH'}`, 14, 72);
+
+        // --- 3. Table Data ---
+        const tableBody = data.items.map(i => [
+            i.sku || '-',
+            i.name,
+            i.qty.toString(),
+            i.price.toLocaleString(),
+            (i.price * i.qty).toLocaleString()
+        ]);
+
+        autoTable(doc, {
+            startY: 80,
+            head: [['SKU', 'Product Name', 'Qty', 'U.P. (Frw)', 'T.P. (Frw)']],
+            body: tableBody,
+            theme: 'striped',
+            headStyles: {
+                fillColor: primaryColor,
+                textColor: [255, 255, 255],
+                fontStyle: 'bold'
+            },
+            alternateRowStyles: {
+                fillColor: [249, 250, 251]
+            },
+            bodyStyles: {
+                textColor: darkText,
+                lineColor: borderColor,
+                lineWidth: 0.1
+            },
+            styles: {
+                font: 'helvetica',
+                fontSize: 10,
+                cellPadding: 5
+            },
+            columnStyles: {
+                0: {fontStyle: 'bold', textColor: lightText, cellWidth: 30},
+                1: {cellWidth: 'auto'},
+                2: {halign: 'center', cellWidth: 20},
+                3: {halign: 'right', cellWidth: 35},
+                4: {halign: 'right', fontStyle: 'bold', cellWidth: 35}
+            }
+        });
+
+        // --- 4. Totals ---
+        let finalY = doc.lastAutoTable.finalY + 10;
+        const pageX = 196; // Right margin edge
+
+        doc.setFontSize(10);
+        doc.setTextColor(...darkText);
+
+        const addTotalRow = (label, amount, isBold = false, color = darkText) => {
+            doc.setFont("helvetica", isBold ? "bold" : "normal");
+            doc.setTextColor(...color);
+            doc.text(label, pageX - 45, finalY, {align: 'right'});
+            doc.text(`${amount.toLocaleString()} Frw`, pageX, finalY, {align: 'right'});
+            finalY += 7;
+        };
+
+        addTotalRow("Subtotal:", data.subtotal || 0);
+
+        if (data.discount > 0) {
+            const discLabel = data.discountType === 'percent' ? 'Discount:' : 'Discount:';
+            addTotalRow(discLabel, `-${data.discount}`, false, [220, 38, 38]); // Red text
+        }
+
+        if (data.shipping > 0) {
+            addTotalRow("Shipping:", data.shipping);
+        }
+
+        (data.fees || []).filter(f => f.amount > 0).forEach(f => {
+            addTotalRow(`${f.label || 'Fee'}:`, f.amount);
+        });
+
+        if (data.taxAmount > 0) {
+            const taxLabel = `${data.taxName || 'Tax'} (${data.taxRate}% ${data.taxInclusive ? 'incl' : 'excl'}):`;
+            addTotalRow(taxLabel, data.taxAmount);
+        }
+
+        // Thick divider for Total Paid
+        finalY -= 3;
+        doc.setDrawColor(...darkText);
+        doc.setLineWidth(0.5);
+        doc.line(pageX - 70, finalY, pageX, finalY);
+        finalY += 6;
+
+        doc.setFontSize(12);
+        addTotalRow("TOTAL PAID:", data.total || 0, true, primaryColor);
+
+        // Render Notes Left-aligned under the table
+        if (data.notes) {
+            finalY += 5;
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "italic");
+            doc.setTextColor(...lightText);
+            doc.text("Notes:", 14, doc.lastAutoTable.finalY + 10);
+
+            const splitNotes = doc.splitTextToSize(data.notes, 100);
+            doc.text(splitNotes, 14, doc.lastAutoTable.finalY + 16);
+        }
+
+        // --- 5. Footer ---
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(156, 163, 175);
+        doc.text("Thank you for your purchase!", 105, 280, {align: 'center'});
+        doc.text("Generated securely by Faranux Electronics System", 105, 285, {align: 'center'});
+
+        // --- 6. Output PDF ---
+        const pdfBlob = doc.output('blob');
+        const blobUrl = URL.createObjectURL(pdfBlob);
+
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `Receipt_${receiptId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+    }
 }
 
 module.exports = PdfGenerator;
