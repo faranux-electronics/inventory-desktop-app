@@ -151,7 +151,7 @@ module.exports = {
         action,
         items_data: itemsData
     }),
-    resolveDiscrepancy: (batchId) => request('resolve_discrepancy', 'POST', {batch_id: batchId}), // NEW
+    resolveDiscrepancy: (batchId) => request('resolve_discrepancy', 'POST', {batch_id: batchId}),
     cancelTransfer: (batchId, reason = '') => request('cancel_transfer', 'POST', {batch_id: batchId, reason}),
     exportTransfersCsv: (type = 'all', direction = 'all', search = '', start = '', end = '') => {
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -162,11 +162,14 @@ module.exports = {
     updateBranchPriority: (priorities) => request('update_branch_priority', 'POST', {priorities}),
     getTrashedLocations: () => request('get_trashed_locations'),
     addLocation: (name) => request('add_location', 'POST', {name}),
-    getPendingOrders: (startDate = '', endDate = '') => request(`get_pending_orders&start_date=${startDate}&end_date=${endDate}`),
-    syncOrders: () => request('sync_orders', 'POST'),
-    processOrder: (orderData) => request('process_order', 'POST', orderData),
 
     processPOSCheckout: (payload) => request('pos_checkout', 'POST', payload),
+    posGetInventory: (page = 1, search = '', locationId = '', category = '', stockFilter = 'all', featured = false) =>
+        request(`pos_get_inventory&page=${page}&search=${encodeURIComponent(search)}&location_id=${locationId}&category=${encodeURIComponent(category)}&stock_filter=${stockFilter}&featured=${featured ? 1 : 0}`),
+
+    // --> Added the missing dictionary endpoint here:
+    getBranchStockDictionary: (locationId) => request(`pos_get_stock_dictionary&location_id=${locationId}`),
+
     getWCCustomers: (search = '') => request(`wc_get_customers&search=${encodeURIComponent(search)}`),
     getWCStaff: (forceRefresh = false) => request(`wc_get_staff${forceRefresh ? '&force_refresh=true' : ''}`),
     getWCPaymentGateways: () => request('wc_get_payment_gateways'),
@@ -175,7 +178,6 @@ module.exports = {
     getTransfers: (type = 'all', direction = 'all', page = 1, search = '', branch_id = '', start = '', end = '', user_id = '') =>
         request(`get_transfers&type=${type}&direction=${direction}&page=${page}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}&branch_id=${branch_id}&user_id=${user_id}`),
 
-    // --- NOTIFICATION ENDPOINTS ---
     getNotifications: () => request('get_notifications'),
     markNotificationRead: (notificationId) => request('mark_notification_read', 'POST', {notification_id: notificationId}),
     markAllNotificationsRead: () => request('mark_all_notifications_read', 'POST'),
