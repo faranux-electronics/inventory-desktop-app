@@ -641,9 +641,24 @@ class POSView {
     }
 
     _handleAddToCart(product) {
-        const result = this._activeCart?.addProduct(product);
+        const cart = this._activeCart;
+        if (!cart) return;
+
+        const user = this.state.getUser();
+        const currentBranchId = user?.branch_id;
+
+        // Optional: early warning when adding
+        if (currentBranchId && this._branchInventory?.[currentBranchId]) {
+            const available = this._branchInventory[currentBranchId][product.id] || 0;
+            if (available <= 0) {
+                Toast.warning(`Low stock in your branch: ${product.name}`);
+            }
+        }
+
+        const result = cart.addProduct(product);
         if (result === false) return Toast.error('Item is out of stock');
         if (result === 'max') return Toast.error(`Max stock reached`);
+
         this.productGrid.flash(product.id);
     }
 
@@ -675,16 +690,27 @@ class POSView {
             return Toast.error(`Insufficient stock: ${itemNames}`);
         }
 
-        // Validate branch-specific inventory (if available)
+        // Validate branch-specific inventory
         if (this._branchInventory && Object.keys(this._branchInventory).length > 0) {
+            const user = this.state.getUser();
+            const currentBranchId = user?.branch_id;
+
+            if (!currentBranchId) {
+                return Toast.error('User branch not set. Cannot validate stock.');
+            }
+
             const branchErrors = [];
+
             items.forEach(item => {
-                const branchId = item.branchId;
-                const branchStock = this._branchInventory[branchId]?.[item.id] || 0;
+                const branchStock = this._branchInventory[currentBranchId]?.[item.id] || 0;
+
                 if (item.qty > branchStock) {
-                    branchErrors.push(`${item.name} (requested: ${item.qty}, available in branch: ${branchStock})`);
+                    branchErrors.push(
+                        `${item.name} (requested: ${item.qty}, available in branch: ${branchStock})`
+                    );
                 }
             });
+
             if (branchErrors.length > 0) {
                 return Toast.error(`Insufficient branch stock:\n${branchErrors.join('\n')}`);
             }
