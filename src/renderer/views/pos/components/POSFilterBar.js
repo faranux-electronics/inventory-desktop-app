@@ -1,15 +1,14 @@
 /**
- * POSFilterBar — search, category, stock status, on-sale, featured filters
+ * POSFilterBar — search, category, stock status, featured filters
  */
 class POSFilterBar {
     constructor({ initialQuery='', initialCategory='', initialStockFilter='all',
-                    initialOnSale = false, initialFeatured = false, minimal = false, onFilter
+                    initialFeatured = false, minimal = false, onFilter
                 }) {
         this.onFilter = onFilter;
         this._q = initialQuery;
         this._cat = initialCategory;
         this._stock = initialStockFilter;
-        this._onSale = initialOnSale;
         this._featured = initialFeatured;
         this._minimal = minimal;   // when true: only search + category, no chip row
         this._timer = null;
@@ -35,16 +34,12 @@ class POSFilterBar {
                     <svg viewBox="0 0 10 10" width="8"><circle cx="5" cy="5" r="4" fill="#16a34a"/></svg> In Stock
                 </button>
                 <button class="pos-chip ${this._stock==='outofstock' ? 'active' : ''}" data-stock="outofstock">
-                    <svg viewBox="0 0 10 10" width="8"><circle cx="5" cy="5" r="4" fill="#dc2626"/></svg> OOS
+                    <svg viewBox="0 0 10 10" width="8"><circle cx="5" cy="5" r="4" fill="#dc2626"/></svg> Out of Stock
                 </button>
                 <button class="pos-chip ${this._stock==='onbackorder' ? 'active' : ''}" data-stock="onbackorder">
                     <svg viewBox="0 0 10 10" width="8"><circle cx="5" cy="5" r="4" fill="#d97706"/></svg> Backorder
                 </button>
                 <span style="width:1px;background:#e5e7eb;margin:0 4px;height:16px;"></span>
-                <button class="pos-chip pos-chip--sale ${this._onSale ? 'active' : ''}" id="posOnSaleChip">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11"><path d="M12 2L2 7l10 5 10-5-10-5z"/></svg>
-                    On Sale
-                </button>
                 <button class="pos-chip pos-chip--feat ${this._featured ? 'active' : ''}" id="posFeaturedChip">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                     Featured
@@ -58,7 +53,6 @@ class POSFilterBar {
     populateCategories(categories) {
         const sel = document.getElementById('posCategory');
         if (!sel) return;
-        // Support flat list of strings or WC category objects {id, name, slug}
         if (Array.isArray(categories) && categories.length) {
             if (typeof categories[0] === 'object') {
                 categories.forEach(c => {
@@ -88,7 +82,6 @@ class POSFilterBar {
             query:       this._q,
             category:    this._cat,
             stockFilter: this._stock,
-            onSale:      this._onSale,
             featured:    this._featured
         });
     }
@@ -116,15 +109,6 @@ class POSFilterBar {
                 this._emit();
             });
         });
-
-        const onSaleChip = container.querySelector('#posOnSaleChip');
-        if (onSaleChip) {
-            onSaleChip.addEventListener('click', () => {
-                this._onSale = !this._onSale;
-                onSaleChip.classList.toggle('active', this._onSale);
-                this._emit();
-            });
-        }
 
         const featChip = container.querySelector('#posFeaturedChip');
         if (featChip) {

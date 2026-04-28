@@ -42,8 +42,9 @@ class POSCart {
     }
 
     addProduct(product, qty = 1) {
-        const stock = parseInt(product.stock_quantity || 0);
-        if (stock <= 0) return false;
+        const localStock = parseInt(product.stock_quantity || 0);
+
+        if (localStock <= 0) return false;
 
         const ex = this._items.find(i => i.id === product.id);
         if (ex) {
@@ -52,13 +53,13 @@ class POSCart {
             ex.qty = next;
         } else {
             this._items.push({
-                id:           product.id,
+                id: product.id,
                 wc_product_id: product.wc_product_id || product.id,
-                name:         product.name,
-                price:        parseInt(product.price || 0),
+                name: product.name,
+                price: parseInt(product.price || 0),
                 qty,
-                maxStock:     stock,
-                sku:          product.sku || '',
+                maxStock: localStock,
+                sku: product.sku || '',
             });
         }
         this._renderItems();
@@ -76,6 +77,42 @@ class POSCart {
         else                       item.qty = next;
         this._renderItems();
         this.onChange(this._items);
+    }
+
+    /**
+     * Strict Live Validation:
+     * Scans the cart against the exact stock dictionary of the assigned branch.
+     * Decreases quantities or removes items if stock is missing or the branch changed.
+     */
+    validateAgainstDictionary(stockDict) {
+        let modified = false;
+
+        for (let i = this._items.length - 1; i >= 0; i--) {
+            const item = this._items[i];
+            const linkId = item.wc_product_id || item.id;
+            const actualStock = parseInt(stockDict[linkId] || 0);
+
+            if (item.maxStock !== actualStock) {
+                item.maxStock = actualStock;
+                modified = true;
+            }
+
+            if (item.qty > actualStock) {
+                item.qty = actualStock;
+                modified = true;
+            }
+
+            if (item.qty <= 0) {
+                this._items.splice(i, 1);
+                modified = true;
+            }
+        }
+
+        if (modified) {
+            this._renderItems();
+            this.onChange(this._items);
+        }
+        return modified;
     }
 
     _renderItems() {
@@ -110,6 +147,7 @@ class POSCart {
         </div>
         <div style="font-size:10px;color:rgba(36, 59, 83, 0.6);margin-top:2px;">
             ${item.sku ? `SKU: ${item.sku} &nbsp;|&nbsp; ` : ''}<strong>${item.price.toLocaleString()} Frw</strong>${taxLabel}
+            &nbsp;|&nbsp; <span title="Branch stock available">Branch: ${item.maxStock}</span>
         </div>
     </div>
 
@@ -136,7 +174,6 @@ class POSCart {
                 const item = this._items.find(i => i.id === itemId);
                 if (!item) return;
 
-                // Validate qty doesn't exceed maxStock
                 if (newQty > item.maxStock) {
                     input.value = item.maxStock;
                     return;

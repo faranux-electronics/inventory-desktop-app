@@ -7,6 +7,7 @@
  * 4. POSPaymentPanel: Orchestrator and Main Compact UI
  */
 const API = require('../../../services/api.js');
+const Toast = require('../../../components/Toast.js');
 
 /* =======================================================================
    1. TotalsCalculator
@@ -564,7 +565,7 @@ class POSPaymentPanel {
         btn.disabled = on;
         btn.innerHTML = on
             ? `<svg class="pos-spinner-inline" viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Processing…`
-            : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15"><polyline points="20 6 9 17 4 12"/></svg> Charge &amp; Review`;
+            : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15"><polyline points="20 6 9 17 4 12"/></svg> Charge`;
     }
 
     resetForm() {
@@ -635,6 +636,23 @@ class POSPaymentPanel {
         const calc = TotalsCalculator.calculate({ subtotal: this._subtotal, ...modalData });
         const activeMethod = this.container.querySelector('.pos-method-btn.active');
 
+        // --- VALIDATION BLOCK ---
+        if (!activeMethod) {
+            return Toast.error('Please select a payment method before charging.');
+        }
+
+        if (modalData.discountType === 'value' && modalData.discountRaw > this._subtotal) {
+            return Toast.error('Discount amount cannot exceed the subtotal.');
+        }
+
+        if (modalData.discountType === 'percent' && modalData.discountRaw > 100) {
+            return Toast.error('Discount percentage cannot exceed 100%.');
+        }
+
+        if (!modalData.cashier.name || modalData.cashier.name.includes('— Select')) {
+            return Toast.error('Please assign a cashier in the Order Details menu.');
+        }
+
         this.onRequestCheckout({
             paymentMethod: activeMethod?.dataset.title || 'Cash',
             paymentMethodId: activeMethod?.dataset.method || 'cod',
@@ -658,12 +676,10 @@ class POSPaymentPanel {
 
             cashierId: modalData.cashier.id,
             cashierName: modalData.cashier.name,
-            // FIX: Pass null instead of an empty string
             cashierEmail: modalData.cashier.email || null,
 
             customerId: modalData.customer.id || null,
             customerName: modalData.customer.name,
-            // FIX: Pass null instead of an empty string
             customerEmail: modalData.customer.email || null,
         });
     }
@@ -676,7 +692,6 @@ class POSPaymentPanel {
             if (refreshBtn) refreshBtn.style.opacity = '0.5';
             if (selectEl && forceRefresh) selectEl.innerHTML = `<option value="">Refreshing...</option>`;
 
-            // Request from API (Ensure api.js accepts this argument as discussed previously)
             const res = await API.getWCStaff(forceRefresh);
 
             if (res?.status === 'success' && res.data?.length) {
