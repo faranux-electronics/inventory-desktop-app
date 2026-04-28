@@ -1,4 +1,3 @@
-// FIX: Escape helper prevents XSS from server-supplied strings inserted into innerHTML.
 function esc(str) {
     return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -7,12 +6,9 @@ function esc(str) {
    1. LocalProductCardBuilder
    ======================================================================= */
 class LocalProductCardBuilder {
-    /**
-     * @param {Object} p           — product from getInventory
-     * @param {Object} locationMap — { location_id: location_name }
-     * @param {string} [focusBranchId] — if set, highlight this branch's qty in breakdown
-     */
     static build(p, locationMap = {}, focusBranchId = null) {
+        // POS sets this to 'branch_stock' allowing local UI logic to disable the item
+        // if the cashier has 0 stock locally.
         const localStock = parseInt(p.stock_quantity || 0);
         const wcStock = parseInt(p.wc_stock_quantity || 0);
         const isOOS = localStock <= 0;
@@ -37,7 +33,7 @@ class LocalProductCardBuilder {
                    </svg>
                </div>`;
 
-        // ── Row 1: stock + WC + sale + featured (mirrors POS row1) ────────
+        // ── Row 1: stock + WC + sale + featured ────────
         let primaryBadge;
         if (isBackordered) {
             primaryBadge = `<span class="lpg-badge lpg-badge--backorder">Backorder</span>`;
@@ -46,9 +42,6 @@ class LocalProductCardBuilder {
         } else if (isLow) {
             primaryBadge = `<span class="lpg-badge lpg-badge--low">Low (${localStock})</span>`;
         }
-        // else {
-        //     primaryBadge = `<span class="lpg-badge lpg-badge--ok">${localStock} local</span>`;
-        // }
 
         const wcLabel = wcStock > 0
             ? `<span class="lpg-wc-badge" title="WooCommerce pool stock">Available Stock: ${wcStock}</span>`
@@ -58,8 +51,6 @@ class LocalProductCardBuilder {
         let breakdownHtml = '';
         if (p.stock_breakdown) {
             const badges = p.stock_breakdown.toString().split(',').map(pair => {
-                // FIX: Split on last colon so location names containing colons are
-                // parsed correctly.
                 const colonIdx = pair.lastIndexOf(':');
                 if (colonIdx === -1) return '';
                 const lid = pair.substring(0, colonIdx).trim();
@@ -81,19 +72,28 @@ class LocalProductCardBuilder {
             if (badges) breakdownHtml = `<div class="lpg-breakdown">${badges}</div>`;
         }
 
-        // ── Price ──────────────────────────────────────────────────────────
-        const price = parseInt(p.price || 0);
-        const priceHtml = price > 0
-            ? `<div class="lpg-price">${price.toLocaleString()} <span class="lpg-currency">Frw</span></div>`
-            : `<div class="lpg-price lpg-price--none">—</div>`;
+        // ── Price (Enhanced with POS Strikethrough Logic) ──────────────────
+        const price = parseInt(p.price || p.regular_price || 0);
+        const regPrice = parseInt(p.regular_price || 0);
 
-        // ── Row 2: SKU + copy-SKU + category + barcode (mirrors POS row2) ─
+        let priceHtml;
+        if (onSale && regPrice > price) {
+            priceHtml = `<div class="lpg-price">
+                <div>${price.toLocaleString()} <span class="lpg-currency">Frw</span></div>
+                <div style="font-size:10px;color:#9ca3af;text-decoration:line-through;margin-top:2px;font-weight:normal;">${regPrice.toLocaleString()} Frw</div>
+               </div>`;
+        } else if (price > 0) {
+            priceHtml = `<div class="lpg-price">${price.toLocaleString()} <span class="lpg-currency">Frw</span></div>`;
+        } else {
+            priceHtml = `<div class="lpg-price lpg-price--none">—</div>`;
+        }
+
+        // ── Row 2: SKU + copy-SKU + category + barcode ─
         const catName = p.category || p.category_name || p.categories?.[0]?.name || '';
 
         const copyIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 
-        // FIX: escape p.sku, p.name, catName, p.barcode before injection into innerHTML
         const skuChip = p.sku
             ? `<span class="lpg-chip lpg-chip--sku">${esc(p.sku)}</span>
                <button class="lpg-copy-btn" data-copy="${esc(p.sku)}" data-label="SKU" title="Copy SKU">${copyIcon}</button>`
@@ -102,12 +102,10 @@ class LocalProductCardBuilder {
         div.innerHTML = `
             ${imgHtml}
             <div class="lpg-info">
-                <!-- Name row: name + copy-name only -->
                 <div class="lpg-name-row">
                     <span class="lpg-name">${esc(p.name)}</span>
                     <button class="lpg-copy-btn" data-copy="${esc(p.name)}" data-label="Name" title="Copy name">${copyIcon}</button>
                 </div>
-                <!-- Meta row 1: stock + WC + branch breakdown + sale + feat (all stock context together) -->
                 <div class="lpg-meta-row">
                     ${primaryBadge || ''}
                     ${wcLabel}
@@ -115,7 +113,6 @@ class LocalProductCardBuilder {
                     ${onSale ? `<span class="lpg-badge lpg-badge--sale">Sale</span>` : ''}
                     ${feat ? `<span class="lpg-badge lpg-badge--feat">★ Featured</span>` : ''}
                 </div>
-                <!-- Meta row 2: SKU + copy-SKU + category + barcode -->
                 <div class="lpg-meta-row lpg-meta-row--2">
                     ${skuChip}
                     ${catName ? `<span class="lpg-chip">${esc(catName)}</span>` : ''}
@@ -129,7 +126,7 @@ class LocalProductCardBuilder {
 }
 
 /* =======================================================================
-   2. ImageHoverZoom  (identical pattern to POSProductGrid)
+   2. ImageHoverZoom
    ======================================================================= */
 class ImageHoverZoom {
     constructor() {
@@ -178,14 +175,9 @@ class ImageHoverZoom {
 }
 
 /* =======================================================================
-   3. LocalProductGrid  (main orchestrator)
+   3. LocalProductGrid
    ======================================================================= */
 class LocalProductGrid {
-    /**
-     * @param {Object} opts
-     * @param {Function} opts.onSelect      — (product) => void  — called on row click
-     * @param {Function} [opts.onScrollEnd] — () => void         — called near scroll bottom
-     */
     constructor({onSelect, onScrollEnd}) {
         this.onSelect = onSelect;
         this.onScrollEnd = onScrollEnd;
@@ -200,15 +192,14 @@ class LocalProductGrid {
 
     // ─── Public API ────────────────────────────────────────────────────────────
 
-    /**
-     * Set a map of branch IDs to names for breakdown badge labels.
-     * @param {{ [id: string]: string }} map
-     */
+    getProducts() {
+        return [...this._products];
+    }
+
     setLocationMap(map) {
         this._locationMap = map || {};
     }
 
-    /** Highlight a specific branch in breakdown badges. */
     setFocusBranch(branchId) {
         this._focusBranchId = branchId ? String(branchId) : null;
     }
@@ -226,9 +217,6 @@ class LocalProductGrid {
         this._removeLoadMore();
 
         if (!append) {
-            // FIX: assign _products so refreshCards(), flash(), and the click handler
-            // can all find products. Without this, this._products stays [] forever
-            // and every row click silently does nothing.
             this._products = [...products];
             this._list.innerHTML = '';
         } else {
@@ -247,38 +235,24 @@ class LocalProductGrid {
         this._list.appendChild(frag);
     }
 
-    /**
-     * Sort current products by local stock quantity and re-render.
-     * @param {'asc'|'desc'} direction - 'desc' for highest stock first, 'asc' for lowest first
-     */
     sortByStock(direction = 'desc') {
         if (!this._products || !this._products.length) return;
 
-        // 1. Sort the internal array
         this._products.sort((a, b) => {
             const stockA = parseInt(a.stock_quantity || 0, 10);
             const stockB = parseInt(b.stock_quantity || 0, 10);
             return direction === 'asc' ? stockA - stockB : stockB - stockA;
         });
 
-        // 2. Clear the current list
         this._list.innerHTML = '';
 
-        // 3. Re-build and append the sorted cards
         const frag = document.createDocumentFragment();
         this._products.forEach(p => frag.appendChild(
             LocalProductCardBuilder.build(p, this._locationMap, this._focusBranchId)
         ));
         this._list.appendChild(frag);
-
-        // Note: We don't need to call _setupDelegation() again because the
-        // click/hover event listeners are attached to `this._list`, not the individual rows.
     }
 
-    /**
-     * Re-render cards in place after locationMap or focusBranch changes,
-     * WITHOUT clearing scroll position.
-     */
     refreshCards() {
         const items = this._list.querySelectorAll('.lpg-row');
         items.forEach(el => {
@@ -288,7 +262,7 @@ class LocalProductGrid {
             const fresh = LocalProductCardBuilder.build(p, this._locationMap, this._focusBranchId);
             el.replaceWith(fresh);
         });
-        this._setupDelegation(); // re-attach after replace
+        this._setupDelegation();
     }
 
     showLoading(append = false) {
@@ -311,8 +285,6 @@ class LocalProductGrid {
     }
 
     showEmpty(msg = 'No products found.') {
-        // FIX: msg may contain e.message from a network error; use textContent for
-        // static strings and esc() for anything dynamic to prevent injection.
         this._list.innerHTML = `
             <div class="lpg-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="rgba(36,59,83,.25)" stroke-width="1.5" width="36">
@@ -325,11 +297,9 @@ class LocalProductGrid {
     }
 
     showError(msg = 'Failed to load products.') {
-        // FIX: escape msg before injection (callers may pass e.message from fetch errors)
         this._list.innerHTML = `<div class="lpg-state lpg-state--error">${esc(msg)}</div>`;
     }
 
-    /** Flash a product row green briefly (e.g. after adding to staging). */
     flash(productId) {
         const row = this._list.querySelector(`.lpg-row[data-id="${productId}"]`);
         if (!row) return;
@@ -337,7 +307,6 @@ class LocalProductGrid {
         setTimeout(() => row.classList.remove('lpg-row--flash'), 320);
     }
 
-    /** Show/hide a sync status badge (mirrors POSProductGrid.setSyncStatus). */
     setSyncStatus(status, count = 0) {
         const parent = this._list?.parentNode;
         if (!parent) return;
@@ -376,18 +345,15 @@ class LocalProductGrid {
     }
 
     _setupDelegation() {
-        // Remove previous listener by cloning the node
         const old = this._list;
         const fresh = old.cloneNode(true);
         old.replaceWith(fresh);
         this._list = fresh;
 
-        // Re-attach hover zoom after clone
         this._setupHoverZoom();
         this._setupScrollWatch();
 
         this._list.addEventListener('click', e => {
-            // 1. Copy button
             const copyBtn = e.target.closest('.lpg-copy-btn');
             if (copyBtn) {
                 e.stopPropagation();
@@ -395,7 +361,6 @@ class LocalProductGrid {
                 return;
             }
 
-            // 2. Row click — block OOS
             const row = e.target.closest('.lpg-row');
             if (!row || row.classList.contains('lpg-row--oos')) return;
 
@@ -442,7 +407,6 @@ class LocalProductGrid {
             }, 1400);
         }).catch(() => alert(`Failed to copy ${label}`));
     }
-
 }
 
 module.exports = LocalProductGrid;
