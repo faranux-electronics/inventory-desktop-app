@@ -117,6 +117,7 @@ class LocalProductCardBuilder {
                     ${skuChip}
                     ${catName ? `<span class="lpg-chip">${esc(catName)}</span>` : ''}
                     ${p.barcode ? `<span class="lpg-chip">EAN: ${esc(p.barcode)}</span>` : ''}
+                    ${p.product_url ? ` | <span class="lpg-chip"><a href="${p.product_url}" target="_blank">View on Web</a></span>` : ''}
                 </div>
             </div>
             ${priceHtml}`;

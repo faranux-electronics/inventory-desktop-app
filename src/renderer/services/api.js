@@ -97,8 +97,8 @@ module.exports = {
         request('admin_update_role', 'POST', {id, role, allowed_branches: allowedBranches, name, email}),
     regeneratePassword: (id, newPassword) => request('regenerate_password', 'POST', {id, password: newPassword}),
 
-    getInventory: (page = 1, search = '', locationId = '', status = 'publish', sortBy = 'name', sortOrder = 'ASC', category = '') =>
-        request(`get_inventory&page=${page}&search=${encodeURIComponent(search)}&location_id=${locationId}&status=${status}&sort_by=${sortBy}&sort_order=${sortOrder}&category=${encodeURIComponent(category)}`),
+    getInventory: (page = 1, search = '', locationId = '', status = 'publish', sortBy = 'name', sortOrder = 'ASC', category = '', stockFilter = 'all') =>
+        request(`get_inventory&page=${page}&search=${encodeURIComponent(search)}&location_id=${locationId}&status=${status}&sort_by=${sortBy}&sort_order=${sortOrder}&category=${encodeURIComponent(category)}&stock_filter=${stockFilter}`),
 
     importStock: (items, mode) => request('import_stock', 'POST', {items, mode}),
     getAuditLogs: (actionFilter = '', page = 1, startDate = '', endDate = '') => {

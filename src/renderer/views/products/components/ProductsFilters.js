@@ -62,7 +62,13 @@ class ProductsFilters {
                             <option value="">All Locations</option>
                             ${this.locationOptions}
                         </select>
-
+                        <select id="stockFilter" style="font-size: 13px; padding: 4px 8px; border: 1px solid #8c8f94; border-radius: 3px; background: white; min-width: 130px;">
+                            <option value="all" ${f.stockFilter === 'all' ? 'selected' : ''}>All Stock</option>
+                            <option value="mismatch" ${f.stockFilter === 'mismatch' ? 'selected' : ''}>Mismatch Only</option>
+                            <option value="instock" ${f.stockFilter === 'instock' ? 'selected' : ''}>In Stock</option>
+                            <option value="lowstock" ${f.stockFilter === 'lowstock' ? 'selected' : ''}>Low Stock</option>
+                            <option value="outofstock" ${f.stockFilter === 'outofstock' ? 'selected' : ''}>Out of Stock</option>
+                        </select>
                         <button id="applyFiltersBtn" class="btn btn-sm" style="background: #f6f7f7; border: 1px solid #2271b1; color: #2271b1; padding: 3px 10px;">Filter</button>
                     </div>
 
@@ -144,6 +150,14 @@ class ProductsFilters {
         applyFiltersBtn?.addEventListener('click', () => {
             this.state.setLocationFilter(locationFilter.value);
             this.state.setCategory(categoryFilter.value);
+            this.products.saveState();
+            this.products.loadData();
+        });
+
+        const stockFilter = document.getElementById('stockFilter');
+        stockFilter?.addEventListener('change', () => {
+            // Save to your state manager
+            this.state.filters.stockFilter = stockFilter.value;
             this.products.saveState();
             this.products.loadData();
         });

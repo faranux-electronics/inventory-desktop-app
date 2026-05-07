@@ -252,7 +252,7 @@ class ProductsView {
         try {
             const res = await API.getInventory(
                 f.page, f.search, f.location_id, f.status,
-                f.sortBy, f.sortOrder, f.category
+                f.sortBy, f.sortOrder, f.category, f.stockFilter || 'all'
             );
 
             if (res.status === 'success') {

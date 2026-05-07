@@ -57,13 +57,16 @@ class InventoryTable {
                             <th class="sortable" data-field="name" style="padding: 8px 10px; font-weight: 600; color: #2c3338;">
                                 Name ${sortIcon('name')}
                             </th>
-                            <th class="sortable" data-field="sku" style="width: 15%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th class="sortable" data-field="sku" style="width: 13%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
                                 SKU ${sortIcon('sku')}
                             </th>
-                            <th class="sortable" data-field="stock_quantity" style="width: 25%; padding: 8px 10px; font-weight: 600; color: #2c3338; cursor: pointer;" title="Sort by Stock">
+                            <th class="sortable" data-field="stock_quantity" style="width: 20%; padding: 8px 10px; font-weight: 600; color: #2c3338; cursor: pointer;" title="Sort by Stock">
                                 Stock Details ${sortIcon('stock_quantity')}
                             </th>
-                                <th class="sortable" data-field="category" style="width: 15%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th class="sortable" data-field="mismatch" style="width: 10%; padding: 8px 10px; font-weight: 600; color: #2c3338; text-align: center;" title="Difference between WC and Local">
+                                Mismatch ${sortIcon('mismatch')}
+                            </th>
+                            <th class="sortable" data-field="category" style="width: 13%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
                                 Category ${sortIcon('category')}
                             </th>
                             <th class="sortable" data-field="price" style="width: 12%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
@@ -101,6 +104,20 @@ class InventoryTable {
         const isSelected = this.products.selectedProducts.has(key);
         const branchStock = product.stock_quantity || 0;
         const wcStock = product.wc_stock_quantity || 0;
+
+        // --- MISMATCH CALCULATION & STYLING ---
+        const mismatch = wcStock - branchStock;
+        let mismatchHtml = '';
+        if (mismatch === 0) {
+            // Perfect match: Subdued green check
+            mismatchHtml = `<span style="color: #00a32a; font-weight: 600; font-size: 12px;"><i class="fa-solid fa-check"></i></span>`;
+        } else {
+            // Mismatch: Bright red badge showing the difference
+            const sign = mismatch > 0 ? '+' : '';
+            mismatchHtml = `<span style="background: #fcf0f1; color: #d63638; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; border: 1px solid #f1acaa;">
+                ${sign}${mismatch}
+            </span>`;
+        }
 
         const imageHtml = product.image_url
             ? `<img src="${product.image_url}" alt="${product.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #c3c4c7;" onerror="this.style.display='none'">`
@@ -163,6 +180,9 @@ class InventoryTable {
                     <strong style="color: #1d2327;">${branchStock}</strong>
                 </div>
                 ${distributionHtml}
+            </td>
+            <td style="padding: 10px; vertical-align: middle; text-align: center;">
+                ${mismatchHtml}
             </td>
             <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
                 ${product.category || '-'}
