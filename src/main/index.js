@@ -1,9 +1,10 @@
-const {app, BrowserWindow, ipcMain, shell, Tray, Menu} = require('electron');
+const {app, BrowserWindow, ipcMain, shell, Tray, Menu, Notification} = require('electron');
 const http = require('http');
 const path = require('path');
 const {autoUpdater} = require('electron-updater');
 const log = require('electron-log');
 
+app.setAppUserModelId('Faranux MIS');
 require('dotenv').config({path: path.join(app.getAppPath(), '.env')});
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -60,6 +61,7 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
+        icon: path.join(__dirname, '../assets/logo1.png'),
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
@@ -182,6 +184,28 @@ if (!gotTheLock) {
             if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
                 shell.openExternal(url);
             }
+        });
+
+        // Handle native OS notifications with proper ASAR icon extraction
+        ipcMain.on('show-os-notification', (event, {title, body}) => {
+            const iconPath = path.join(__dirname, '../assets/logo_nots.png');
+
+            const notification = new Notification({
+                title: title,
+                body: body,
+                icon: iconPath // Electron handles the .asar extraction automatically!
+            });
+
+            // When the user clicks the notification, bring the app to the front
+            notification.on('click', () => {
+                if (mainWindow) {
+                    if (mainWindow.isMinimized()) mainWindow.restore();
+                    mainWindow.show();
+                    mainWindow.focus();
+                }
+            });
+
+            notification.show();
         });
 
         // ─── Auto Updater Events ──────

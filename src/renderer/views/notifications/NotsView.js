@@ -10,6 +10,7 @@ class NotsView {
         this.app = app;
         this.notifications = [];
         this.loading = false;
+        this.currentTab = 'unread';
     }
 
     render() {
@@ -44,6 +45,15 @@ class NotsView {
                         </button>
                     </div>
                 </div>
+
+                <div class="flex gap-md border-b border-neutral-300 mb-md mt-lg">
+                    <button id="tabUnread" class="tab-btn px-md py-sm font-semibold text-primary border-b-2 border-primary transition-colors" data-tab="unread">
+                        New <span id="badgeUnread" class="ml-xs bg-primary text-white rounded-full px-xs py-[2px] text-xs inline-block min-w-[20px] text-center">0</span>
+                    </button>
+                    <button id="tabArchived" class="tab-btn px-md py-sm font-semibold text-muted border-b-2 border-transparent hover:text-neutral-800 transition-colors" data-tab="archived">
+                        Archived
+                    </button>
+                </div>
                 
                 <div id="notificationsList" class="bg-white rounded border border-neutral-200 shadow-sm overflow-hidden min-h-[300px]">
                     <div class="p-xl text-center text-muted mt-lg">
@@ -61,7 +71,11 @@ class NotsView {
             const res = await API.getNotifications();
             if (res.status === 'success') {
                 this.notifications = res.data || [];
-                this.app.sidebar.updateBadgeCount(res.unread_count || 0);
+
+                // Bulletproof unread calculation
+                const unreadCount = this.notifications.filter(n => !(String(n.is_read) === "1" || n.is_read === true)).length;
+                this.app.sidebar.updateBadgeCount(unreadCount);
+
                 this._renderList();
             } else {
                 this._showError(res.message);
@@ -74,24 +88,42 @@ class NotsView {
     _renderList() {
         const listEl = document.getElementById('notificationsList');
         const btnAll = document.getElementById('btnMarkAllRead');
+        const badgeUnread = document.getElementById('badgeUnread');
 
         if (!listEl) return;
 
-        if (this.notifications.length === 0) {
+        const isArchivedTab = this.currentTab === 'archived';
+
+        // Filter list based on selected tab with strict type checking
+        const displayList = this.notifications.filter(n => {
+            const isRead = (String(n.is_read) === "1" || n.is_read === true);
+            return isArchivedTab ? isRead : !isRead;
+        });
+
+        // Update the New tab badge
+        const unreadCount = this.notifications.filter(n => !(String(n.is_read) === "1" || n.is_read === true)).length;
+        if (badgeUnread) badgeUnread.innerText = unreadCount;
+
+        if (displayList.length === 0) {
             btnAll.style.display = 'none';
+            const emptyMessage = isArchivedTab ? "No archived messages." : "You're all caught up!";
+            const emptySubMessage = isArchivedTab ? "Read notifications will appear here." : "There are no new notifications to review.";
+            const emptyIcon = isArchivedTab ? "fa-folder-open" : "fa-bell-slash";
+
             listEl.innerHTML = `
                 <div class="p-xl text-center text-muted" style="margin-top: 40px;">
-                    <i class="fa-regular fa-bell-slash text-5xl mb-md" style="opacity: 0.2; display:block;"></i>
-                    <p class="text-lg font-semibold text-neutral-800">You're all caught up!</p>
-                    <p class="text-sm mt-xs">There are no new notifications to review.</p>
+                    <i class="fa-regular ${emptyIcon} text-5xl mb-md" style="opacity: 0.2; display:block;"></i>
+                    <p class="text-lg font-semibold text-neutral-800">${emptyMessage}</p>
+                    <p class="text-sm mt-xs">${emptySubMessage}</p>
                 </div>
             `;
             return;
         }
 
-        btnAll.style.display = 'inline-flex';
+        // Only show "Mark All Read" on the Unread tab
+        btnAll.style.display = isArchivedTab ? 'none' : 'inline-flex';
 
-        listEl.innerHTML = this.notifications.map(n => this._buildNotificationItem(n)).join('');
+        listEl.innerHTML = displayList.map(n => this._buildNotificationItem(n)).join('');
 
         listEl.querySelectorAll('.btn-mark-read').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -122,6 +154,9 @@ class NotsView {
     _buildNotificationItem(n) {
         const timeStr = this._timeSince(new Date(n.created_at));
 
+        // Strict read check
+        const isRead = (String(n.is_read) === "1" || n.is_read === true);
+
         let icon = '<i class="fa-solid fa-bell text-primary"></i>';
         let bgStyle = 'background: var(--primary-50); color: var(--primary-700);';
 
@@ -138,8 +173,20 @@ class NotsView {
 
         const circleStyle = `width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; ${bgStyle}`;
 
+        // Faded styling for archived items
+        const itemOpacity = isRead ? 'opacity: 0.65; filter: grayscale(30%);' : '';
+
+        // Only render checkmark if unread
+        const checkmarkHtml = isRead ? '' : `
+            <div class="flex items-center gap-sm ml-md pl-sm" style="border-left: 1px solid var(--neutral-100);">
+                <button class="btn btn-ghost btn-mark-read text-muted hover:text-primary" data-id="${n.id}" title="Mark as Read" style="padding: 8px;">
+                    <i class="fa-solid fa-check"></i>
+                </button>
+            </div>
+        `;
+
         return `
-            <div class="flex items-start gap-md p-md border-b border-neutral-100 hover:bg-neutral-50 transition-colors" data-id="${n.id}">
+            <div class="flex items-start gap-md p-md border-b border-neutral-100 hover:bg-neutral-50 transition-colors" data-id="${n.id}" style="${itemOpacity}">
                 <div style="${circleStyle}">
                     ${icon}
                 </div>
@@ -155,11 +202,7 @@ class NotsView {
                         ` : ''}
                     </div>
                 </div>
-                <div class="flex items-center gap-sm ml-md pl-sm" style="border-left: 1px solid var(--neutral-100);">
-                    <button class="btn btn-ghost btn-mark-read text-muted hover:text-primary" data-id="${n.id}" title="Mark as Read" style="padding: 8px;">
-                        <i class="fa-solid fa-check"></i>
-                    </button>
-                </div>
+                ${checkmarkHtml}
             </div>
         `;
     }
@@ -168,8 +211,14 @@ class NotsView {
         try {
             const res = await API.markNotificationRead(id);
             if (res.status === 'success') {
-                this.notifications = this.notifications.filter(n => String(n.id) !== String(id));
-                this.app.sidebar.updateBadgeCount(this.notifications.length);
+                // Flag as read instead of deleting
+                this.notifications = this.notifications.map(n => {
+                    if (String(n.id) === String(id)) n.is_read = 1;
+                    return n;
+                });
+
+                const unreadCount = this.notifications.filter(n => !(String(n.is_read) === "1" || n.is_read === true)).length;
+                this.app.sidebar.updateBadgeCount(unreadCount);
                 this._renderList();
             } else {
                 Toast.error(res.message || "Failed to mark as read");
@@ -189,22 +238,45 @@ class NotsView {
 
                     const res = await API.markAllNotificationsRead();
                     if (res.status === 'success') {
-                        this.notifications = [];
+                        // Flag all as read instead of clearing array
+                        this.notifications = this.notifications.map(n => {
+                            n.is_read = 1;
+                            return n;
+                        });
+
                         this.app.sidebar.updateBadgeCount(0);
                         this._renderList();
                         Toast.success("All notifications marked as read");
                     } else {
                         Toast.error(res.message);
-                        btnAll.disabled = false;
-                        btnAll.innerHTML = '<i class="fa-solid fa-check-double"></i> Mark All as Read';
                     }
                 } catch (e) {
                     Toast.error("An error occurred connecting to the server");
+                } finally {
                     btnAll.disabled = false;
-                    btnAll.innerHTML = '<i class="fa-solid fa-check-double"></i> Mark All as Read';
+                    btnAll.innerHTML = '<i class="fa-solid fa-check-double"></i> Mark All Read';
                 }
             });
         }
+
+        // Tab Switching Event
+        document.addEventListener('click', (e) => {
+            const tabBtn = e.target.closest('.tab-btn');
+            if (!tabBtn) return;
+
+            // Reset tabs
+            document.querySelectorAll('.tab-btn').forEach(t => {
+                t.classList.remove('text-primary', 'border-primary');
+                t.classList.add('text-muted', 'border-transparent');
+            });
+
+            // Set active tab
+            tabBtn.classList.remove('text-muted', 'border-transparent');
+            tabBtn.classList.add('text-primary', 'border-primary');
+
+            this.currentTab = tabBtn.dataset.tab;
+            this._renderList();
+        });
 
         // Sound Selection Event
         const soundSelect = document.getElementById('soundSelect');
