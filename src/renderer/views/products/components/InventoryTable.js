@@ -393,13 +393,90 @@ class InventoryTable {
         const locationMap = {};
         locations.forEach(l => locationMap[l.id] = l.name);
 
+        // We create an empty array to store the raw database records for the CSV exporter
+        let rawExportData = [];
+
         Modal.open({
-            title: `Stock Adjustment History: ${productName}`,
+            title: `Stock History: ${productName}`,
             body: `<div id="historyModalBody" style="min-height: 120px; display: flex; align-items: center; justify-content: center;">
-                       <i class="fa-solid fa-spinner fa-spin" style="color: #2271b1; font-size: 20px;"></i>
-                   </div>`,
-            confirmText: false,  // view-only — no confirm button
-            cancelText: 'Close'
+                   <i class="fa-solid fa-spinner fa-spin" style="color: #2271b1; font-size: 20px;"></i>
+               </div>`,
+            confirmText: 'Export CSV',
+            cancelText: 'Close',
+            size: 'lg',
+
+            onConfirm: () => {
+                // Instead of scraping the HTML, we check if our raw data array has records
+                if (!rawExportData || rawExportData.length === 0) {
+                    Toast.error("No data to export.");
+                    return false;
+                }
+
+                // Define our comprehensive CSV Headers
+                const headers = [
+                    "Date",
+                    "Product ID",
+                    "SKU",
+                    "Product Name",
+                    "Branch",
+                    "Before",
+                    "Change",
+                    "After",
+                    "Reason",
+                    "Reference ID",
+                    "Performed By"
+                ];
+
+                // Helper to format the reason (e.g., "order_deduction" -> "Order Deduction")
+                const formatReason = (reason) => {
+                    if (!reason) return '—';
+                    return reason.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                };
+
+                // Generate CSV rows directly from the raw database JSON
+                const rows = rawExportData.map(row => {
+                    const locName = row.location_name || locationMap[row.location_id] || `Branch #${row.location_id}`;
+                    const date = new Date(row.created_at).toLocaleString();
+                    const performedBy = row.performed_by_name ? row.performed_by_name : (row.performed_by ? `User #${row.performed_by}` : 'System');
+
+                    // Safely format the product name to prevent commas in the name from breaking the CSV
+                    const safeProductName = productName.replace(/"/g, '""');
+
+                    return [
+                        `"${date}"`,
+                        `"${productId}"`,
+                        `"${row.sku || ''}"`,
+                        `"${safeProductName}"`,
+                        `"${locName}"`,
+                        `"${row.qty_before}"`,
+                        `"${row.qty_change}"`,
+                        `"${row.qty_after}"`,
+                        `"${formatReason(row.reason)}"`,
+                        `"${row.reference_id || ''}"`,
+                        `"${performedBy}"`
+                    ].join(",");
+                });
+
+                // Combine headers and rows
+                const csvContent = [headers.join(","), ...rows].join("\n");
+
+                // Build the Blob and trigger the download
+                const blob = new Blob(["\uFEFF" + csvContent], {type: 'text/csv;charset=utf-8;'});
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `Stock_Ledger_${productId}_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+
+                link.click();
+
+                // Clean up
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                return false;
+            }
         });
 
         try {
@@ -412,45 +489,61 @@ class InventoryTable {
                 return;
             }
 
-            const rows = res.data.map(row => {
-                const locName = locationMap[row.location_id] || `Branch #${row.location_id}`;
+            // ✅ Save the raw database data to our variable so the CSV exporter can use it
+            rawExportData = res.data;
+
+            // Helper to make database ENUMs look nice in the UI
+            const formatReason = (reason) => {
+                if (!reason) return '—';
+                return reason.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            };
+
+            const rowsHtml = res.data.map(row => {
+                const locName = row.location_name || locationMap[row.location_id] || `Branch #${row.location_id}`;
                 const sign = row.qty_change > 0 ? '+' : '';
-                const qtyColor = row.qty_change > 0 ? '#00a32a' : '#d63638';
+                const qtyColor = row.qty_change > 0 ? '#00a32a' : (row.qty_change < 0 ? '#d63638' : '#50575e');
                 const date = new Date(row.created_at).toLocaleString();
+                const performedBy = row.performed_by_name ? row.performed_by_name : (row.performed_by ? `User #${row.performed_by}` : '<span style="color:#d63638; font-style:italic;">System</span>');
 
                 return `
-                    <tr style="border-bottom: 1px solid #f0f0f1; font-size: 13px;">
-                        <td style="padding: 8px 10px; color: #50575e;">${date}</td>
-                        <td style="padding: 8px 10px; color: #2c3338;">${locName}</td>
-                        <td style="padding: 8px 10px; font-weight: 700; color: ${qtyColor};">${sign}${row.qty_change}</td>
-                        <td style="padding: 8px 10px; color: #50575e;">${row.reason || '—'}</td>
-                        <td style="padding: 8px 10px; color: #50575e;">${row.performed_by_name || `User #${row.performed_by}`}</td>
-                    </tr>
-                `;
+                <tr style="border-bottom: 1px solid #f0f0f1; font-size: 13px;">
+                    <td style="padding: 8px 10px; color: #50575e; white-space: nowrap;">${date}</td>
+                    <td style="padding: 8px 10px; color: #2c3338; font-weight: 500;">${locName}</td>
+                    <td style="padding: 8px 10px; color: #646970; text-align: right;">${row.qty_before}</td>
+                    <td style="padding: 8px 10px; font-weight: 700; color: ${qtyColor}; text-align: center; background: #f8f9fa;">${sign}${row.qty_change}</td>
+                    <td style="padding: 8px 10px; color: #2c3338; text-align: left; font-weight: 500;">${row.qty_after}</td>
+                    <td style="padding: 8px 10px; color: #50575e;">${formatReason(row.reason)}</td>
+                    <td style="padding: 8px 10px; color: #8c8f94; font-family: monospace; font-size: 12px;">${row.reference_id || '—'}</td>
+                    <td style="padding: 8px 10px; color: #50575e;">${performedBy}</td>
+                </tr>
+            `;
             }).join('');
 
             body.innerHTML = `
-                <div style="overflow-x: auto; max-height: 420px; overflow-y: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                        <thead style="background: #f8f9fa; position: sticky; top: 0;">
-                            <tr style="border-bottom: 1px solid #c3c4c7;">
-                                <th style="padding: 8px 10px; font-weight: 600; color: #2c3338; text-align: left;">Date</th>
-                                <th style="padding: 8px 10px; font-weight: 600; color: #2c3338; text-align: left;">Branch</th>
-                                <th style="padding: 8px 10px; font-weight: 600; color: #2c3338; text-align: left;">Change</th>
-                                <th style="padding: 8px 10px; font-weight: 600; color: #2c3338; text-align: left;">Reason</th>
-                                <th style="padding: 8px 10px; font-weight: 600; color: #2c3338; text-align: left;">By</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rows}</tbody>
-                    </table>
-                </div>
-                <p style="color: #646970; font-size: 11px; margin: 8px 0 0; text-align: right;">
-                    ${res.data.length} record${res.data.length !== 1 ? 's' : ''} found
-                </p>
-            `;
+            <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
+                    <thead style="background: #f0f0f1; position: sticky; top: 0; z-index: 1;">
+                        <tr>
+                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Date</th>
+                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Branch</th>
+                            <th style="padding: 10px; font-weight: 600; color: #2c3338; text-align: right;">Before</th>
+                            <th style="padding: 10px; font-weight: 600; color: #2c3338; text-align: center;">Change</th>
+                            <th style="padding: 10px; font-weight: 600; color: #2c3338; text-align: left;">After</th>
+                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Reason</th>
+                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Reference</th>
+                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Performed By</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+            </div>
+            <p style="color: #646970; font-size: 11px; margin: 12px 0 0; text-align: right; font-style: italic;">
+                Showing ${res.data.length} record${res.data.length !== 1 ? 's' : ''} from the immutable ledger
+            </p>
+        `;
         } catch (e) {
             const body = document.getElementById('historyModalBody');
-            if (body) body.innerHTML = '<p style="color: #d63638; text-align: center;">Failed to load history.</p>';
+            if (body) body.innerHTML = '<p style="color: #d63638; text-align: center; padding: 20px;">Failed to load history.</p>';
         }
     }
 }
