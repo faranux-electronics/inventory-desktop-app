@@ -132,7 +132,12 @@ class TransferTable {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             </button>`;
 
-            // Add the Resolve button if needed (compact SVG style)
+            if (isAdmin && st === 'completed') {
+                actions += `<button class="trv-action-btn trv-action-btn--danger btn-revert" data-id="${esc(t.batch_id)}" title="Revert Transfer (Admin Only)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12"><path d="M3 11V9a4 4 0 0 1 4-4h14M8 2l-5 5 5 5M21 13v2a4 4 0 0 1-4 4H3M16 22l5-5-5-5"/></svg>
+                </button>`;
+            }
+            // the Resolve button if needed (compact SVG style)
             if (hasUnresolvedDiscrepancy && (isAdmin || uBranch === fromLoc)) {
                 actions += `<button class="trv-action-btn trv-action-btn--primary btn-resolve" data-id="${esc(t.batch_id)}" title="Mark Discrepancy as Resolved" style="padding: 0 8px;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><polyline points="20 6 9 17 4 12"/></svg>
@@ -196,6 +201,9 @@ class TransferTable {
         container.querySelectorAll('.btn-print').forEach(btn => {
             btn.addEventListener('click', () => this._printTransfer(btn.dataset.id));
         });
+        container.querySelectorAll('.btn-revert').forEach(btn => {
+            btn.addEventListener('click', () => this.modals.handleRevert(btn.dataset.id));
+        });
 
         // Handle the Resolve button click
         container.querySelectorAll('.btn-resolve').forEach(btn => {
@@ -253,6 +261,45 @@ class TransferTable {
         }
     }
 
+    handleRevert(batchId) {
+        const bodyHtml = `
+            <div style="margin-bottom: 15px; color: var(--error-600); background: #fef2f2; padding: 12px; border-radius: 6px; border: 1px solid #fecaca; font-size: 13px;">
+                <strong>Warning:</strong> You are about to forcefully revert <b>${batchId}</b>.<br><br>
+                This will immediately pull the received stock back out of the destination branch and refund the original amount to the sender branch. This action will be permanently logged.
+            </div>
+            <div class="form-group">
+                <label style="display:block; margin-bottom:5px; font-size: 13px; font-weight: 600;">Reason for Reverting <span style="color:red">*</span></label>
+                <textarea id="revert-reason" class="form-control" rows="3" placeholder="Enter administrative reason for this revert..." style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; padding: 8px; font-family: inherit;"></textarea>
+            </div>
+        `;
+
+        Modal.open({
+            title: '<span style="color: var(--error-600); display: flex; align-items: center; gap: 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Revert Completed Transfer</span>',
+            body: bodyHtml,
+            confirmText: 'Confirm Revert',
+            confirmClass: 'btn-danger', // Uses your custom red button styling
+            onConfirm: async () => {
+                const reasonInput = document.getElementById('revert-reason').value.trim();
+
+                if (!reasonInput) {
+                    Toast.error("An administrative reason is required to revert a transfer.");
+                    throw new Error("Reason required"); // Stops the modal from closing automatically
+                }
+
+                const res = await API.revertTransfer(batchId, reasonInput);
+
+                if (res.status === 'success') {
+                    Toast.success(res.message);
+                    if (this.parent && typeof this.parent.loadTransfers === 'function') {
+                        await this.parent.loadTransfers(); // Refresh the table
+                    }
+                } else {
+                    Toast.error(res.message);
+                    throw new Error(res.message);
+                }
+            }
+        });
+    }
     _expandContentHTML(data) {
         const items = data.items || [];
         const firstItem = items[0] || {};

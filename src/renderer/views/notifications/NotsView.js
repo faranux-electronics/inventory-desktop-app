@@ -169,6 +169,9 @@ class NotsView {
         } else if (n.type === 'transfer_rejected') {
             icon = '<i class="fa-solid fa-xmark"></i>';
             bgStyle = 'background: var(--error-50, #fef2f2); color: var(--error-700, #b71c1c); border: 1px solid #fecaca';
+        } else if (n.type === 'transfer_reverted') {
+            icon = '<i class="fa-solid fa-rotate-left"></i>';
+            bgStyle = 'background: var(--error-50, #fef2f2); color: var(--error-700, #b71c1c); border: 1px solid #fecaca';
         }
 
         const circleStyle = `width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; ${bgStyle}`;

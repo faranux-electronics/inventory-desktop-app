@@ -202,6 +202,45 @@ class TransferModals {
         });
     }
 
+    handleRevert(batchId) {
+        const bodyHtml = `
+            <div style="margin-bottom: 15px; color: var(--error-500); background: #fef2f2; padding: 12px; border-radius: 6px; border: 1px solid #fecaca; font-size: 13px;">
+                <strong>Warning:</strong> You are about to forcefully revert <b>${batchId}</b>.<br><br>
+                This will immediately pull the received stock back out of the destination branch and refund the original amount to the sender branch. This action will be permanently logged.
+            </div>
+            <div class="form-group">
+                <label style="display:block; margin-bottom:5px; font-size: 13px; font-weight: 600;">Reason for Reverting <span style="color:red">*</span></label>
+                <textarea id="revert-reason" class="form-control" rows="3" placeholder="Enter administrative reason for this revert..." style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; padding: 8px; font-family: inherit;"></textarea>
+            </div>
+        `;
+
+        Modal.open({
+            title: '<span style="color: var(--error-500); display: flex; align-items: center; gap: 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Revert Completed Transfer</span>',
+            body: bodyHtml,
+            confirmText: 'Confirm Revert',
+            onConfirm: async () => {
+                const reasonInput = document.getElementById('revert-reason').value.trim();
+
+                if (!reasonInput) {
+                    Toast.error("An administrative reason is required to revert a transfer.");
+                    throw new Error("Reason required"); // Stops the modal from closing automatically
+                }
+
+                const res = await API.revertTransfer(batchId, reasonInput);
+
+                if (res.status === 'success') {
+                    Toast.success(res.message);
+                    if (this.parent && typeof this.parent.loadTransfers === 'function') {
+                        await this.parent.loadTransfers(); // Refresh the table
+                    }
+                } else {
+                    Toast.error(res.message);
+                    throw new Error(res.message);
+                }
+            }
+        });
+    }
+
     async handleCancel(batchId) {
         Modal.open({
             title: "Cancel Transfer",

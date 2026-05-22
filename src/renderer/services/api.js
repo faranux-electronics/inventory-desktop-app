@@ -153,6 +153,7 @@ module.exports = {
     }),
     resolveDiscrepancy: (batchId) => request('resolve_discrepancy', 'POST', {batch_id: batchId}),
     cancelTransfer: (batchId, reason = '') => request('cancel_transfer', 'POST', {batch_id: batchId, reason}),
+    revertTransfer: (batchId, reason) => request('revert_transfer', 'POST', {batch_id: batchId, reason}),
     exportTransfersCsv: (type = 'all', direction = 'all', search = '', start = '', end = '') => {
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         return downloadFile(`export_transfers_csv&type=${type}&direction=${direction}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}`, `Transfers_${dateStr}.csv`);
