@@ -1,11 +1,11 @@
-const {app, BrowserWindow, ipcMain, shell, Tray, Menu, Notification} = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Tray, Menu, Notification } = require('electron');
 const http = require('http');
 const path = require('path');
-const {autoUpdater} = require('electron-updater');
+const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
 
 app.setAppUserModelId('Faranux MIS');
-require('dotenv').config({path: path.join(app.getAppPath(), '.env')});
+require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
@@ -58,9 +58,12 @@ function cleanupAuthServer() {
 }
 
 function createWindow() {
+    const isAutostart = process.argv.includes('--autostart');
+
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
+        show: !isAutostart,
         icon: path.join(__dirname, '../assets/logo1.png'),
         webPreferences: {
             nodeIntegration: true,
@@ -73,12 +76,12 @@ function createWindow() {
     mainWindow.loadFile('index.html');
 
     // Intercept external links and open in default browser
-    mainWindow.webContents.setWindowOpenHandler(({url}) => {
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         if (url.startsWith('http://') || url.startsWith('https://')) {
             shell.openExternal(url);
-            return {action: 'deny'};
+            return { action: 'deny' };
         }
-        return {action: 'allow'};
+        return { action: 'allow' };
     });
 
     // Handle navigation attempts
@@ -142,13 +145,21 @@ if (!gotTheLock) {
     app.whenReady().then(() => {
         createWindow();
 
+        // ─── Auto-start on Windows login ──────────────────────────────
+        app.setLoginItemSettings({
+            openAtLogin: true,
+            openAsHidden: true,
+            name: 'Faranux MIS',
+            args: ['--autostart']
+        });
+
         // Create System Tray
         const iconPath = path.join(__dirname, '../assets/logo1.png');
         tray = new Tray(iconPath);
 
         const contextMenu = Menu.buildFromTemplate([
-            {label: 'Show Faranux MIS', click: () => mainWindow.show()},
-            {type: 'separator'},
+            { label: 'Show Faranux MIS', click: () => mainWindow.show() },
+            { type: 'separator' },
             {
                 label: 'Quit',
                 click: () => {
@@ -187,7 +198,7 @@ if (!gotTheLock) {
         });
 
         // Handle native OS notifications with proper ASAR icon extraction
-        ipcMain.on('show-os-notification', (event, {title, body}) => {
+        ipcMain.on('show-os-notification', (event, { title, body }) => {
             const iconPath = path.join(__dirname, '../assets/logo_nots.png');
 
             const notification = new Notification({
@@ -322,7 +333,7 @@ ipcMain.handle('login-google', async () => {
                 const urlObj = new URL(req.url, `http://127.0.0.1:4200`);
 
                 if (urlObj.pathname === '/callback') {
-                    res.writeHead(200, {'Content-Type': 'text/html'});
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
                     res.end(`
                         <html lang="en">
                         <head>
@@ -431,5 +442,5 @@ ipcMain.handle('login-google', async () => {
 // Handler to manually cancel Google login
 ipcMain.handle('cancel-google-login', async () => {
     await cleanupAuthServer();
-    return {status: 'cancelled'};
+    return { status: 'cancelled' };
 });
