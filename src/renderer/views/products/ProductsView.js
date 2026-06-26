@@ -286,7 +286,16 @@ class ProductsView {
 
     exportData() {
         const f = this.state.getFilters();
-        API.exportInventory(f.status, f.location_id || '', f.category || '');
+        // Passing all active filters so the export matches the table view
+        API.exportInventory(
+            f.status, 
+            f.location_id || '', 
+            f.category || '',
+            f.search || '',            // Added search query
+            f.stockFilter || 'all',    // Added stock filter (e.g., 'mismatch')
+            f.sortBy || 'name',        // Added sorting 
+            f.sortOrder || 'ASC'       // Added sort direction
+        );
         Toast.success("Export started");
     }
 

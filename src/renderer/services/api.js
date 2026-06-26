@@ -124,9 +124,21 @@ module.exports = {
     }),
 
     syncBatch: (page = 1, perPage = 50) => request('sync_batch', 'POST', {page, per_page: perPage}),
-    exportInventory: (status, locationId, category) => {
+    exportInventory: (status, locationId, category, search, stockFilter, sortBy, sortOrder) => {
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        return downloadFile(`export_inventory&status=${status || ''}&location_id=${locationId || ''}&category=${encodeURIComponent(category || '')}`, `Inventory_${dateStr}.csv`);
+        
+        // Build all query parameters dynamically
+        const params = new URLSearchParams({
+            status: status || '',
+            location_id: locationId || '',
+            category: category || '',
+            search: search || '',
+            stock_filter: stockFilter || 'all',
+            sort_by: sortBy || 'name',
+            sort_order: sortOrder || 'ASC'
+        });
+
+        return downloadFile(`export_inventory&${params.toString()}`, `Inventory_${dateStr}.csv`);
     },
 
     wcGetProducts: (page = 1, perPage = 50, search = '', category = '', stockStatus = 'all', onSale = false, featured = false) => {
