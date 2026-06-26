@@ -1,6 +1,16 @@
-// const API_URL = 'http://localhost:8000/index.php';
+const { ipcRenderer } = require('electron');
 
-const API_URL = 'https://api.faranux.com';
+let API_URL = 'http://localhost:8000/index.php';
+
+// Safe async initialization
+(async () => {
+    try {
+        const mainUrl = await ipcRenderer.invoke('get-api-url');
+        if (mainUrl) API_URL = mainUrl;
+    } catch (e) {
+        console.warn("Could not fetch API URL from main process, falling back to localhost.");
+    }
+})();
 
 async function request(action, method = 'GET', body = null) {
     try {

@@ -8,6 +8,7 @@ app.setAppUserModelId('Faranux MIS');
 require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const API_URL_ENDPOINT = app.isPackaged ? process.env.API_URL : 'http://localhost:8000/index.php';
 
 autoUpdater.setFeedURL({
     provider: 'github',
@@ -311,6 +312,11 @@ process.on('SIGTERM', async () => {
 
 ipcMain.handle('get-app-version', () => {
     return app.getVersion();
+});
+
+ipcMain.handle('get-api-url', () => {
+    // This sends the variable you already defined at the top of index.js
+    return API_URL_ENDPOINT; 
 });
 
 // Google Login handler
