@@ -28,7 +28,10 @@ class TransferModals {
         // modal's body only, rather than searching the entire document.
         const modalBodyId = `review-modal-body-${esc(batchId)}`;
 
-        const itemsHtml = data.items.map(i => `
+        // Canceled lines were removed before dispatch — don't show them in the receipt form
+        const activeItems = data.items.filter(i => i.status !== 'canceled');
+
+        const itemsHtml = activeItems.map(i => `
             <tr class="border-b border-neutral-200">
                 <td class="py-sm">
                     <div class="font-semibold text-sm">${esc(i.product_name)}</div>
@@ -130,7 +133,9 @@ class TransferModals {
         if (res.status !== 'success') return Toast.error(res.message);
 
         const data = res.data;
-        const items = data.items;
+        // Canceled lines were removed via edit — exclude from the read-only details view.
+        // They remain in the DB for audit but shouldn't appear in the UI.
+        const items = data.items.filter(i => i.status !== 'canceled');
         const firstItem = items[0] || {};
 
         const initiatedAtStr = esc(new Date(data.created_at).toLocaleString());

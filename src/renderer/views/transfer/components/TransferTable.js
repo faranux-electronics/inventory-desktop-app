@@ -301,7 +301,8 @@ class TransferTable {
         });
     }
     _expandContentHTML(data) {
-        const items = data.items || [];
+        // Canceled lines were removed via edit — exclude from the inline expand view
+        const items = (data.items || []).filter(i => i.status !== 'canceled');
         const firstItem = items[0] || {};
         const initStr = esc(new Date(data.created_at).toLocaleString());
         const approvedStr = firstItem.approved_at ? esc(new Date(firstItem.approved_at).toLocaleString()) : '';
