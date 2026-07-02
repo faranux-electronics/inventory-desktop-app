@@ -7,6 +7,7 @@ const POSPaymentPanel = require('./components/POSPaymentPanel.js');
 const POSConfirmModal = require('./components/POSConfirmModal.js');
 const POSReceipt = require('./components/POSReceipt.js');
 const POSMiscModal = require('./components/POSMiscModal.js');
+const PdfGenerator = require('../../utils/PdfGenerator.js');
 
 const DEFAULT_LEFT_PCT = 50;
 const MIN_LEFT_PX = 340;
@@ -144,7 +145,8 @@ class POSView {
             onTaxModeChange: mode => {
                 if (this._activeCart) this._activeCart.setTaxMode(mode);
             },
-            onVoidCart: () => this._voidActiveCart()
+            onVoidCart: () => this._voidActiveCart(),
+            onPrintQuote: () => this._handlePrintQuote()
         });
         this.paymentPanel.render(document.getElementById('posPaymentMount'));
 
@@ -604,6 +606,85 @@ class POSView {
         this._saveViewState();
     }
 
+    async _handlePrintQuote() {
+        const cart = this._activeCart;
+        if (!cart || cart.isEmpty()) {
+            return Toast.error('Cart is empty. Add items to generate a quotation.');
+        }
+
+        try {
+            const items = cart.getItems();
+            const modalData = this.paymentPanel.modal.getData();
+            const user = this.state.getUser();
+
+            // Calculate totals using the same logic as checkout
+            const subtotal = cart.getSubtotal();
+            const discountRaw = modalData.discountRaw;
+            const discountType = modalData.discountType;
+            const shipping = modalData.shipping;
+            const fees = modalData.fees;
+            const taxOn = modalData.taxOn;
+            const taxRate = modalData.taxRate;
+            const taxInclusive = modalData.taxInclusive;
+            const taxOnItems = modalData.taxOnItems;
+
+            // Calculate totals
+            const discountVal = parseFloat(discountRaw) || 0;
+            const discount = discountType === 'percent'
+                ? Math.round(subtotal * discountVal / 100)
+                : discountVal;
+
+            const shippingCost = parseFloat(shipping) || 0;
+            const feesTotal = fees.reduce((s, f) => s + (parseFloat(f.amount) || 0), 0);
+
+            const afterDisc = Math.max(0, subtotal - discount);
+            const preTax = afterDisc + shippingCost + feesTotal;
+
+            let taxAmt = 0;
+            if (taxOn && taxRate > 0) {
+                const base = taxOnItems ? afterDisc : preTax;
+                if (taxInclusive) {
+                    taxAmt = base - (base / (1 + taxRate / 100));
+                } else {
+                    taxAmt = base * (taxRate / 100);
+                }
+            }
+
+            const total = taxInclusive ? Math.round(preTax) : Math.round(preTax + taxAmt);
+
+            const quoteData = {
+                items: items.map(i => ({
+                    sku: i.sku || '',
+                    name: i.name,
+                    qty: i.qty,
+                    price: i.price
+                })),
+                subtotal: subtotal,
+                discount: discount,
+                discountType: discountType,
+                shipping: shippingCost,
+                fees: fees,
+                taxAmount: Math.round(taxAmt),
+                taxRate: taxRate,
+                taxName: modalData.taxName || 'Tax',
+                taxInclusive: taxInclusive,
+                taxOnItems: taxOnItems,
+                total: total,
+                notes: modalData.notes,
+                customerName: modalData.customer.name,
+                customerEmail: modalData.customer.email,
+                cashierName: modalData.cashier.name,
+                branchName: user?.branch_name || 'Faranux Electronics'
+            };
+
+            await PdfGenerator.generateQuotationPDF(quoteData);
+            Toast.success('Quotation generated successfully');
+        } catch (error) {
+            console.error('Error generating quotation:', error);
+            Toast.error('Failed to generate quotation');
+        }
+    }
+
     _handleAddToCart(product) {
         const cart = this._activeCart;
         if (!cart) return;
@@ -689,7 +770,7 @@ class POSView {
 
                 this.receipt.show({
                     items: saleItems, subtotal, discount, discountType, total, paymentMethod, notes,
-                    taxRate, taxName, taxInclusive, taxAmount: taxAmount || 0, fees, shipping,
+                    taxRate, taxName, taxInclusive, taxOnItems, taxAmount: taxAmount || 0, fees, shipping,
                     branchName: user.branch_name || '', wcOrderId, cashierName, cashierEmail: cashierEmail || '',
                     customerName, customerEmail, cartName: this._carts[this._activeCartIdx]?.name || ''
                 });

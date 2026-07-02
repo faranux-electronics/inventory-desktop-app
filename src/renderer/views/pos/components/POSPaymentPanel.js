@@ -27,10 +27,10 @@ class TotalsCalculator {
 
         let taxAmt = 0;
         if (taxOn && taxRate > 0) {
+            const base = taxOnItems ? afterDisc : preTax;
             if (taxInclusive) {
-                taxAmt = preTax - (preTax / (1 + taxRate / 100));
+                taxAmt = base - (base / (1 + taxRate / 100));
             } else {
-                const base = taxOnItems ? afterDisc : preTax;
                 taxAmt = base * (taxRate / 100);
             }
         }
@@ -590,10 +590,11 @@ class OrderSettingsModal {
    4. POSPaymentPanel (Main Orchestrator)
    ======================================================================= */
 class POSPaymentPanel {
-    constructor({ onRequestCheckout, onTaxModeChange, onVoidCart }) {
+    constructor({ onRequestCheckout, onTaxModeChange, onVoidCart, onPrintQuote }) {
         this.onRequestCheckout = onRequestCheckout;
         this.onTaxModeChange = onTaxModeChange;
         this.onVoidCart = onVoidCart;
+        this.onPrintQuote = onPrintQuote;
         this._subtotal = 0;
         this.currentCartId = null;
         // Initialize hardcoded payment methods immediately
@@ -662,6 +663,15 @@ class POSPaymentPanel {
             });
         }
 
+        const quoteButton = this.container.querySelector('#posQuoteBtn');
+        if (quoteButton) {
+            quoteButton.addEventListener('click', () => {
+                if (this.onPrintQuote) {
+                    this.onPrintQuote();
+                }
+            });
+        }
+
         this.container.querySelector('#posCheckoutBtn').addEventListener('click', () => {
             this._handleCheckout();
         });
@@ -688,6 +698,8 @@ class POSPaymentPanel {
         if (btn) btn.disabled = empty;
         const voidBtn = this.container.querySelector('#posVoidBtn');
         if (voidBtn) voidBtn.disabled = empty;
+        const quoteBtn = this.container.querySelector('#posQuoteBtn');
+        if (quoteBtn) quoteBtn.disabled = empty;
     }
 
     setLoading(on) {
@@ -744,7 +756,11 @@ class POSPaymentPanel {
         }
 
         if (modalData.taxOn && modalData.taxRate > 0) {
-            dynHTML += `<div class="pos-trow pos-trow--tax"><span>${modalData.taxName} (${modalData.taxRate}%)</span><span>${modalData.taxInclusive ? '' : '+'}${calc.taxAmt.toLocaleString()} Frw</span></div>`;
+            const taxBaseLabel = modalData.taxOnItems
+                ? `on items`
+                : `on total (incl. shipping & fees)`;
+            const taxStatusLabel = modalData.taxInclusive ? 'incl.' : 'excl.';
+            dynHTML += `<div class="pos-trow pos-trow--tax"><span>${modalData.taxName} (${modalData.taxRate}%) ${taxBaseLabel}, ${taxStatusLabel}</span><span>${modalData.taxInclusive ? '' : '+'}${calc.taxAmt.toLocaleString()} Frw</span></div>`;
         }
 
         this.container.querySelector('#posDynamicTotals').innerHTML = dynHTML;
@@ -864,6 +880,10 @@ class POSPaymentPanel {
             <div class="pos-pp-section pos-pp-section--checkout pos-pp-section--checkout-flex">
                 <button id="posVoidBtn" class="pos-void-btn" disabled>
                     Void
+                </button>
+                <button id="posQuoteBtn" class="pos-quote-btn" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    Quote
                 </button>
                 <button id="posCheckoutBtn" class="pos-checkout-btn" disabled>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"><polyline points="20 6 9 17 4 12"/></svg>

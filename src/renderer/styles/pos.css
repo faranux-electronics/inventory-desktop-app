@@ -897,6 +897,33 @@
     cursor: not-allowed;
 }
 
+.pos-quote-btn {
+    flex: 0 0 auto;
+    min-width: 100px;
+    padding: 12px 14px;
+    background: #F8FAFC;
+    color: #059669;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.pos-quote-btn:hover:not(:disabled) {
+    background: rgba(5, 150, 105, 0.08);
+    transform: translateY(-1px);
+    border-color: #059669;
+}
+.pos-quote-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* =========================================
    Confirm Sale Modal
    ========================================= */

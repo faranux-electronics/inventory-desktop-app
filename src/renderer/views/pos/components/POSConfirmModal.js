@@ -36,7 +36,7 @@ class POSConfirmModal {
             <div class="pcm-sum-row pcm-sum-row--fee"><span>${f.label||'Fee'}</span><span>+ ${(+f.amount).toLocaleString()} Frw</span></div>`).join('');
 
         const taxLabel = taxAmount > 0
-            ? `${taxName} (${taxRate}%, ${taxOnItems ? 'per item' : 'on total'}, ${taxInclusive ? 'incl.' : 'excl.'})`
+            ? `${taxName} (${taxRate}%, ${taxOnItems ? 'on items' : 'on total (incl. shipping & fees)'}, ${taxInclusive ? 'incl.' : 'excl.'})`
             : '';
 
         const overlay = document.createElement('div');

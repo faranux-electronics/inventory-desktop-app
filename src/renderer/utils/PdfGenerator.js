@@ -102,6 +102,12 @@ class PdfGenerator {
         doc.text(`Issuer: ${data.initiated_by}`, 14, 73);
         doc.text(`Receiver: ${data.approved_by || 'Pending'}`, 115, 73);
 
+        // Company Contact Info
+        doc.setFontSize(8);
+        doc.setTextColor(...lightText);
+        doc.text("TIN: 103683829 | Email: sales@faranux.com", 14, 79);
+        doc.text("Tel: +250 786 396 995 | Website: www.faranux.com", 14, 84);
+
         // --- 3. Table Data ---
         const tableBody = data.items.map(i => [
             i.product_sku || '-',
@@ -112,7 +118,7 @@ class PdfGenerator {
         ]);
 
         autoTable(doc, {
-            startY: 82,
+            startY: 90,
             head: [['SKU', 'Product Name', 'Sent Qty', 'Received Qty', 'Notes']],
             body: tableBody,
             theme: 'striped',
@@ -172,7 +178,9 @@ class PdfGenerator {
             doc.setPage(i);
             doc.setFontSize(8);
             doc.setTextColor(156, 163, 175);
-            doc.text("Generated securely by Faranux Inventory System", 14, 285);
+            doc.text("Generated securely by Faranux Inventory System", 14, 275);
+            doc.text("KIGALI - NYARUGENGE | Street KN 119 ST | Francine's Building, 1st Floor", 14, 280);
+            doc.text("BK: 00262-00682142-32 | MoMo: *182*8*1*400056#", 14, 285);
         }
 
         // --- 6. Save the PDF (Electron Fix) ---
@@ -182,6 +190,245 @@ class PdfGenerator {
         const a = document.createElement('a');
         a.href = blobUrl;
         a.download = `Transfer_${batchId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+    }
+
+    /**
+     * Generates an A4 PDF Quotation for the POS
+     * @param {object} data - The quotation details (similar to receipt but for quotes)
+     */
+    static async generateQuotationPDF(data) {
+        let jsPDF;
+        let autoTable;
+
+        try {
+            jsPDF = require('jspdf').jsPDF;
+            autoTable = require('jspdf-autotable');
+
+            if (autoTable && typeof autoTable !== 'function' && autoTable.default) {
+                autoTable = autoTable.default;
+            }
+        } catch (e) {
+            throw new Error("PDF libraries missing. Please run: npm install jspdf jspdf-autotable");
+        }
+
+        const doc = new jsPDF({format: 'a4'});
+        const pageHeight = doc.internal.pageSize.height;
+
+        // --- Color Palette ---
+        const primaryColor = [165, 28, 28];   // Faranux Red
+        const darkText = [31, 41, 55];        // Slate 800
+        const lightText = [107, 114, 128];    // Gray 500
+        const borderColor = [229, 231, 235];  // Gray 200
+
+        // --- 1. Document Header ---
+        try {
+            if (FARANUX_LOGO_BASE64 && FARANUX_LOGO_BASE64.length > 100) {
+                doc.addImage(FARANUX_LOGO_BASE64, 'PNG', 156, 15, 40, 17);
+            }
+        } catch (e) {
+            console.warn("Failed to load logo into PDF", e);
+        }
+
+        doc.setFontSize(24);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...primaryColor);
+        doc.text("QUOTATION", 14, 22);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-RW', {year: 'numeric', month: 'short', day: '2-digit'});
+        const timeStr = now.toLocaleTimeString('en-RW', {hour: '2-digit', minute: '2-digit'});
+        const quoteId = 'QUOTE-' + Date.now().toString(36).toUpperCase();
+
+        // Quote Info
+        doc.setTextColor(...lightText);
+        doc.text("Quote No:", 14, 32);
+        doc.setTextColor(...darkText);
+        doc.setFont("helvetica", "bold");
+        doc.text(quoteId, 34, 32);
+
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...lightText);
+        doc.text("Date:", 14, 38);
+        doc.setTextColor(...darkText);
+        doc.text(`${dateStr} · ${timeStr}`, 25, 38);
+
+        // Divider Line
+        doc.setDrawColor(...borderColor);
+        doc.setLineWidth(0.5);
+        doc.line(14, 44, 196, 44);
+
+        // --- 2. Addresses & Meta ---
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...primaryColor);
+        doc.text("STORE DETAILS", 14, 54);
+        doc.text("CUSTOMER DETAILS", 115, 54);
+
+        doc.setFontSize(11);
+        doc.setTextColor(...darkText);
+        doc.text(data.branchName || 'Faranux Electronics', 14, 60);
+
+        const custName = (data.customerName && data.customerName.toLowerCase() !== 'walk-in')
+            ? data.customerName
+            : 'Walk-in Customer';
+        doc.text(custName, 115, 60);
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(...lightText);
+        doc.text(`Cashier: ${data.cashierName || 'Admin'}`, 14, 66);
+        if (data.customerEmail) doc.text(data.customerEmail, 115, 66);
+
+        // Company Contact Info
+        doc.setFontSize(8);
+        doc.setTextColor(...lightText);
+        doc.text("TIN: 103683829 | Email: sales@faranux.com", 14, 72);
+        doc.text("Tel: +250 786 396 995 | Website: www.faranux.com", 14, 77);
+
+        // --- 3. Table Data ---
+        const tableBody = data.items.map(i => [
+            i.sku || '-',
+            i.name,
+            i.qty.toString(),
+            i.price.toLocaleString(),
+            (i.price * i.qty).toLocaleString()
+        ]);
+
+        autoTable(doc, {
+            startY: 84,
+            head: [['SKU', 'Product Name', 'Qty', 'U.P. (Frw)', 'T.P. (Frw)']],
+            body: tableBody,
+            theme: 'striped',
+            headStyles: {
+                fillColor: primaryColor,
+                textColor: [255, 255, 255],
+                fontStyle: 'bold'
+            },
+            alternateRowStyles: {
+                fillColor: [249, 250, 251]
+            },
+            bodyStyles: {
+                textColor: darkText,
+                lineColor: borderColor,
+                lineWidth: 0.1
+            },
+            styles: {
+                font: 'helvetica',
+                fontSize: 10,
+                cellPadding: {top: 2, bottom: 2, left: 4, right: 4}
+            },
+            columnStyles: {
+                0: {fontStyle: 'bold', textColor: lightText, cellWidth: 30},
+                1: {cellWidth: 'auto'},
+                2: {halign: 'center', cellWidth: 20},
+                3: {halign: 'right', cellWidth: 35},
+                4: {halign: 'right', fontStyle: 'bold', cellWidth: 35}
+            },
+            margin: {bottom: 35} // Give space for footer
+        });
+
+        // --- 4. Totals ---
+        let finalY = doc.lastAutoTable.finalY + 10;
+        const pageX = 196; // Right margin edge
+
+        doc.setFontSize(10);
+        doc.setTextColor(...darkText);
+
+        // Helper to check for space and add a new page if the totals/notes will overflow
+        const checkPageOverflow = (neededHeight) => {
+            if (finalY + neededHeight > pageHeight - 35) {
+                doc.addPage();
+                finalY = 25; // Reset Y to top of new page
+                return true;
+            }
+            return false;
+        };
+
+        const addTotalRow = (label, amount, isBold = false, color = darkText) => {
+            checkPageOverflow(7); // Check if we have space for a row
+            doc.setFont("helvetica", isBold ? "bold" : "normal");
+            doc.setTextColor(...color);
+            doc.text(label, pageX - 45, finalY, {align: 'right'});
+            doc.text(`${amount.toLocaleString()} Frw`, pageX, finalY, {align: 'right'});
+            finalY += 7;
+        };
+
+        addTotalRow("Subtotal:", data.subtotal || 0);
+
+        if (data.discount > 0) {
+            const discLabel = data.discountType === 'percent' ? 'Discount:' : 'Discount:';
+            addTotalRow(discLabel, `-${data.discount}`, false, [220, 38, 38]); // Red text
+        }
+
+        if (data.shipping > 0) {
+            addTotalRow("Shipping:", data.shipping);
+        }
+
+        (data.fees || []).filter(f => f.amount > 0).forEach(f => {
+            addTotalRow(`${f.label || 'Fee'}:`, f.amount);
+        });
+
+        if (data.taxAmount > 0) {
+            const taxBaseLabel = data.taxOnItems
+                ? 'on items'
+                : 'on total (incl. shipping & fees)';
+            const taxLabel = `${data.taxName || 'Tax'} (${data.taxRate}% ${taxBaseLabel}, ${data.taxInclusive ? 'incl' : 'excl'}):`;
+            addTotalRow(taxLabel, data.taxAmount);
+        }
+
+        // Thick divider for Total
+        checkPageOverflow(10);
+        finalY -= 3;
+        doc.setDrawColor(...darkText);
+        doc.setLineWidth(0.5);
+        doc.line(pageX - 70, finalY, pageX, finalY);
+        finalY += 6;
+
+        doc.setFontSize(12);
+        addTotalRow("QUOTE TOTAL:", data.total || 0, true, primaryColor);
+
+        // Render Notes Left-aligned under the table
+        if (data.notes) {
+            const splitNotes = doc.splitTextToSize(data.notes, 100);
+            const notesHeight = (splitNotes.length * 5) + 10;
+
+            checkPageOverflow(notesHeight);
+
+            finalY += 5;
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "italic");
+            doc.setTextColor(...lightText);
+            doc.text("Notes:", 14, finalY);
+            doc.text(splitNotes, 14, finalY + 6);
+        }
+
+        // --- 5. Footer (Loop across all pages) ---
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(156, 163, 175);
+            doc.text("This quotation is valid for 30 days. Thank you for considering Faranux Electronics!", 105, 275, {align: 'center'});
+            doc.text("KIGALI - NYARUGENGE | Street KN 119 ST | Francine's Building, 1st Floor", 105, 280, {align: 'center'});
+            doc.text("BK: 00262-00682142-32 | MoMo: *182*8*1*400056# | Generated securely by Faranux Electronics System", 105, 285, {align: 'center'});
+        }
+
+        // --- 6. Output PDF ---
+        const pdfBlob = doc.output('blob');
+        const blobUrl = URL.createObjectURL(pdfBlob);
+
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `Quotation_${quoteId}.pdf`;
         document.body.appendChild(a);
         a.click();
 
@@ -280,6 +527,12 @@ class PdfGenerator {
         if (data.customerEmail) doc.text(data.customerEmail, 115, 66);
         doc.text(`Payment: ${data.paymentMethod ? data.paymentMethod.toUpperCase() : 'CASH'}`, 14, 72);
 
+        // Company Contact Info
+        doc.setFontSize(8);
+        doc.setTextColor(...lightText);
+        doc.text("TIN: 103683829 | Email: sales@faranux.com", 14, 78);
+        doc.text("Tel: +250 786 396 995 | Website: www.faranux.com", 14, 83);
+
         // --- 3. Table Data ---
         const tableBody = data.items.map(i => [
             i.sku || '-',
@@ -290,7 +543,7 @@ class PdfGenerator {
         ]);
 
         autoTable(doc, {
-            startY: 80,
+            startY: 90,
             head: [['SKU', 'Product Name', 'Qty', 'U.P. (Frw)', 'T.P. (Frw)']],
             body: tableBody,
             theme: 'striped',
@@ -364,7 +617,10 @@ class PdfGenerator {
         });
 
         if (data.taxAmount > 0) {
-            const taxLabel = `${data.taxName || 'Tax'} (${data.taxRate}% ${data.taxInclusive ? 'incl' : 'excl'}):`;
+            const taxBaseLabel = data.taxOnItems
+                ? 'on items'
+                : 'on total (incl. shipping & fees)';
+            const taxLabel = `${data.taxName || 'Tax'} (${data.taxRate}% ${taxBaseLabel}, ${data.taxInclusive ? 'incl' : 'excl'}):`;
             addTotalRow(taxLabel, data.taxAmount);
         }
 
@@ -401,8 +657,9 @@ class PdfGenerator {
             doc.setFontSize(9);
             doc.setFont("helvetica", "normal");
             doc.setTextColor(156, 163, 175);
-            doc.text("Thank you for your purchase!", 105, 280, {align: 'center'});
-            doc.text("Generated securely by Faranux Electronics System", 105, 285, {align: 'center'});
+            doc.text("Thank you for your purchase!", 105, 275, {align: 'center'});
+            doc.text("KIGALI - NYARUGENGE | Street KN 119 ST | Francine's Building, 1st Floor", 105, 280, {align: 'center'});
+            doc.text("BK: 00262-00682142-32 | MoMo: *182*8*1*400056# | Generated securely by Faranux Electronics System", 105, 285, {align: 'center'});
         }
 
         // --- 6. Output PDF ---
