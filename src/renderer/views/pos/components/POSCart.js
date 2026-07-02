@@ -273,15 +273,21 @@ class POSCart {
         }
 
         el.innerHTML = this._items.map(item => {
-            // Always show base price in item cards (Option A)
-            // Tax will be applied in the summary block for consistency
-            const displayPrice = item.price;
+            // Show tax-inclusive price when tax is per item and exclusive
+            // For "on total" mode or inclusive tax, always show base price
+            const showTaxPrice = this._taxOn && this._taxOnItems && this._taxRate > 0 && !this._taxInclusive;
+            const displayPrice = showTaxPrice
+                ? Math.round(item.price * (1 + this._taxRate / 100))
+                : item.price;
+            // Line total uses display price to match the unit price shown
             const lineTotal = displayPrice * item.qty;
 
-            // Show tax label only when tax is being applied to the items
-            const showTaxLabel = this._taxOn && this._taxOnItems && this._taxRate > 0;
+            // Show tax label based on tax mode
+            const showTaxLabel = this._taxOn && this._taxRate > 0;
             const taxLabel = showTaxLabel
-                ? `<span style="font-size:9px;color:#932013;"> (${this._taxRate}% on items, ${this._taxInclusive ? 'incl.' : 'excl.'})</span>`
+                ? (this._taxOnItems
+                    ? `<span style="font-size:9px;color:#932013;"> (${this._taxRate}% on items, ${this._taxInclusive ? 'incl.' : 'excl.'})</span>`
+                    : `<span style="font-size:9px;color:#932013;"> (${this._taxRate}% on total, ${this._taxInclusive ? 'incl.' : 'excl.'})</span>`)
                 : '';
 
             const isMisc = item.isMisc;

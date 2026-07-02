@@ -167,6 +167,12 @@ class POSView {
         if (paymentResizeHandle) {
             paymentResizeHandle.addEventListener('pointerdown', (e) => this._startResize(e));
         }
+
+        // Set logged-in user globally for cashier auto-selection
+        const user = this.state.getUser();
+        if (user) {
+            window._posUser = user;
+        }
     }
 
     _initCartTabs() {

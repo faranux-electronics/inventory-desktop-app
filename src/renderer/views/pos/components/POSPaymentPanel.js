@@ -330,6 +330,19 @@ class OrderSettingsModal {
                 staffList.map(u => `<option value="${u.id}" data-name="${u.display_name}" data-email="${u.email || ''}">${u.display_name}</option>`).join('');
             el.style.borderColor = ''; // Clear error border
 
+            // Auto-select cashier if logged-in email matches
+            if (!this.savedCashierId) {
+                const user = window._posUser || null; // Get logged-in user from global
+                if (user?.email) {
+                    const matchingCashier = staffList.find(s => s.email === user.email);
+                    if (matchingCashier) {
+                        el.value = matchingCashier.id;
+                        this.savedCashierId = matchingCashier.id;
+                        this.onChange();
+                    }
+                }
+            }
+
             if (this.savedCashierId) {
                 el.value = this.savedCashierId;
                 this.onChange();
