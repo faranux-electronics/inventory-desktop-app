@@ -3,9 +3,10 @@
  */
 class POSFilterBar {
     constructor({ initialQuery='', initialCategory='', initialStockFilter='all',
-                    initialFeatured = false, minimal = false, onFilter
+                    initialFeatured = false, minimal = false, onFilter, onAddMisc
                 }) {
         this.onFilter = onFilter;
+        this.onAddMisc = onAddMisc;
         this._q = initialQuery;
         this._cat = initialCategory;
         this._stock = initialStockFilter;
@@ -25,6 +26,12 @@ class POSFilterBar {
                 <select id="posCategory" class="pos-category-select">
                     <option value="">All Categories</option>
                 </select>
+                ${this._minimal ? '' : `
+                <button id="posAddMiscBtn" class="pos-add-misc-btn" title="Add miscellaneous item (Ctrl+M)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    <span>Misc</span>
+                </button>
+                `}
             </div>
             ${this._minimal ? '' : `
             <div class="pos-filter-chips" id="posFilterChips">
@@ -121,7 +128,16 @@ class POSFilterBar {
 
         document.addEventListener('keydown', e => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); this.focus(); }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'm') { 
+                e.preventDefault(); 
+                if (this.onAddMisc) this.onAddMisc();
+            }
         });
+
+        const miscBtn = container.querySelector('#posAddMiscBtn');
+        if (miscBtn && this.onAddMisc) {
+            miscBtn.addEventListener('click', () => this.onAddMisc());
+        }
     }
 }
 

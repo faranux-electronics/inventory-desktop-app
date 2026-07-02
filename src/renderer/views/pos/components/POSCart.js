@@ -67,14 +67,42 @@ class POSCart {
         return true;
     }
 
+    addMiscItem({ name, price, qty, notes }) {
+        // Generate a unique ID for miscellaneous items
+        const miscId = 'misc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        
+        this._items.push({
+            id: miscId,
+            wc_product_id: miscId,
+            name: name,
+            price: parseInt(price || 0),
+            qty: qty || 1,
+            maxStock: 999999, // No stock limit for misc items
+            sku: '',
+            isMisc: true,
+            notes: notes || ''
+        });
+        
+        this._renderItems();
+        this.onChange(this._items);
+        return true;
+    }
+
     updateQty(productId, delta) {
         const idx  = this._items.findIndex(i => i.id === productId);
         if (idx === -1) return;
         const item = this._items[idx];
         const next = item.qty + delta;
-        if (next <= 0)            this._items.splice(idx, 1);
-        else if (next > item.maxStock) return 'max';
-        else                       item.qty = next;
+        
+        // Misc items have unlimited stock, regular items respect maxStock
+        if (next <= 0) {
+            this._items.splice(idx, 1);
+        } else if (!item.isMisc && next > item.maxStock) {
+            return 'max';
+        } else {
+            item.qty = next;
+        }
+        
         this._renderItems();
         this.onChange(this._items);
     }
@@ -120,9 +148,10 @@ class POSCart {
         if (!el) return;
 
         if (!this._items.length) {
-            el.innerHTML = `<div class="pos-cart-empty" style="padding: 20px 10px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(36, 59, 83, 0.3)" stroke-width="1.5" width="30" style="margin-bottom:4px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-                <div style="font-size:12px;">Cart is empty</div>
+            el.innerHTML = `<div class="pos-cart-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(36, 59, 83, 0.3)" stroke-width="1.5" width="36" style="margin-bottom:8px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                <div style="font-size:13px;">Cart is empty</div>
+                <div style="font-size:11px;color:rgba(36, 59, 83, 0.5);margin-top:2px;">Add products to get started</div>
             </div>`;
             return;
         }
@@ -136,31 +165,37 @@ class POSCart {
                 : item.price;
             const lineTotal  = taxedPrice * item.qty;
             const taxLabel   = showTax && !this._taxInclusive
-                ? `<span style="font-size:9px;color:#2689C4;"> (+${this._taxRate}%)</span>`
+                ? `<span style="font-size:9px;color:#932013;"> (+${this._taxRate}%)</span>`
                 : '';
 
+            const isMisc = item.isMisc;
+            const stockLabel = isMisc ? 'Unlimited' : item.maxStock;
+            const skuLabel = isMisc ? 'Custom' : (item.sku || 'N/A');
+            const miscBadge = isMisc ? `<span class="pos-misc-badge">Custom</span>` : '';
+            const notesDisplay = item.notes ? `<div class="pos-cart-row-notes">${item.notes}</div>` : '';
+
             return `
-<div class="pos-cart-row" data-id="${item.id}" style="padding: 6px 8px; margin-bottom: 2px;">
-    <div style="flex:1;min-width:0;padding-right:4px;">
-        <div style="font-size:12px;font-weight:600;color:#243B53;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">
-            ${item.name}
+<div class="pos-cart-row ${isMisc ? 'pos-cart-row--misc' : ''}" data-id="${item.id}">
+    <div class="pos-cart-row-info">
+        <div class="pos-cart-row-name-line">
+            <span class="pos-cart-row-name" title="${item.name}">${item.name}</span>
+            ${miscBadge}
         </div>
-        <div style="font-size:10px;color:rgba(36, 59, 83, 0.6);margin-top:2px;">
-            ${item.sku ? `SKU: ${item.sku} &nbsp;|&nbsp; ` : ''}<strong>${item.price.toLocaleString()} Frw</strong>${taxLabel}
-            &nbsp;|&nbsp; <span title="Branch stock available">Branch: ${item.maxStock}</span>
+        <div class="pos-cart-row-meta">
+            ${isMisc ? '' : `${item.sku ? `SKU: ${item.sku} · ` : ''}`}${item.price.toLocaleString()} Frw${taxLabel}
+            <span class="pos-cart-row-meta-dot">·</span> Stock: ${stockLabel}
         </div>
+        ${notesDisplay}
     </div>
 
-    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-        <div class="pos-qty-ctrl" style="height:22px;">
-            <button class="pos-qty-btn pos-qty-minus" data-id="${item.id}" style="width:22px;height:22px;font-size:12px;">−</button>
-            <input type="number" class="pos-qty-input" data-id="${item.id}" value="${item.qty}" min="1" max="${item.maxStock}" style="min-width:36px;height:22px;font-size:11.5px;text-align:center;border:1px solid #d1d5db;border-radius:2px;padding:0 2px;">
-            <button class="pos-qty-btn pos-qty-plus" data-id="${item.id}" style="width:22px;height:22px;font-size:12px;">+</button>
+    <div class="pos-cart-row-controls">
+        <div class="pos-qty-ctrl">
+            <button class="pos-qty-btn pos-qty-minus" data-id="${item.id}">−</button>
+            <input type="number" class="pos-qty-input" data-id="${item.id}" value="${item.qty}" min="1" max="${isMisc ? 999999 : item.maxStock}">
+            <button class="pos-qty-btn pos-qty-plus" data-id="${item.id}">+</button>
         </div>
-        <div style="width:65px;text-align:right;flex-shrink:0;">
-            <div style="font-weight:700;color:#2689C4;font-size:12.5px;">${lineTotal.toLocaleString()}</div>
-        </div>
-        <button class="pos-del-btn" data-id="${item.id}" title="Remove" style="font-size:16px; margin-left: 2px;">×</button>
+        <div class="pos-cart-row-total">${lineTotal.toLocaleString()}</div>
+        <button class="pos-del-btn" data-id="${item.id}" title="Remove item">×</button>
     </div>
 </div>`;
         }).join('');
@@ -169,18 +204,47 @@ class POSCart {
         el.querySelectorAll('.pos-qty-plus').forEach(b  => b.addEventListener('click', () => this.updateQty(+b.dataset.id, +1)));
         el.querySelectorAll('.pos-qty-input').forEach(input => {
             input.addEventListener('input', () => {
-                const newQty = parseInt(input.value) || 0;
+                const newQty = parseInt(input.value);
                 const itemId = +input.dataset.id;
                 const item = this._items.find(i => i.id === itemId);
                 if (!item) return;
 
-                if (newQty > item.maxStock) {
+                // If empty or invalid, reset to current quantity
+                if (isNaN(newQty) || input.value === '') {
+                    input.value = item.qty;
+                    return;
+                }
+
+                // Only enforce maxStock for non-misc items
+                if (!item.isMisc && newQty > item.maxStock) {
                     input.value = item.maxStock;
+                    return;
+                }
+
+                // Prevent clearing to 0 - minimum is 1
+                if (newQty < 1) {
+                    input.value = 1;
                     return;
                 }
 
                 const delta = newQty - item.qty;
                 if (delta !== 0) this.updateQty(itemId, delta);
+            });
+            
+            // Also handle blur event to ensure valid value
+            input.addEventListener('blur', () => {
+                const newQty = parseInt(input.value);
+                const itemId = +input.dataset.id;
+                const item = this._items.find(i => i.id === itemId);
+                if (!item) return;
+
+                if (isNaN(newQty) || newQty < 1) {
+                    input.value = item.qty;
+                } else if (!item.isMisc && newQty > item.maxStock) {
+                    input.value = item.maxStock;
+                    const delta = item.maxStock - item.qty;
+                    if (delta !== 0) this.updateQty(itemId, delta);
+                }
             });
         });
         el.querySelectorAll('.pos-del-btn').forEach(b   => b.addEventListener('click', () => this.updateQty(+b.dataset.id, -9999)));

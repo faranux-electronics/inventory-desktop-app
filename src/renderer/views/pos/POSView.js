@@ -6,8 +6,9 @@ const POSCart = require('./components/POSCart.js');
 const POSPaymentPanel = require('./components/POSPaymentPanel.js');
 const POSConfirmModal = require('./components/POSConfirmModal.js');
 const POSReceipt = require('./components/POSReceipt.js');
+const POSMiscModal = require('./components/POSMiscModal.js');
 
-const DEFAULT_LEFT_PCT = 0;
+const DEFAULT_LEFT_PCT = 50;
 const MIN_LEFT_PX = 340;
 const MIN_RIGHT_PX = 320;
 const MAX_CARTS = 6;
@@ -25,6 +26,10 @@ class POSView {
         this._allLoaded = false;
         this._currentPage = 1;
 
+        // Product cache to prevent reloading on tab focus
+        this._productCache = [];
+        this._cacheParams = null;
+
         this._carts = [];
         this._activeCartIdx = 0;
 
@@ -33,6 +38,7 @@ class POSView {
         this.paymentPanel = null;
         this.confirmModal = null;
         this.receipt = null;
+        this.miscModal = null;
 
         this._branches = [];
         this._loadViewState();
@@ -71,6 +77,17 @@ class POSView {
         content.innerHTML = this._layoutHTML();
         this._initComponents();
         this._initResizer();
+        
+        // Reset loading state like TransfersView does
+        this._loadingPage = false;
+        this._allLoaded = false;
+        this._currentPage = 1;
+        
+        // Show loading state on product grid instead of boot spinner
+        if (this.productGrid) {
+            this.productGrid.showLoading(false);
+        }
+        
         this._bootstrap();
     }
 
@@ -89,10 +106,13 @@ class POSView {
                     <div class="pos-tab-list" id="posTabList"></div>
                     <button class="pos-tab-add" id="posTabAdd" title="New cart (max ${MAX_CARTS})">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12"><line x1="12" y1="4" x2="12" y2="20"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
+                        <span>New Cart</span>
                     </button>
                 </div>
                 <div id="posCartMount" class="pos-right-cart"></div>
-                <div id="posPaymentMount" class="pos-right-payment"></div>
+                <div id="posPaymentMount" class="pos-right-payment">
+                    <div class="pos-payment-resize-handle" id="posPaymentResizeHandle"></div>
+                </div>
             </aside>
         </div>`;
     }
@@ -108,7 +128,8 @@ class POSView {
                 this._featured = f.featured;
                 this._reloadProducts();
                 this._saveViewState();
-            }
+            },
+            onAddMisc: () => this._showMiscModal()
         });
         this.filterBar.render(document.getElementById('posFilterBarMount'));
 
@@ -122,7 +143,8 @@ class POSView {
             onRequestCheckout: params => this._handleRequestCheckout(params),
             onTaxModeChange: mode => {
                 if (this._activeCart) this._activeCart.setTaxMode(mode);
-            }
+            },
+            onVoidCart: () => this._voidActiveCart()
         });
         this.paymentPanel.render(document.getElementById('posPaymentMount'));
 
@@ -132,8 +154,17 @@ class POSView {
         });
         this.receipt = new POSReceipt({onNewSale: () => this._startNewSale()});
 
+        this.miscModal = new POSMiscModal({
+            onConfirm: (data) => this._handleAddMiscItem(data),
+            onCancel: () => {}
+        });
+
         this._initCartTabs();
         document.getElementById('posTabAdd').addEventListener('click', () => this._addCart());
+        const paymentResizeHandle = document.getElementById('posPaymentResizeHandle');
+        if (paymentResizeHandle) {
+            paymentResizeHandle.addEventListener('pointerdown', (e) => this._startResize(e));
+        }
     }
 
     _initCartTabs() {
@@ -159,6 +190,43 @@ class POSView {
         this._activateCart(this._activeCartIdx);
     }
 
+    _startResize(e) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault();
+        const paymentMount = document.getElementById('posPaymentMount');
+        if (!paymentMount) return;
+
+        const handle = e.currentTarget;
+        const pointerId = e.pointerId;
+        const startY = e.clientY;
+        const startHeight = paymentMount.offsetHeight;
+
+        const onPointerMove = (moveEvent) => {
+            const delta = startY - moveEvent.clientY;
+            const newHeight = Math.max(150, Math.min(window.innerHeight * 0.5, startHeight + delta));
+            paymentMount.style.height = newHeight + 'px';
+        };
+
+        const onPointerUp = () => {
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+            if (handle && handle.releasePointerCapture) {
+                handle.releasePointerCapture(pointerId);
+            }
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+
+        if (handle && handle.setPointerCapture) {
+            handle.setPointerCapture(pointerId);
+        }
+
+        document.body.style.cursor = 'ns-resize';
+        document.body.style.userSelect = 'none';
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+    }
+
     _createCartEntry(name, id = null) {
         const cartId = id || ('cart_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6));
         const cart = new POSCart({
@@ -172,17 +240,28 @@ class POSView {
 
     _addCart() {
         if (this._carts.length >= MAX_CARTS) return Toast.info(`Maximum ${MAX_CARTS} carts open at once`);
-        this._carts.push(this._createCartEntry(`Sale ${this._carts.length + 1}`));
+        const newCart = this._createCartEntry(`Sale ${this._carts.length + 1}`);
+        this._carts.push(newCart);
         this._activeCartIdx = this._carts.length - 1;
         this._renderTabs();
         this._activateCart(this._activeCartIdx);
+        // New cart starts with fresh settings (defaults)
+        // Settings will be loaded by loadCartSettings in _activateCart
         this._saveViewState();
     }
 
     _removeCart(idx) {
+        // Clean up per-cart settings when cart is removed
+        const cartId = this._carts[idx]?.id;
+        if (cartId) {
+            localStorage.removeItem(`pos_cart_settings_${cartId}`);
+        }
+        
         if (this._carts.length === 1) {
             this._carts[0].cart.clear();
             this._carts[0].name = 'Sale 1';
+            // Reset cart settings when clearing the only cart
+            this.paymentPanel.resetForm();
             this._renderTabs();
             this._activateCart(0);
             return;
@@ -238,6 +317,8 @@ class POSView {
         mount.innerHTML = '';
         entry.cart.render(mount);
         this.paymentPanel.updateTotals(entry.cart.getSubtotal(), entry.cart.isEmpty());
+        // Update payment panel with current cart ID for per-cart settings
+        this.paymentPanel.setCurrentCartId(entry.id);
     }
 
     get _activeCart() {
@@ -245,22 +326,32 @@ class POSView {
     }
 
     async _bootstrap() {
-        this._showBootSpinner();
+        // Check cache first before showing loading
+        if (this._isCacheValid() && this._productCache.length > 0) {
+            this.productGrid.update(this._productCache, false);
+            this._currentPage = 1;
+            this._allLoaded = true;
+        } else {
+            this._showBootSpinner();
+        }
 
         const catPromise = API.getCategories().then(res => {
             if (res?.status === 'success') this.filterBar.populateCategories(res.data || []);
         });
 
         const metaPromise = Promise.all([
-            API.getWCPaymentGateways?.().catch(() => null),
             API.getWCTaxRates?.().catch(() => null)
-        ]).then(([gwRes, taxRes]) => {
-            if (gwRes?.status === 'success') this.paymentPanel.setPaymentMethods(gwRes.data);
+        ]).then(([taxRes]) => {
+            // Payment methods are now hardcoded in constructor
             if (taxRes?.status === 'success') this.paymentPanel.setTaxRates(taxRes.data);
         });
 
         await this._loadBranches();
-        await this._fetchProductsAsync();
+        
+        // Only fetch products if cache is invalid
+        if (!this._isCacheValid() || this._productCache.length === 0) {
+            await this._fetchProductsAsync();
+        }
 
         await Promise.all([catPromise, metaPromise]);
     }
@@ -348,8 +439,35 @@ class POSView {
     _reloadProducts() {
         this._allLoaded = false;
         this._currentPage = 1;
+        this._productCache = []; // Clear cache on reload
+        this._cacheParams = null;
         clearTimeout(this._reloadDebounce);
         this._reloadDebounce = setTimeout(() => this._loadProducts(1, false), 220);
+    }
+
+    _isCacheValid() {
+        if (!this._cacheParams) return false;
+        const user = this.state.getUser();
+        const branchId = user?.branch_id || '';
+        return (
+            this._cacheParams.query === this._query &&
+            this._cacheParams.category === this._category &&
+            this._cacheParams.stockFilter === this._stockFilter &&
+            this._cacheParams.featured === this._featured &&
+            this._cacheParams.branchId === branchId
+        );
+    }
+
+    _updateCacheParams() {
+        const user = this.state.getUser();
+        const branchId = user?.branch_id || '';
+        this._cacheParams = {
+            query: this._query,
+            category: this._category,
+            stockFilter: this._stockFilter,
+            featured: this._featured,
+            branchId: branchId
+        };
     }
 
     async _loadMoreProducts() {
@@ -361,6 +479,7 @@ class POSView {
         return new Promise(resolve => {
             this._currentPage = 1;
             this._allLoaded = false;
+
             const session = this._syncSession = (this._syncSession || 0) + 1;
             this.productGrid.showLoading(false);
 
@@ -372,6 +491,10 @@ class POSView {
                     if (session !== this._syncSession) return;
                     this.productGrid.update(res?.data || [], false);
                     if (1 >= (res?.pagination?.pages || 1)) this._allLoaded = true;
+                    
+                    // Cache the results
+                    this._productCache = res?.data || [];
+                    this._updateCacheParams();
                 })
                 .catch(e => {
                     if (session === this._syncSession) this.productGrid.showError(`Error: ${e.message}`);
@@ -388,6 +511,15 @@ class POSView {
 
     async _loadProducts(page, append) {
         if (this._loadingPage && append) return;
+        
+        // Use cache if valid and not appending
+        if (!append && page === 1 && this._isCacheValid() && this._productCache.length > 0) {
+            this.productGrid.update(this._productCache, false);
+            this._currentPage = 1;
+            this._allLoaded = true;
+            return;
+        }
+
         this._syncSession = (this._syncSession || 0) + 1;
         const currentSession = this._syncSession;
 
@@ -415,6 +547,15 @@ class POSView {
             }
 
             this.productGrid.update(products, append);
+            
+            // Update cache on first page load
+            if (!append && page === 1) {
+                this._productCache = products;
+                this._updateCacheParams();
+            } else if (append) {
+                this._productCache = [...this._productCache, ...products];
+            }
+            
             this._currentPage = page;
             if (page >= (res.pagination?.pages || 1)) this._allLoaded = true;
             if (append) this.productGrid.setSyncStatus('done', products.length);
@@ -429,6 +570,38 @@ class POSView {
                 if (page === 1) this._hideBootSpinner();
             }
         }
+    }
+
+    _showMiscModal() {
+        if (this.miscModal) {
+            this.miscModal.show();
+        }
+    }
+
+    _handleAddMiscItem(data) {
+        const cart = this._activeCart;
+        if (!cart) return;
+
+        const result = cart.addMiscItem(data);
+        if (result) {
+            Toast.success(`Added "${data.name}" to cart`);
+            this.paymentPanel.updateTotals(cart.getSubtotal(), cart.isEmpty());
+            this._saveViewState();
+        } else {
+            Toast.error('Failed to add item to cart');
+        }
+    }
+
+    _voidActiveCart() {
+        const cart = this._activeCart;
+        if (!cart || cart.isEmpty()) return;
+        if (!confirm('Are you sure you want to void the current cart?')) return;
+
+        cart.clear();
+        this.paymentPanel.resetForm();
+        this.paymentPanel.updateTotals(0, true);
+        this._renderTabs();
+        this._saveViewState();
     }
 
     _handleAddToCart(product) {
@@ -536,35 +709,54 @@ class POSView {
     }
 
     _initResizer() {
-        if (this._resizerInitialized) return;
-        this._resizerInitialized = true;
         const divider = document.getElementById('posDivider');
         const left = document.getElementById('posLeft');
         const root = document.getElementById('posRoot');
         if (!divider || !left || !root) return;
-        let dragging = false, startX, startW, rootW;
+        if (this._resizerInitialized && this._dividerNode === divider) return;
 
-        divider.addEventListener('mousedown', e => {
+        this._resizerInitialized = true;
+        this._dividerNode = divider;
+
+        let dragging = false, startX = 0, startW = 0, rootW = 0, activePointerId = null;
+
+        const onPointerMove = (moveEvent) => {
+            if (!dragging) return;
+            const newW = Math.min(Math.max(startW + moveEvent.clientX - startX, MIN_LEFT_PX), rootW - divider.offsetWidth - MIN_RIGHT_PX);
+            left.style.flex = `0 0 ${newW}px`;
+        };
+
+        const onPointerUp = () => {
+            if (!dragging) return;
+            dragging = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            divider.classList.remove('pos-divider--active');
+            document.removeEventListener('pointermove', onPointerMove);
+            document.removeEventListener('pointerup', onPointerUp);
+            if (activePointerId !== null && divider.releasePointerCapture) {
+                divider.releasePointerCapture(activePointerId);
+            }
+            activePointerId = null;
+        };
+
+        divider.addEventListener('pointerdown', (e) => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
             dragging = true;
+            activePointerId = e.pointerId;
             startX = e.clientX;
             startW = left.getBoundingClientRect().width;
             rootW = root.getBoundingClientRect().width;
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
             divider.classList.add('pos-divider--active');
-        });
-        document.addEventListener('mousemove', e => {
-            if (!dragging) return;
-            const newW = Math.min(Math.max(startW + e.clientX - startX, MIN_LEFT_PX), rootW - divider.offsetWidth - MIN_RIGHT_PX);
-            left.style.flex = `0 0 ${newW}px`;
-        });
-        document.addEventListener('mouseup', () => {
-            if (!dragging) return;
-            dragging = false;
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            divider.classList.remove('pos-divider--active');
-        });
+            if (divider.setPointerCapture) {
+                divider.setPointerCapture(activePointerId);
+            }
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerup', onPointerUp);
+        }, { passive: false });
+
         divider.addEventListener('dblclick', () => {
             left.style.flex = `1 1 ${DEFAULT_LEFT_PCT}%`;
         });

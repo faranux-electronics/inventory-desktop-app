@@ -39,7 +39,7 @@ class POSReceipt {
                 </p>
 
                 <div style="display: flex; gap: 12px; flex-direction: column;">
-                    <button class="rpt-btn" id="rptNewSaleBtn" style="background: #a51c1c; color: white; border: none; padding: 12px; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                    <button class="rpt-btn" id="rptNewSaleBtn" style="background: #932013; color: white; border: none; padding: 12px; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" style="margin-right: 8px;">
                             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                         </svg>
@@ -60,8 +60,17 @@ class POSReceipt {
         document.body.appendChild(overlay);
         requestAnimationFrame(() => overlay.classList.add('rpt-overlay--in'));
 
+        // Add Escape key handler
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                handleClose();
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+
         // Handle closing
-        const close = () => {
+        const handleClose = () => {
+            document.removeEventListener('keydown', escapeHandler);
             overlay.classList.remove('rpt-overlay--in');
             setTimeout(() => {
                 overlay.remove();
@@ -69,10 +78,7 @@ class POSReceipt {
             }, 230);
         };
 
-        overlay.querySelector('#rptNewSaleBtn').addEventListener('click', close);
-        overlay.addEventListener('click', e => {
-            if (e.target === overlay) close();
-        });
+        overlay.querySelector('#rptNewSaleBtn').addEventListener('click', handleClose);
 
         // Trigger manual reprint if needed
         overlay.querySelector('#rptPrintBtn').addEventListener('click', async () => {

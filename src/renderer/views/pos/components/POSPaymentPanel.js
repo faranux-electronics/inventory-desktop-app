@@ -116,10 +116,11 @@ class CustomerSearch {
    3. OrderSettingsModal
    ======================================================================= */
 class OrderSettingsModal {
-    constructor(container, onChange, onTaxModeChange) {
+    constructor(container, onChange, onTaxModeChange, cartId = null) {
         this.container = container;
         this.onChange = onChange;
         this.onTaxModeChange = onTaxModeChange;
+        this.cartId = cartId; // For per-cart settings
 
         this.MAX_FEES = 5;
 
@@ -146,51 +147,140 @@ class OrderSettingsModal {
 
     // --- State Persistence ---
     loadLocalSettings() {
-        try {
-            const savedStr = localStorage.getItem('pos_order_settings');
-            if (!savedStr) return;
-            const saved = JSON.parse(savedStr);
+        // Clean up old global settings if they exist
+        localStorage.removeItem('pos_order_settings');
+        
+        // No global settings - everything is per-cart
+        // Reset to defaults until cart-specific settings are loaded
+        this.state.fees = [];
+        this.state.taxOn = false;
+        this.state.taxInclusive = false;
+        this.state.taxOnItems = false;
+        this.state.selTaxRate = 0;
+        this.state.selTaxName = 'Tax';
+        this.savedCashierId = null;
 
-            // Restore JS State
-            if (saved.fees) this.state.fees = saved.fees;
-            this.state.taxOn = !!saved.taxOn;
-            this.state.taxInclusive = !!saved.taxInclusive;
-            this.state.taxOnItems = !!saved.taxOnItems;
-            this.state.selTaxRate = saved.taxRate || 0;
-            this.state.selTaxName = saved.taxName || 'Tax';
-            this.savedCashierId = saved.cashier?.id || null;
+        this.container.querySelector('#posDiscountType').value = 'value';
+        this.container.querySelector('#posDiscountVal').value = '0';
+        this.container.querySelector('#posShipping').value = '0';
+        this.container.querySelector('#posNotes').value = '';
+        this.container.querySelector('#posCustomerId').value = '';
+        this.container.querySelector('#posCustomerSearch').value = '';
+        this.container.querySelector('#posCustomerEmail').value = '';
 
-            // Restore DOM Inputs
-            if (saved.discountType) this.container.querySelector('#posDiscountType').value = saved.discountType;
-            if (saved.discountRaw) this.container.querySelector('#posDiscountVal').value = saved.discountRaw;
-            if (saved.shipping) this.container.querySelector('#posShipping').value = saved.shipping;
-            if (saved.notes) this.container.querySelector('#posNotes').value = saved.notes;
-
-            if (saved.customer) {
-                this.container.querySelector('#posCustomerId').value = saved.customer.id || '';
-                this.container.querySelector('#posCustomerSearch').value = saved.customer.name || '';
-                this.container.querySelector('#posCustomerEmail').value = saved.customer.email || '';
-            }
-
-            this._updateTaxUI();
-            this._renderFees();
-        } catch (e) {}
+        this._updateTaxUI();
+        this._renderFees();
     }
 
     saveLocalSettings() {
-        localStorage.setItem('pos_order_settings', JSON.stringify(this.getData()));
+        // Save all settings per-cart
+        if (this.cartId) {
+            const data = this.getData();
+            const cartSettings = {
+                fees: data.fees,
+                discountType: data.discountType,
+                discountRaw: data.discountRaw,
+                shipping: data.shipping,
+                notes: data.notes,
+                taxOn: data.taxOn,
+                taxRate: data.taxRate,
+                taxName: data.taxName,
+                taxInclusive: data.taxInclusive,
+                taxOnItems: data.taxOnItems,
+                cashier: data.cashier,
+                customer: data.customer
+            };
+            localStorage.setItem(`pos_cart_settings_${this.cartId}`, JSON.stringify(cartSettings));
+        }
+    }
+
+    loadCartSettings(cartId) {
+        if (!cartId) return;
+        try {
+            const savedStr = localStorage.getItem(`pos_cart_settings_${cartId}`);
+            if (savedStr) {
+                const saved = JSON.parse(savedStr);
+                
+                // Restore all cart-specific settings
+                if (saved.fees) this.state.fees = saved.fees;
+                if (saved.discountType) this.container.querySelector('#posDiscountType').value = saved.discountType;
+                if (saved.discountRaw) this.container.querySelector('#posDiscountVal').value = saved.discountRaw;
+                if (saved.shipping) this.container.querySelector('#posShipping').value = saved.shipping;
+                if (saved.notes) this.container.querySelector('#posNotes').value = saved.notes;
+                
+                // Restore tax settings
+                this.state.taxOn = !!saved.taxOn;
+                this.state.taxInclusive = !!saved.taxInclusive;
+                this.state.taxOnItems = !!saved.taxOnItems;
+                this.state.selTaxRate = saved.taxRate || 0;
+                this.state.selTaxName = saved.taxName || 'Tax';
+                this._updateTaxUI();
+                this._fireTaxMode();
+                
+                // Restore cashier
+                this.savedCashierId = saved.cashier?.id || null;
+                const cashierSel = this.container.querySelector('#posCashier');
+                if (cashierSel && saved.cashier?.id) {
+                    cashierSel.value = saved.cashier.id;
+                }
+                
+                // Restore customer
+                if (saved.customer) {
+                    this.container.querySelector('#posCustomerId').value = saved.customer.id || '';
+                    this.container.querySelector('#posCustomerSearch').value = saved.customer.name || '';
+                    this.container.querySelector('#posCustomerEmail').value = saved.customer.email || '';
+                }
+                
+                this._renderFees();
+                this.onChange();
+            } else {
+                // No saved settings for this cart, use defaults
+                this.state.fees = [];
+                this.state.taxOn = false;
+                this.state.taxInclusive = false;
+                this.state.taxOnItems = false;
+                this.state.selTaxRate = 0;
+                this.state.selTaxName = 'Tax';
+                
+                this.container.querySelector('#posDiscountType').value = 'value';
+                this.container.querySelector('#posDiscountVal').value = '0';
+                this.container.querySelector('#posShipping').value = '0';
+                this.container.querySelector('#posNotes').value = '';
+                this.container.querySelector('#posCustomerId').value = '';
+                this.container.querySelector('#posCustomerSearch').value = '';
+                this.container.querySelector('#posCustomerEmail').value = '';
+                
+                this._updateTaxUI();
+                this._renderFees();
+                this.onChange();
+            }
+        } catch (e) {}
     }
 
     // --- Public API ---
     show() {
         this.modalEl.style.display = 'flex';
         requestAnimationFrame(() => this.modalEl.classList.add('pcm-overlay--in'));
+        
+        // Add Escape key handler
+        this._escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.hide();
+            }
+        };
+        document.addEventListener('keydown', this._escapeHandler);
     }
 
     hide() {
         this.modalEl.classList.remove('pcm-overlay--in');
         setTimeout(() => { this.modalEl.style.display = 'none'; }, 220);
         this.onChange();
+        
+        // Remove Escape key handler
+        if (this._escapeHandler) {
+            document.removeEventListener('keydown', this._escapeHandler);
+            this._escapeHandler = null;
+        }
     }
 
     setTaxRates(rates) {
@@ -248,15 +338,22 @@ class OrderSettingsModal {
     }
 
     reset() {
-        ['posDiscountVal','posNotes','posCustomerSearch','posCustomerId','posCustomerEmail','posShipping'].forEach(id => {
+        // Reset all per-cart settings
+        ['posDiscountVal','posNotes','posShipping','posCustomerSearch','posCustomerId','posCustomerEmail'].forEach(id => {
             const el = this.container.querySelector(`#${id}`);
             if (el) el.value = id === 'posDiscountVal' ? '0' : '';
         });
+        
         this.state.fees = [];
         this.state.taxOn = false;
+        this.state.taxInclusive = false;
+        this.state.taxOnItems = false;
+        this.state.selTaxRate = 0;
+        this.state.selTaxName = 'Tax';
+        
         this._renderFees();
         this._updateTaxUI();
-        this.saveLocalSettings();
+        this.onChange();
     }
 
     getData() {
@@ -300,7 +397,6 @@ class OrderSettingsModal {
     _bindEvents() {
         this.container.querySelector('#posSettingsCloseBtn').addEventListener('click', () => this.hide());
         this.container.querySelector('#posSettingsApplyBtn').addEventListener('click', () => this.hide());
-        this.modalEl.addEventListener('click', e => { if (e.target === this.modalEl) this.hide(); });
 
         ['#posDiscountVal', '#posDiscountType', '#posShipping', '#posCashier', '#posNotes'].forEach(sel => {
             this.container.querySelector(sel)?.addEventListener('input', () => this.onChange());
@@ -404,11 +500,11 @@ class OrderSettingsModal {
 
     _html() {
         return `
-        <div id="posSettingsModalOverlay" class="pcm-overlay" style="display:none; z-index: 1050;">
+        <div id="posSettingsModalOverlay" class="pcm-overlay" style="display:none; z-index: 2000;">
             <div class="pcm-modal" style="width: min(440px, 92vw); overflow: visible;">
-                <div class="pcm-header" style="background:#243B53; padding: 12px 16px; font-size:14px;">
+                <div class="pcm-header pcm-header--pos-settings" style="background:#932013; padding: 12px 16px;">
                     Order Settings
-                    <button id="posSettingsCloseBtn" class="pcm-close" style="width:24px;height:24px;font-size:16px;">&times;</button>
+                    <button id="posSettingsCloseBtn" class="pcm-close" style="width:24px;height:24px;">&times;</button>
                 </div>
                 <div class="pcm-body" style="padding: 14px 16px; display:flex; flex-direction:column; gap:12px; overflow: visible;">
                     
@@ -423,7 +519,7 @@ class OrderSettingsModal {
                             </div>
                         </div>
                         <div class="pos-field-group">
-                            <label class="pos-field-label">Customer <button id="posSameAsCashier" class="pos-same-btn" type="button" style="padding:0 4px;font-size:8px;">= Cashier</button></label>
+                            <label class="pos-field-label">Customer <button id="posSameAsCashier" class="pos-same-btn" type="button" style="padding:0 4px;">= Cashier</button></label>
                             <div class="pos-autocomplete-wrap" style="position:relative;">
                                 <input id="posCustomerSearch" type="text" class="pos-input" placeholder="Search walk-in…" autocomplete="off">
                                 <input id="posCustomerId" type="hidden" value="">
@@ -451,7 +547,7 @@ class OrderSettingsModal {
                         <div class="pos-tax-row">
                             <label class="pos-toggle-wrap" id="posTaxToggle">
                                 <div class="pos-toggle" id="posTaxToggleEl"></div>
-                                <span style="font-weight:600; font-size:11px;">Apply Tax</span>
+                                <span class="pos-tax-label">Apply Tax</span>
                             </label>
                         </div>
                         <div id="posTaxOptions" style="display:none; flex-direction:column; gap:6px; margin-top:6px;">
@@ -459,7 +555,7 @@ class OrderSettingsModal {
                                 <select id="posTaxRateSelect" class="pos-select" style="flex:1;"><option value="0">Standard (0%)</option></select>
                                 <label class="pos-toggle-wrap" id="posTaxInclToggle">
                                     <div class="pos-toggle" id="posTaxInclEl"></div>
-                                    <span id="posTaxInclLabel" style="font-size:11px;">Excl</span>
+                                    <span id="posTaxInclLabel" class="pos-tax-label">Excl</span>
                                 </label>
                             </div>
                             <div class="pos-tax-mode-row" id="posTaxModeRow">
@@ -470,12 +566,11 @@ class OrderSettingsModal {
                     </div>
 
                     <div class="pos-field-group">
-                        <label class="pos-field-label" style="display:flex;justify-content:space-between;">
-                            Extra Fees
-                            <button class="pos-add-link" id="posAddFeeBtn" type="button" style="font-size:10px;">+ Add fee</button>
-                        </label>
-                        <div id="posFeesContainer" style="display:flex;flex-direction:column;gap:4px;"></div>
-                    </div>
+                            <label class="pos-field-label pos-field-label--fees" style="display:flex;justify-content:space-between;">
+                                Extra Fees
+                                <button class="pos-add-link" id="posAddFeeBtn" type="button">+ Add fee</button>
+                            </label>
+                            <div id="posFeesContainer" class="pos-fees-container"></div>
 
                     <div class="pos-field-group">
                         <label class="pos-field-label">Notes</label>
@@ -495,11 +590,18 @@ class OrderSettingsModal {
    4. POSPaymentPanel (Main Orchestrator)
    ======================================================================= */
 class POSPaymentPanel {
-    constructor({ onRequestCheckout, onTaxModeChange }) {
+    constructor({ onRequestCheckout, onTaxModeChange, onVoidCart }) {
         this.onRequestCheckout = onRequestCheckout;
         this.onTaxModeChange = onTaxModeChange;
+        this.onVoidCart = onVoidCart;
         this._subtotal = 0;
-        this._methods = [];
+        this.currentCartId = null;
+        // Initialize hardcoded payment methods immediately
+        this._methods = [
+            { id: 'cod', title: 'Cash' },
+            { id: 'momo', title: 'Momo' },
+            { id: 'bacs', title: 'Bank Transfer' }
+        ];
     }
 
     render(container) {
@@ -509,6 +611,8 @@ class POSPaymentPanel {
         this._initModal();
         this._bindEvents();
         this._loadStaff();
+        // Render payment methods immediately since they're hardcoded
+        this._renderMethods();
     }
 
     _initModal() {
@@ -521,17 +625,42 @@ class POSPaymentPanel {
                 this.modal.saveLocalSettings(); // Save automatically on every interaction
                 this._refreshTotals();
             },
-            (mode) => this.onTaxModeChange(mode)
+            (mode) => this.onTaxModeChange(mode),
+            null // Cart ID will be set when cart is activated
         );
 
         // Restore from storage immediately after initialization
         this.modal.loadLocalSettings();
     }
 
+    setCurrentCartId(cartId) {
+        this.currentCartId = cartId;
+        // Load per-cart settings for this cart
+        if (this.modal) {
+            this.modal.cartId = cartId;
+            this.modal.loadCartSettings(cartId);
+        }
+    }
+
+    _openSettings() {
+        if (this.modal) {
+            this.modal.show();
+        }
+    }
+
     _bindEvents() {
         this.container.querySelector('#posOpenSettingsBtn').addEventListener('click', () => {
-            this.modal.show();
+            this._openSettings();
         });
+
+        const voidButton = this.container.querySelector('#posVoidBtn');
+        if (voidButton) {
+            voidButton.addEventListener('click', () => {
+                if (this.onVoidCart) {
+                    this.onVoidCart();
+                }
+            });
+        }
 
         this.container.querySelector('#posCheckoutBtn').addEventListener('click', () => {
             this._handleCheckout();
@@ -544,8 +673,8 @@ class POSPaymentPanel {
 
     // --- External APIs (Called by POSView) ---
     setPaymentMethods(methods) {
-        this._methods = (methods || []).filter(m => m.enabled !== false);
-        this._renderMethods();
+        // Payment methods are hardcoded in constructor, no-op for API calls
+        // This method is kept for compatibility but doesn't change the methods
     }
 
     setTaxRates(rates) {
@@ -557,6 +686,8 @@ class POSPaymentPanel {
         this._refreshTotals();
         const btn = this.container.querySelector('#posCheckoutBtn');
         if (btn) btn.disabled = empty;
+        const voidBtn = this.container.querySelector('#posVoidBtn');
+        if (voidBtn) voidBtn.disabled = empty;
     }
 
     setLoading(on) {
@@ -571,6 +702,10 @@ class POSPaymentPanel {
     resetForm() {
         this.modal.reset();
         this._refreshTotals();
+        // Re-apply current cart ID to modal
+        if (this.modal && this.currentCartId) {
+            this.modal.cartId = this.currentCartId;
+        }
     }
 
     // --- UI Rendering ---
@@ -578,18 +713,9 @@ class POSPaymentPanel {
         const wrap = this.container.querySelector('#posPaymentMethods');
         if (!wrap || !this._methods.length) return;
 
-        const icons = {
-            cod:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
-            bacs:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>`,
-            cheque: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>`,
-            stripe: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
-            default:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><rect x="5" y="2" width="14" height="20" rx="2"/></svg>`,
-        };
-
         wrap.innerHTML = this._methods.map((m, i) => `
-            <button class="pos-method-btn ${i === 0 ? 'active' : ''}" data-method="${m.id}" data-title="${m.title}" style="white-space: normal; height: auto; min-height: 52px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;">
-                ${icons[m.id] || icons.default}
-                <span style="width: 100%; text-align: center; word-break: break-word; line-height: 1.15; font-size: 10px;">${m.title}</span>
+            <button class="pos-method-btn ${i === 0 ? 'active' : ''}" data-method="${m.id}" data-title="${m.title}">
+                ${m.title}
             </button>`).join('');
 
         wrap.querySelectorAll('.pos-method-btn').forEach(btn =>
@@ -607,17 +733,18 @@ class POSPaymentPanel {
         this.container.querySelector('#posTotal').textContent = `${calc.total.toLocaleString()} Frw`;
 
         let dynHTML = '';
-        if (calc.discount > 0) dynHTML += `<div class="pos-trow" style="color:#10B981;font-size:11px;"><span>Discount</span><span>− ${calc.discount.toLocaleString()} Frw</span></div>`;
-        if (calc.shipping > 0) dynHTML += `<div class="pos-trow" style="font-size:11px;"><span>Shipping</span><span>+ ${calc.shipping.toLocaleString()} Frw</span></div>`;
+        if (calc.discount > 0) dynHTML += `<div class="pos-trow pos-trow--discount"><span>Discount</span><span>− ${calc.discount.toLocaleString()} Frw</span></div>`;
+        if (calc.shipping > 0) dynHTML += `<div class="pos-trow pos-trow--shipping"><span>Shipping</span><span>+ ${calc.shipping.toLocaleString()} Frw</span></div>`;
 
-        modalData.fees.forEach(f => {
-            if (parseFloat(f.amount) > 0) {
-                dynHTML += `<div class="pos-trow" style="font-size:11px;"><span>${f.label || 'Fee'}</span><span>+ ${parseFloat(f.amount).toLocaleString()} Frw</span></div>`;
-            }
-        });
+        const visibleFees = modalData.fees.filter(f => parseFloat(f.amount) > 0);
+        if (visibleFees.length > 0) {
+            const totalFees = visibleFees.reduce((sum, f) => sum + parseFloat(f.amount), 0);
+            const feeLabel = visibleFees.length > 1 ? 'Fees' : (visibleFees[0].label || 'Fee');
+            dynHTML += `<div class="pos-trow pos-trow--fee"><span>${feeLabel}</span><span>+ ${totalFees.toLocaleString()} Frw</span></div>`;
+        }
 
         if (modalData.taxOn && modalData.taxRate > 0) {
-            dynHTML += `<div class="pos-trow" style="color:#2689C4;font-size:11px;"><span>${modalData.taxName} (${modalData.taxRate}%)</span><span>${modalData.taxInclusive?'':'+'}${calc.taxAmt.toLocaleString()} Frw</span></div>`;
+            dynHTML += `<div class="pos-trow pos-trow--tax"><span>${modalData.taxName} (${modalData.taxRate}%)</span><span>${modalData.taxInclusive ? '' : '+'}${calc.taxAmt.toLocaleString()} Frw</span></div>`;
         }
 
         this.container.querySelector('#posDynamicTotals').innerHTML = dynHTML;
@@ -711,26 +838,35 @@ class POSPaymentPanel {
     _html() {
         return `
         <div class="pos-payment-panel">
-            <div class="pos-pp-section" style="padding: 6px 10px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
-                <button id="posOpenSettingsBtn" type="button" style="width:100%; padding: 6px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; font-size:11.5px; font-weight:600; color:#243B53; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition: background .12s;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                    Order Details & Adjustments
-                </button>
-            </div>
-
-            <div class="pos-pp-section" style="padding: 8px 12px;">
-                <div id="posActiveCustomer" style="font-size:11px; font-weight:700; color:#2689C4; margin-bottom:4px; display:none;"></div>
-                <div class="pos-totals-grid" style="gap:2px;">
-                    <div class="pos-trow" style="font-size:11px;"><span>Subtotal</span><span id="posSubtotal" style="font-weight:600;">0 Frw</span></div>
-                    <div id="posDynamicTotals" style="display:flex; flex-direction:column; gap:2px;"></div>
-                    <div class="pos-trow pos-trow--total" style="margin-top:2px; padding-top:4px;"><span>Total</span><span id="posTotal" style="color:#2689C4; font-size:15px;">0 Frw</span></div>
+            <div class="pos-pp-section pos-pp-section--compact">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <div style="flex: 1; min-width: 0; text-align: right;">
+                        <div id="posActiveCustomer" class="pos-active-customer"></div>
+                        <div class="pos-totals-grid">
+                            <div class="pos-trow"><span>Subtotal</span><span id="posSubtotal">0 Frw</span></div>
+                            <div id="posDynamicTotals" class="pos-dynamic-totals"></div>
+                            <div class="pos-trow pos-trow--total"><span>Total</span><span id="posTotal">0 Frw</span></div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="pos-pp-section" style="padding: 6px 12px 10px; border-bottom:none;">
-                <div class="pos-methods-grid" id="posPaymentMethods" style="margin-bottom:6px; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));"></div>
-                <button id="posCheckoutBtn" class="pos-checkout-btn" style="padding: 10px;" disabled>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><polyline points="20 6 9 17 4 12"/></svg>
+            <div class="pos-pp-section pos-pp-section--methods">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <button id="posOpenSettingsBtn" type="button" class="pos-settings-btn-icon" title="Order Details & Adjustments">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        Settings
+                    </button>
+                    <div class="pos-methods-row" id="posPaymentMethods"></div>
+                </div>
+            </div>
+
+            <div class="pos-pp-section pos-pp-section--checkout pos-pp-section--checkout-flex">
+                <button id="posVoidBtn" class="pos-void-btn" disabled>
+                    Void
+                </button>
+                <button id="posCheckoutBtn" class="pos-checkout-btn" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"><polyline points="20 6 9 17 4 12"/></svg>
                     Charge
                 </button>
             </div>

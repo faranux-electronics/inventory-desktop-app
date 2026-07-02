@@ -90,14 +90,24 @@ class POSConfirmModal {
         document.body.appendChild(overlay);
         requestAnimationFrame(() => overlay.classList.add('pcm-overlay--in'));
 
-        const close = () => {
+        // Add Escape key handler
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                handleClose();
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+
+        const handleClose = () => {
+            document.removeEventListener('keydown', escapeHandler);
             overlay.classList.remove('pcm-overlay--in');
             setTimeout(() => { overlay.remove(); this.onCancel(); }, 220);
         };
-        overlay.querySelector('#pcmClose').addEventListener('click', close);
-        overlay.querySelector('#pcmCancelBtn').addEventListener('click', close);
-        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        
+        overlay.querySelector('#pcmClose').addEventListener('click', handleClose);
+        overlay.querySelector('#pcmCancelBtn').addEventListener('click', handleClose);
         overlay.querySelector('#pcmConfirmBtn').addEventListener('click', () => {
+            document.removeEventListener('keydown', escapeHandler);
             overlay.classList.remove('pcm-overlay--in');
             setTimeout(() => { overlay.remove(); this.onConfirm(data); }, 220);
         });
