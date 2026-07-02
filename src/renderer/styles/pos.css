@@ -44,7 +44,7 @@
 /* ── Left pane ── */
 .pos-left {
     display: flex; flex-direction: column;
-    overflow: hidden; flex: 1 1 62%;
+    overflow: hidden; flex: 1 1 50%;
     min-width: 340px;
     background: #FFFFFF; border-right: 1px solid #E2E8F0;
     box-shadow: 2px 0 12px rgba(0,0,0,0.04);
@@ -71,7 +71,7 @@
 .pos-right {
     min-width: 320px;
     display: flex; flex-direction: column;
-    background: #FFFFFF; flex: 1 1 auto;
+    background: #FFFFFF; flex: 1 1 50%;
     overflow: hidden;
     box-shadow: -2px 0 12px rgba(0,0,0,0.04);
 }

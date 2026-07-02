@@ -89,7 +89,7 @@ class POSCart {
     }
 
     updateQty(productId, delta) {
-        const idx  = this._items.findIndex(i => i.id === productId);
+        const idx  = this._items.findIndex(i => String(i.id) === String(productId));
         if (idx === -1) return;
         const item = this._items[idx];
         const next = item.qty + delta;
@@ -117,6 +117,12 @@ class POSCart {
 
         for (let i = this._items.length - 1; i >= 0; i--) {
             const item = this._items[i];
+
+            // Skip misc items - they don't exist in the stock dictionary
+            if (item.isMisc) {
+                continue;
+            }
+
             const linkId = item.wc_product_id || item.id;
             const actualStock = parseInt(stockDict[linkId] || 0);
 
@@ -146,6 +152,13 @@ class POSCart {
     _renderItems() {
         const el = this._el || document.querySelector('#posCartItems');
         if (!el) return;
+
+        // Save focused qty input ID so we can restore focus after DOM re-render
+        let focusedQtyId = null;
+        const focusedEl = document.activeElement;
+        if (focusedEl && focusedEl.classList.contains('pos-qty-input')) {
+            focusedQtyId = String(focusedEl.dataset.id);
+        }
 
         if (!this._items.length) {
             el.innerHTML = `<div class="pos-cart-empty">
@@ -200,54 +213,70 @@ class POSCart {
 </div>`;
         }).join('');
 
-        el.querySelectorAll('.pos-qty-minus').forEach(b => b.addEventListener('click', () => this.updateQty(+b.dataset.id, -1)));
-        el.querySelectorAll('.pos-qty-plus').forEach(b  => b.addEventListener('click', () => this.updateQty(+b.dataset.id, +1)));
+        el.querySelectorAll('.pos-qty-minus').forEach(b => b.addEventListener('click', () => this.updateQty(b.dataset.id, -1)));
+        el.querySelectorAll('.pos-qty-plus').forEach(b  => b.addEventListener('click', () => this.updateQty(b.dataset.id, +1)));
         el.querySelectorAll('.pos-qty-input').forEach(input => {
+            // Use 'input' event to update line total immediately as user types
+            // Focus restoration ensures field stays focused during re-renders
             input.addEventListener('input', () => {
                 const newQty = parseInt(input.value);
-                const itemId = +input.dataset.id;
-                const item = this._items.find(i => i.id === itemId);
+                const itemId = input.dataset.id;
+                const item = this._items.find(i => String(i.id) === String(itemId));
                 if (!item) return;
 
-                // If empty or invalid, reset to current quantity
+                // If empty or partial input, just keep the field as-is (don't force re-render yet)
                 if (isNaN(newQty) || input.value === '') {
-                    input.value = item.qty;
                     return;
                 }
 
                 // Only enforce maxStock for non-misc items
                 if (!item.isMisc && newQty > item.maxStock) {
                     input.value = item.maxStock;
+                    const delta = item.maxStock - item.qty;
+                    if (delta !== 0) this.updateQty(itemId, delta);
                     return;
                 }
 
                 // Prevent clearing to 0 - minimum is 1
                 if (newQty < 1) {
-                    input.value = 1;
                     return;
                 }
 
                 const delta = newQty - item.qty;
                 if (delta !== 0) this.updateQty(itemId, delta);
             });
-            
-            // Also handle blur event to ensure valid value
+
+            // Also handle blur/change to finalize the quantity if user leaves without pressing Enter
             input.addEventListener('blur', () => {
                 const newQty = parseInt(input.value);
-                const itemId = +input.dataset.id;
-                const item = this._items.find(i => i.id === itemId);
+                const itemId = input.dataset.id;
+                const item = this._items.find(i => String(i.id) === String(itemId));
                 if (!item) return;
 
-                if (isNaN(newQty) || newQty < 1) {
+                if (isNaN(newQty) || input.value === '') {
                     input.value = item.qty;
                 } else if (!item.isMisc && newQty > item.maxStock) {
                     input.value = item.maxStock;
                     const delta = item.maxStock - item.qty;
                     if (delta !== 0) this.updateQty(itemId, delta);
+                } else if (newQty < 1) {
+                    input.value = item.qty;
+                } else {
+                    const delta = newQty - item.qty;
+                    if (delta !== 0) this.updateQty(itemId, delta);
                 }
             });
         });
-        el.querySelectorAll('.pos-del-btn').forEach(b   => b.addEventListener('click', () => this.updateQty(+b.dataset.id, -9999)));
+        el.querySelectorAll('.pos-del-btn').forEach(b   => b.addEventListener('click', () => this.updateQty(b.dataset.id, -9999)));
+
+        // Restore focus to the previously-active qty input so keyboard entry continues uninterrupted
+        if (focusedQtyId) {
+            const restored = el.querySelector(`.pos-qty-input[data-id="${focusedQtyId}"]`);
+            if (restored) {
+                restored.focus();
+                restored.select();
+            }
+        }
     }
 }
 
