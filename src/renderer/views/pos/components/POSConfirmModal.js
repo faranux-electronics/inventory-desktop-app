@@ -20,13 +20,19 @@ class POSConfirmModal {
             const taxedUnit  = showItemTax ? Math.round(i.price * (1 + taxRate / 100)) : i.price;
             const lineTotal  = taxedUnit * i.qty;
 
+            // Show price change if price was modified (not for misc items)
+            const priceChanged = i.originalPrice && i.originalPrice !== i.price && !i.isMisc;
+            const priceDisplay = priceChanged
+                ? `<span style="text-decoration: line-through; color: #9ca3af; margin-right: 6px;">${i.originalPrice.toLocaleString()}</span> ${taxedUnit.toLocaleString()}`
+                : `${taxedUnit.toLocaleString()}`;
+
             return `<tr>
         <td class="pcm-td">
             <strong>${i.name}</strong>
             ${i.sku ? `<div style="font-size:10.5px;color:#6b7280;margin-top:3px;">SKU: ${i.sku}</div>` : ''}
         </td>
         <td class="pcm-td pcm-td--c">${i.qty}</td>
-        <td class="pcm-td pcm-td--r">${taxedUnit.toLocaleString()} Frw</td>
+        <td class="pcm-td pcm-td--r">${priceDisplay} Frw</td>
         <td class="pcm-td pcm-td--r"><strong>${lineTotal.toLocaleString()} Frw</strong></td>
     </tr>`;
         }).join('');

@@ -845,6 +845,154 @@
 }
 .pos-tax-mode-radio { accent-color: #932013; }
 
+/* Price editing */
+.pos-price-editable {
+    cursor: pointer;
+    color: #932013;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+    transition: all .15s ease;
+}
+.pos-price-editable:hover {
+    color: #7f1d1d;
+    text-decoration-style: solid;
+}
+.pos-price-changed {
+    color: #059669;
+    font-size: 10px;
+    margin-left: 2px;
+    cursor: help;
+}
+
+/* Price Edit Modal */
+.pos-price-edit-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.pos-price-edit-overlay--in {
+    display: flex;
+}
+.pos-price-edit-modal {
+    background: white;
+    border-radius: 12px;
+    width: min(400px, 90vw);
+    max-width: 400px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+.pos-price-edit-header {
+    background: #932013;
+    color: white;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 16px;
+    font-weight: 700;
+}
+.pos-price-edit-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: background .15s ease;
+}
+.pos-price-edit-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+.pos-price-edit-body {
+    padding: 20px;
+}
+.pos-price-edit-product {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #E5E7EB;
+}
+.pos-price-edit-info {
+    margin-bottom: 20px;
+}
+.pos-price-edit-info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 14px;
+}
+.pos-price-edit-info-row span:first-child {
+    color: #6B7280;
+}
+.pos-price-edit-info-row span:last-child {
+    font-weight: 600;
+    color: #1F2937;
+}
+.pos-price-edit-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.pos-price-edit-input-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+.pos-price-edit-input {
+    padding: 12px 16px;
+    border: 2px solid #E5E7EB;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1F2937;
+    transition: border-color .15s ease;
+}
+.pos-price-edit-input:focus {
+    outline: none;
+    border-color: #932013;
+}
+.pos-price-edit-footer {
+    padding: 16px 20px;
+    background: #F9FAFB;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+.pos-price-edit-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s ease;
+    border: none;
+}
+.pos-price-edit-btn--cancel {
+    background: white;
+    color: #6B7280;
+    border: 1px solid #D1D5DB;
+}
+.pos-price-edit-btn--cancel:hover {
+    background: #F3F4F6;
+}
+.pos-price-edit-btn--confirm {
+    background: #932013;
+    color: white;
+}
+.pos-price-edit-btn--confirm:hover {
+    background: #7f1d1d;
+}
+
 /* Notes */
 .pos-notes-wrap { display: flex; flex-direction: column; gap: 2px; }
 

@@ -38,7 +38,12 @@ class POSCart {
     }
 
     restoreItem(item) {
-        this._items.push({ ...item });
+        const restoredItem = { ...item };
+        // Ensure originalPrice is set if not present (for backwards compatibility)
+        if (!restoredItem.originalPrice) {
+            restoredItem.originalPrice = item.price;
+        }
+        this._items.push(restoredItem);
     }
 
     addProduct(product, qty = 1) {
@@ -57,6 +62,7 @@ class POSCart {
                 wc_product_id: product.wc_product_id || product.id,
                 name: product.name,
                 price: parseInt(product.price || 0),
+                originalPrice: parseInt(product.price || 0),
                 qty,
                 maxStock: localStock,
                 sku: product.sku || '',
@@ -70,19 +76,22 @@ class POSCart {
     addMiscItem({ name, price, qty, notes }) {
         // Generate a unique ID for miscellaneous items
         const miscId = 'misc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-        
+
+        const itemPrice = parseInt(price || 0);
+
         this._items.push({
             id: miscId,
             wc_product_id: miscId,
             name: name,
-            price: parseInt(price || 0),
+            price: itemPrice,
+            originalPrice: itemPrice,
             qty: qty || 1,
             maxStock: 999999, // No stock limit for misc items
             sku: '',
             isMisc: true,
             notes: notes || ''
         });
-        
+
         this._renderItems();
         this.onChange(this._items);
         return true;
@@ -93,7 +102,7 @@ class POSCart {
         if (idx === -1) return;
         const item = this._items[idx];
         const next = item.qty + delta;
-        
+
         // Misc items have unlimited stock, regular items respect maxStock
         if (next <= 0) {
             this._items.splice(idx, 1);
@@ -102,9 +111,103 @@ class POSCart {
         } else {
             item.qty = next;
         }
-        
+
         this._renderItems();
         this.onChange(this._items);
+    }
+
+    updatePrice(productId, newPrice) {
+        const idx = this._items.findIndex(i => String(i.id) === String(productId));
+        if (idx === -1) return;
+        const item = this._items[idx];
+
+        const price = parseInt(newPrice) || 0;
+        if (price < 0) return;
+
+        item.price = price;
+        if (!item.originalPrice) {
+            item.originalPrice = price;
+        }
+
+        this._renderItems();
+        this.onChange(this._items);
+    }
+
+    _showPriceEditModal(item) {
+        // Remove existing modal if present
+        document.getElementById('posPriceEditModalOverlay')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'posPriceEditModalOverlay';
+        overlay.className = 'pos-price-edit-overlay';
+        overlay.innerHTML = `
+            <div class="pos-price-edit-modal">
+                <div class="pos-price-edit-header">
+                    <span>Edit Price</span>
+                    <button class="pos-price-edit-close" id="posPriceEditClose">×</button>
+                </div>
+                <div class="pos-price-edit-body">
+                    <div class="pos-price-edit-product">
+                        <strong>${item.name}</strong>
+                        ${item.sku ? `<div style="font-size:11px;color:#6b7280;">SKU: ${item.sku}</div>` : ''}
+                    </div>
+                    <div class="pos-price-edit-info">
+                        <div class="pos-price-edit-info-row">
+                            <span>Current Price:</span>
+                            <span>${item.price.toLocaleString()} Frw</span>
+                        </div>
+                        ${item.originalPrice && item.originalPrice !== item.price ? `
+                        <div class="pos-price-edit-info-row">
+                            <span>Original Price:</span>
+                            <span>${item.originalPrice.toLocaleString()} Frw</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="pos-price-edit-input-group">
+                        <label>New Price (Frw):</label>
+                        <input type="number" id="posPriceEditInput" class="pos-price-edit-input" value="${item.price}" min="0" step="1">
+                    </div>
+                </div>
+                <div class="pos-price-edit-footer">
+                    <button class="pos-price-edit-btn pos-price-edit-btn--cancel" id="posPriceEditCancel">Cancel</button>
+                    <button class="pos-price-edit-btn pos-price-edit-btn--confirm" id="posPriceEditConfirm">Update Price</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('pos-price-edit-overlay--in'));
+
+        const input = overlay.querySelector('#posPriceEditInput');
+        input.focus();
+        input.select();
+
+        const closeModal = () => {
+            overlay.classList.remove('pos-price-edit-overlay--in');
+            setTimeout(() => overlay.remove(), 220);
+        };
+
+        overlay.querySelector('#posPriceEditClose').addEventListener('click', closeModal);
+        overlay.querySelector('#posPriceEditCancel').addEventListener('click', closeModal);
+
+        overlay.querySelector('#posPriceEditConfirm').addEventListener('click', () => {
+            const newPrice = parseInt(input.value);
+            if (isNaN(newPrice) || newPrice < 0) {
+                alert('Please enter a valid price');
+                return;
+            }
+            this.updatePrice(item.id, newPrice);
+            closeModal();
+        });
+
+        // Enter key to confirm
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                overlay.querySelector('#posPriceEditConfirm').click();
+            } else if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
     }
 
     /**
@@ -187,6 +290,14 @@ class POSCart {
             const miscBadge = isMisc ? `<span class="pos-misc-badge">Custom</span>` : '';
             const notesDisplay = item.notes ? `<div class="pos-cart-row-notes">${item.notes}</div>` : '';
 
+            // Show price change indicator
+            const priceChanged = item.originalPrice && item.price !== item.originalPrice;
+            const priceChangeIndicator = priceChanged
+                ? `<span class="pos-price-changed" title="Original: ${item.originalPrice.toLocaleString()} Frw">★</span>`
+                : '';
+
+            const priceDisplay = `<span class="pos-price-editable" data-id="${item.id}" title="Click to edit price">${displayPrice.toLocaleString()} Frw</span>${priceChangeIndicator}`;
+
             return `
 <div class="pos-cart-row ${isMisc ? 'pos-cart-row--misc' : ''}" data-id="${item.id}">
     <div class="pos-cart-row-info">
@@ -195,7 +306,7 @@ class POSCart {
             ${miscBadge}
         </div>
         <div class="pos-cart-row-meta">
-            ${isMisc ? '' : `${item.sku ? `SKU: ${item.sku} · ` : ''}`}${item.price.toLocaleString()} Frw${taxLabel}
+            ${isMisc ? '' : `${item.sku ? `SKU: ${item.sku} · ` : ''}`}${priceDisplay}${taxLabel}
             <span class="pos-cart-row-meta-dot">·</span> Stock: ${stockLabel}
         </div>
         ${notesDisplay}
@@ -215,6 +326,15 @@ class POSCart {
 
         el.querySelectorAll('.pos-qty-minus').forEach(b => b.addEventListener('click', () => this.updateQty(b.dataset.id, -1)));
         el.querySelectorAll('.pos-qty-plus').forEach(b  => b.addEventListener('click', () => this.updateQty(b.dataset.id, +1)));
+        el.querySelectorAll('.pos-price-editable').forEach(span => {
+            span.addEventListener('click', () => {
+                const itemId = span.dataset.id;
+                const item = this._items.find(i => String(i.id) === String(itemId));
+                if (!item) return;
+
+                this._showPriceEditModal(item);
+            });
+        });
         el.querySelectorAll('.pos-qty-input').forEach(input => {
             // Use 'input' event to update line total immediately as user types
             // Focus restoration ensures field stays focused during re-renders

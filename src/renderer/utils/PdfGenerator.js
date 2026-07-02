@@ -294,13 +294,18 @@ class PdfGenerator {
         doc.text("Tel: +250 786 396 995 | Website: www.faranux.com", 14, 77);
 
         // --- 3. Table Data ---
-        const tableBody = data.items.map(i => [
-            i.sku || '-',
-            i.name,
-            i.qty.toString(),
-            i.price.toLocaleString(),
-            (i.price * i.qty).toLocaleString()
-        ]);
+        const tableBody = data.items.map(i => {
+            const priceDisplay = i.originalPrice && i.originalPrice !== i.price && !i.isMisc
+                ? `${i.originalPrice.toLocaleString()} → ${i.price.toLocaleString()}`
+                : i.price.toLocaleString();
+            return [
+                i.sku || '-',
+                i.name,
+                i.qty.toString(),
+                priceDisplay,
+                (i.price * i.qty).toLocaleString()
+            ];
+        });
 
         autoTable(doc, {
             startY: 84,
@@ -534,13 +539,18 @@ class PdfGenerator {
         doc.text("Tel: +250 786 396 995 | Website: www.faranux.com", 14, 83);
 
         // --- 3. Table Data ---
-        const tableBody = data.items.map(i => [
-            i.sku || '-',
-            i.name,
-            i.qty.toString(),
-            i.price.toLocaleString(),
-            (i.price * i.qty).toLocaleString()
-        ]);
+        const tableBody = data.items.map(i => {
+            const priceDisplay = i.originalPrice && i.originalPrice !== i.price && !i.isMisc
+                ? `${i.originalPrice.toLocaleString()} → ${i.price.toLocaleString()}`
+                : i.price.toLocaleString();
+            return [
+                i.sku || '-',
+                i.name,
+                i.qty.toString(),
+                priceDisplay,
+                (i.price * i.qty).toLocaleString()
+            ];
+        });
 
         autoTable(doc, {
             startY: 90,
