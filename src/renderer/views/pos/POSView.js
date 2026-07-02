@@ -146,7 +146,22 @@ class POSView {
                 if (this._activeCart) this._activeCart.setTaxMode(mode);
             },
             onVoidCart: () => this._voidActiveCart(),
-            onPrintQuote: () => this._handlePrintQuote()
+            onPrintQuote: () => this._handlePrintQuote(),
+            onLiveCartToggle: (enabled) => {
+                this._liveCartEnabled = enabled;
+                if (!enabled) {
+                    this._liveCartIndex = -1;
+                    localStorage.setItem('pos_live_cart_index', '-1');
+                    this._reportLiveCartResult(API.clearLiveCart(this._liveCartRegisterId), 'clear (toggle off)');
+                    this._renderTabs();
+                }
+                this.paymentPanel.setLiveCartStatus(enabled && this._liveCartIndex >= 0);
+                this._updateLiveCart();
+            },
+            onLiveCartRegisterChange: (registerId) => {
+                this._liveCartRegisterId = registerId;
+                this._updateLiveCart();
+            }
         });
         this.paymentPanel.render(document.getElementById('posPaymentMount'));
 
@@ -173,6 +188,16 @@ class POSView {
         if (user) {
             window._posUser = user;
         }
+
+        // Live cart display configuration
+        this._liveCartRegisterId = localStorage.getItem('pos_live_cart_register_id') || 'till-1';
+        this._liveCartEnabled = localStorage.getItem('pos_live_cart_enabled') === 'true';
+        this._liveCartIndex = parseInt(localStorage.getItem('pos_live_cart_index') || '-1');
+
+        // Set initial live cart status
+        setTimeout(() => {
+            this.paymentPanel.setLiveCartStatus(this._liveCartEnabled && this._liveCartIndex >= 0);
+        }, 100);
     }
 
     _initCartTabs() {
@@ -264,7 +289,18 @@ class POSView {
         if (cartId) {
             localStorage.removeItem(`pos_cart_settings_${cartId}`);
         }
-        
+
+        // If removing the live cart, clear the live cart display
+        if (this._liveCartIndex === idx) {
+            this._liveCartIndex = -1;
+            localStorage.setItem('pos_live_cart_index', '-1');
+            this._reportLiveCartResult(API.clearLiveCart(this._liveCartRegisterId), 'clear (cart removed)');
+        } else if (this._liveCartIndex > idx) {
+            // Adjust live cart index if it's after the removed cart
+            this._liveCartIndex--;
+            localStorage.setItem('pos_live_cart_index', this._liveCartIndex);
+        }
+
         if (this._carts.length === 1) {
             this._carts[0].cart.clear();
             this._carts[0].name = 'Sale 1';
@@ -286,17 +322,21 @@ class POSView {
         if (!list) return;
         list.innerHTML = this._carts.map((c, i) => {
             const count = c.cart.getItemCount();
+            const isLiveCart = this._liveCartEnabled && i === this._liveCartIndex;
             return `
             <div class="pos-tab ${i === this._activeCartIdx ? 'pos-tab--active' : ''}" data-idx="${i}">
                 <span class="pos-tab-name">${c.name}</span>
                 ${count > 0 ? `<span class="pos-tab-badge">${count}</span>` : ''}
+                <button class="pos-tab-live" data-idx="${i}" title="${isLiveCart ? 'Hide from display' : 'Show on display'}">
+                    ${isLiveCart ? '👁️' : '👁️‍🗨️'}
+                </button>
                 <button class="pos-tab-close" data-idx="${i}" title="Close">×</button>
             </div>`;
         }).join('');
 
         list.querySelectorAll('.pos-tab').forEach(tab => {
             tab.addEventListener('click', e => {
-                if (e.target.closest('.pos-tab-close')) return;
+                if (e.target.closest('.pos-tab-close') || e.target.closest('.pos-tab-live')) return;
                 this._activeCartIdx = +tab.dataset.idx;
                 this._renderTabs();
                 this._activateCart(this._activeCartIdx);
@@ -310,6 +350,14 @@ class POSView {
                 const idx = +btn.dataset.idx;
                 if (!this._carts[idx].cart.isEmpty() && !confirm(`Clear "${this._carts[idx].name}" and close this cart?`)) return;
                 this._removeCart(idx);
+            });
+        });
+
+        list.querySelectorAll('.pos-tab-live').forEach(btn => {
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const idx = +btn.dataset.idx;
+                this._toggleLiveCart(idx);
             });
         });
 
@@ -707,6 +755,129 @@ class POSView {
         if (!entry) return;
         this.paymentPanel.updateTotals(entry.cart.getSubtotal(), items.length === 0);
         this._renderTabs();
+        this._updateLiveCart();
+    }
+
+    _toggleLiveCart(idx) {
+        if (this._liveCartIndex === idx) {
+            // Toggle off
+            this._liveCartIndex = -1;
+            localStorage.setItem('pos_live_cart_index', '-1');
+            // Clear the live cart
+            this._reportLiveCartResult(API.clearLiveCart(this._liveCartRegisterId), 'clear (toggle off cart)');
+            this.paymentPanel.setLiveCartStatus(false);
+        } else {
+            // Toggle on for this cart
+            this._liveCartIndex = idx;
+            localStorage.setItem('pos_live_cart_index', idx);
+            // Selecting a cart here implies the feature is on. Without this,
+            // _liveCartEnabled can still be false (e.g. a fresh session that
+            // never touched the settings-modal toggle), which makes every
+            // subsequent _updateLiveCart() call from _onCartChange() a silent
+            // no-op — quantity/add/remove edits stop reaching the display
+            // until the eye is clicked off and on again to force a one-off
+            // update. Keep both flags in sync so live updates just work.
+            if (!this._liveCartEnabled) {
+                this._liveCartEnabled = true;
+                localStorage.setItem('pos_live_cart_enabled', 'true');
+                this.paymentPanel.setLiveCartEnabledUi(true);
+            }
+            // Update live cart with this cart's data
+            this._updateLiveCartForCart(idx);
+            this.paymentPanel.setLiveCartStatus(true);
+        }
+        this._renderTabs();
+    }
+
+    // API.request() (see services/api.js) never rejects — on any failure it
+    // resolves with {status: 'error', message}. That means every previous
+    // `.catch(...)` on a live-cart call was dead code that could never run.
+    // This helper actually checks the resolved status so failures (e.g. an
+    // invalid/blocked register_id from the backend) surface in the console
+    // instead of failing silently.
+    async _reportLiveCartResult(resultPromise, label) {
+        const res = await resultPromise;
+        if (!res || res.status === 'error') {
+            console.error(`Live cart ${label} failed:`, res?.message || 'unknown error');
+        }
+        return res;
+    }
+
+    async _updateLiveCart() {
+        // Only update if this is the live cart
+        if (this._liveCartEnabled && this._activeCartIdx === this._liveCartIndex) {
+            await this._updateLiveCartForCart(this._activeCartIdx);
+        }
+    }
+
+    async _updateLiveCartForCart(idx) {
+        const cartEntry = this._carts[idx];
+        if (!cartEntry) return;
+
+        const cart = cartEntry.cart;
+        const items = cart.getItems();
+
+        // Get modal data for this specific cart
+        const modalData = this.paymentPanel.modal.getData();
+
+        // Calculate totals
+        const subtotal = cart.getSubtotal();
+        const discountRaw = modalData.discountRaw;
+        const discountType = modalData.discountType;
+        const discount = discountType === 'percent'
+            ? Math.round(subtotal * (parseFloat(discountRaw) || 0) / 100)
+            : parseFloat(discountRaw) || 0;
+        const shipping = parseFloat(modalData.shipping) || 0;
+        const fees = modalData.fees || [];
+        const feesTotal = fees.reduce((s, f) => s + (parseFloat(f.amount) || 0), 0);
+        const taxOn = modalData.taxOn;
+        const taxRate = parseFloat(modalData.taxRate) || 0;
+        const taxInclusive = modalData.taxInclusive;
+        const taxOnItems = modalData.taxOnItems;
+
+        const afterDisc = Math.max(0, subtotal - discount);
+        const preTax = afterDisc + shipping + feesTotal;
+
+        let taxAmt = 0;
+        if (taxOn && taxRate > 0) {
+            const base = taxOnItems ? afterDisc : preTax;
+            if (taxInclusive) {
+                taxAmt = base - (base / (1 + taxRate / 100));
+            } else {
+                taxAmt = base * (taxRate / 100);
+            }
+        }
+
+        const total = taxInclusive ? Math.round(preTax) : Math.round(preTax + taxAmt);
+
+        const cartData = {
+            status: items.length > 0 ? 'active' : 'idle',
+            cartName: cartEntry.name,
+            items: items.map(i => ({
+                name: i.name,
+                qty: i.qty,
+                price: i.price,
+                total: i.price * i.qty
+            })),
+            subtotal: subtotal,
+            discount: discount,
+            shipping: shipping,
+            fees: fees.map(f => ({
+                label: f.label || 'Fee',
+                amount: parseFloat(f.amount) || 0
+            })),
+            tax: Math.round(taxAmt),
+            total: total,
+            currency: 'RWF'
+        };
+
+        const res = await API.updateLiveCart(this._liveCartRegisterId, cartData);
+        if (!res || res.status === 'error') {
+            console.error('Failed to update live cart:', res?.message || 'unknown error');
+            this.paymentPanel.setLiveCartStatus(false);
+        } else {
+            this.paymentPanel.setLiveCartStatus(true);
+        }
     }
 
     async _handleRequestCheckout(params) {
@@ -748,7 +919,7 @@ class POSView {
         const {
             paymentMethod, discount, discountType, notes, subtotal, total,
             cashierId, cashierName, cashierEmail, customerId, customerName, customerEmail,
-            taxRate, taxName, taxInclusive, taxAmount, fees, shipping
+            taxRate, taxName, taxInclusive, taxOnItems, taxAmount, fees, shipping
         } = data;
 
         const user = this.state.getUser();
@@ -759,7 +930,8 @@ class POSView {
         const payload = {
             branch_id: user.branch_id, payment_method: paymentMethod, discount,
             discount_type: discountType, notes, total, tax_rate: taxRate,
-            tax_name: taxName, tax_inclusive: taxInclusive, tax_amount: taxAmount || 0,
+            tax_name: taxName, tax_inclusive: taxInclusive, tax_on_items: !!taxOnItems,
+            tax_amount: taxAmount || 0,
             fees: fees || [], shipping: shipping || 0,
             items: saleItems.map(i => ({id: i.id, qty: i.qty, price: i.price, name: i.name, branch_id: i.branchId})),
             cashier_id: cashierId, cashier_name: cashierName, cashier_email: cashierEmail || '',
@@ -773,6 +945,9 @@ class POSView {
                 cart.clear();
                 this.paymentPanel.resetForm();
                 this._reloadProducts();
+
+                // Clear live cart after successful checkout
+                this._reportLiveCartResult(API.clearLiveCart(this._liveCartRegisterId), 'clear (checkout complete)');
 
                 this.receipt.show({
                     items: saleItems, subtotal, discount, discountType, total, paymentMethod, notes,

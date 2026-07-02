@@ -146,6 +146,17 @@ class OrderSettingsModal {
     }
 
     // --- State Persistence ---
+    // Keeps the settings-modal toggle in sync when live cart gets enabled
+    // programmatically (e.g. from the per-tab eye icon) rather than by the
+    // user clicking this toggle directly.
+    setLiveCartEnabledUi(enabled) {
+        localStorage.setItem('pos_live_cart_enabled', enabled);
+        const toggleEl = this.container.querySelector('#posLiveCartToggleEl');
+        if (toggleEl) {
+            toggleEl.className = 'pos-toggle' + (enabled ? ' on' : '');
+        }
+    }
+
     loadLocalSettings() {
         // Clean up old global settings if they exist
         localStorage.removeItem('pos_order_settings');
@@ -156,8 +167,17 @@ class OrderSettingsModal {
         this.state.taxOn = false;
         this.state.taxInclusive = false;
         this.state.taxOnItems = false;
-        this.state.selTaxRate = 0;
-        this.state.selTaxName = 'Tax';
+        
+        // -- DOM-DERIVED TAX RATE SYNC --
+        const taxSel = this.container.querySelector('#posTaxRateSelect');
+        if (taxSel && taxSel.options.length > 0) {
+            this.state.selTaxRate = parseFloat(taxSel.value) || 0;
+            this.state.selTaxName = taxSel.options[taxSel.selectedIndex]?.dataset.name || 'Tax';
+        } else {
+            this.state.selTaxRate = 0;
+            this.state.selTaxName = 'Tax';
+        }
+        
         this.savedCashierId = null;
 
         this.container.querySelector('#posDiscountType').value = 'value';
@@ -212,8 +232,21 @@ class OrderSettingsModal {
                 this.state.taxOn = !!saved.taxOn;
                 this.state.taxInclusive = !!saved.taxInclusive;
                 this.state.taxOnItems = !!saved.taxOnItems;
-                this.state.selTaxRate = saved.taxRate || 0;
-                this.state.selTaxName = saved.taxName || 'Tax';
+                
+                // -- DOM-DERIVED TAX RATE SYNC --
+                const taxSel = this.container.querySelector('#posTaxRateSelect');
+                if (taxSel && saved.taxRate) {
+                    taxSel.value = saved.taxRate;
+                }
+                
+                if (taxSel && taxSel.options.length > 0) {
+                    this.state.selTaxRate = parseFloat(taxSel.value) || 0;
+                    this.state.selTaxName = taxSel.options[taxSel.selectedIndex]?.dataset.name || 'Tax';
+                } else {
+                    this.state.selTaxRate = saved.taxRate || 0;
+                    this.state.selTaxName = saved.taxName || 'Tax';
+                }
+
                 this._updateTaxUI();
                 this._fireTaxMode();
                 
@@ -239,8 +272,16 @@ class OrderSettingsModal {
                 this.state.taxOn = false;
                 this.state.taxInclusive = false;
                 this.state.taxOnItems = false;
-                this.state.selTaxRate = 0;
-                this.state.selTaxName = 'Tax';
+                
+                // -- DOM-DERIVED TAX RATE SYNC --
+                const taxSel = this.container.querySelector('#posTaxRateSelect');
+                if (taxSel && taxSel.options.length > 0) {
+                    this.state.selTaxRate = parseFloat(taxSel.value) || 0;
+                    this.state.selTaxName = taxSel.options[taxSel.selectedIndex]?.dataset.name || 'Tax';
+                } else {
+                    this.state.selTaxRate = 0;
+                    this.state.selTaxName = 'Tax';
+                }
                 
                 this.container.querySelector('#posDiscountType').value = 'value';
                 this.container.querySelector('#posDiscountVal').value = '0';
@@ -361,8 +402,17 @@ class OrderSettingsModal {
         this.state.taxOn = false;
         this.state.taxInclusive = false;
         this.state.taxOnItems = false;
-        this.state.selTaxRate = 0;
-        this.state.selTaxName = 'Tax';
+        
+        // -- DOM-DERIVED TAX RATE SYNC --
+        const taxSel = this.container.querySelector('#posTaxRateSelect');
+        if (taxSel && taxSel.options.length > 0) {
+            taxSel.selectedIndex = 0;
+            this.state.selTaxRate = parseFloat(taxSel.value) || 0;
+            this.state.selTaxName = taxSel.options[0]?.dataset.name || 'Tax';
+        } else {
+            this.state.selTaxRate = 0;
+            this.state.selTaxName = 'Tax';
+        }
         
         this._renderFees();
         this._updateTaxUI();
@@ -437,6 +487,41 @@ class OrderSettingsModal {
 
         this.container.querySelector('#posTaxOnTotal').addEventListener('change', () => { this.state.taxOnItems = false; this._fireTaxMode(); });
         this.container.querySelector('#posTaxOnItems').addEventListener('change', () => { this.state.taxOnItems = true; this._fireTaxMode(); });
+
+        // Live cart toggle
+        const liveCartEnabled = localStorage.getItem('pos_live_cart_enabled') === 'true';
+        const liveCartToggleEl = this.container.querySelector('#posLiveCartToggleEl');
+        if (liveCartToggleEl) {
+            liveCartToggleEl.className = 'pos-toggle' + (liveCartEnabled ? ' on' : '');
+        }
+
+        this.container.querySelector('#posLiveCartToggle').addEventListener('click', () => {
+            const currentState = localStorage.getItem('pos_live_cart_enabled') === 'true';
+            const newState = !currentState;
+            localStorage.setItem('pos_live_cart_enabled', newState);
+            const toggleEl = this.container.querySelector('#posLiveCartToggleEl');
+            if (toggleEl) {
+                toggleEl.className = 'pos-toggle' + (newState ? ' on' : '');
+            }
+            // Notify parent to enable/disable live cart
+            if (this.onLiveCartToggle) {
+                this.onLiveCartToggle(newState);
+            }
+        });
+
+        // Live cart register ID
+        const registerId = localStorage.getItem('pos_live_cart_register_id') || 'till-1';
+        const registerInput = this.container.querySelector('#posLiveCartRegisterId');
+        if (registerInput) {
+            registerInput.value = registerId;
+            registerInput.addEventListener('change', () => {
+                localStorage.setItem('pos_live_cart_register_id', registerInput.value || 'till-1');
+                // Notify parent of register ID change
+                if (this.onLiveCartRegisterChange) {
+                    this.onLiveCartRegisterChange(registerInput.value || 'till-1');
+                }
+            });
+        }
 
         this.container.querySelector('#posAddFeeBtn').addEventListener('click', () => {
             if (this.state.fees.length < this.MAX_FEES) {
@@ -589,6 +674,18 @@ class OrderSettingsModal {
                         <label class="pos-field-label">Notes</label>
                         <textarea id="posNotes" class="pos-input" rows="2" placeholder="Customer instructions…" style="resize:none;"></textarea>
                     </div>
+
+                    <div class="pos-field-group" style="background:#F8FAFC; padding:8px 10px; border-radius:6px; border:1px solid #E2E8F0;">
+                        <div class="pos-tax-row">
+                            <label class="pos-toggle-wrap" id="posLiveCartToggle">
+                                <div class="pos-toggle" id="posLiveCartToggleEl"></div>
+                                <span class="pos-tax-label">Enable Live Cart Display</span>
+                            </label>
+                        </div>
+                        <div style="margin-top:6px; font-size:11px; color:#6B7280;">
+                            Register ID: <input id="posLiveCartRegisterId" type="text" class="pos-input" style="width:120px; padding:4px; font-size:11px;" value="till-1" placeholder="till-1">
+                        </div>
+                    </div>
                 </div>
                 <div class="pcm-footer" style="padding: 12px 16px;">
                     <button id="posSettingsApplyBtn" class="pcm-btn pcm-btn--confirm" style="padding:10px;">Done</button>
@@ -653,6 +750,25 @@ class POSPaymentPanel {
         if (this.modal) {
             this.modal.cartId = cartId;
             this.modal.loadCartSettings(cartId);
+        }
+    }
+
+    setLiveCartStatus(isActive) {
+        const statusEl = this.container.querySelector('#posLiveCartStatus');
+        if (statusEl) {
+            statusEl.classList.toggle('active', isActive);
+            const textEl = statusEl.querySelector('.pos-live-text');
+            if (textEl) {
+                textEl.textContent = isActive ? 'Live: On' : 'Live: Off';
+            }
+        }
+    }
+
+    // Syncs the settings-modal "Enable Live Cart Display" toggle when the
+    // master flag is flipped from outside the modal (see POSView._toggleLiveCart).
+    setLiveCartEnabledUi(enabled) {
+        if (this.modal) {
+            this.modal.setLiveCartEnabledUi(enabled);
         }
     }
 
@@ -886,6 +1002,10 @@ class POSPaymentPanel {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                         Settings
                     </button>
+                    <div class="pos-live-cart-status" id="posLiveCartStatus">
+                        <span class="pos-live-dot"></span>
+                        <span class="pos-live-text">Live: Off</span>
+                    </div>
                     <div class="pos-methods-row" id="posPaymentMethods"></div>
                 </div>
             </div>
