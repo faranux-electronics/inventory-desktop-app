@@ -29,6 +29,7 @@ jobs:
         run: |
           echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" > .env
           # DELETE THIS LINE: echo "GH_TOKEN=${{ secrets.GH_TOKEN }}" >> .env
+          echo "API_URL=${{ secrets.API_URL }}" >> .env
           echo "DEBUG=false" >> .env
           echo "LOG_LEVEL=info" >> .env
         shell: bash
