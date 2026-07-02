@@ -1,7 +1,7 @@
 {
   "name": "faranuxinventory",
   "productName": "Faranux MIS",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Faranux Management Information System",
   "appId": "com.faranux.inventorymis",
   "main": "src/main/index.js",
