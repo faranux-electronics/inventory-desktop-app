@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://api.faranux.com http://localhost:* http://127.0.0.1:*; img-src 'self' data:; script-src 'self' 'unsafe-inline'; base-uri 'none'; form-action 'none';">
+<title>Faranux — Live Cart</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Faranux Maroon Brand Palette */
+    --faranux-maroon: #9E2A2B;
+    --faranux-dark: #540B0E;
+    --faranux-accent: #E09F3E;
+    
+    --bg-main: #F8FAFC;
+    --paper: #FFFFFF;
+    --ink: #1E293B;
+    --ink-soft: #64748B;
+    --rule: #E2E8F0;
+    
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Public Sans', -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  
+  html, body {
+    margin: 0; padding: 0; 
+    width: 100%; height: 100%;
+    background: var(--bg-main);
+    font-family: var(--sans);
+    color: var(--ink);
+    overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+  }
+
+  /* ---------- App Layout (Split Screen) ---------- */
+  .stage {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+  }
+
+  /* ---------- Active Cart View ---------- */
+  .cart-view {
+    display: flex;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Left Side: Cart Items */
+  .cart-section {
+    flex: 1;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.04);
+    z-index: 1;
+    min-height: 0; /* Ensures flex container can scroll child */
+  }
+
+  .cart-header {
+    padding: 20px 40px;
+    border-bottom: 2px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+  
+  .cart-header .title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .cart-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 40px;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  .cart-items::-webkit-scrollbar { display: none; }
+
+  .line-item {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    padding: 24px 0;
+    border-bottom: 1px dashed var(--rule);
+    animation: slide-in .3s ease-out;
+  }
+  .line-item:last-child { border-bottom: none; }
+  
+  .li-name { font-size: 22px; font-weight: 600; line-height: 1.3; color: var(--ink); }
+  .li-meta { display: block; font-family: var(--mono); font-size: 16px; color: var(--ink-soft); margin-top: 8px; }
+  .li-total { font-family: var(--mono); font-weight: 700; font-size: 24px; color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; margin-left: 20px;}
+
+  @keyframes slide-in {
+    0% { opacity: 0; transform: translateX(-10px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Right Side: Summary & Branding */
+  .summary-panel {
+    flex: 0 0 38%;
+    max-width: 500px;
+    background: var(--faranux-dark);
+    background-image: linear-gradient(135deg, var(--faranux-dark) 0%, var(--faranux-maroon) 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 2;
+  }
+
+  .brand-block {
+    padding: 40px;
+    text-align: right;
+  }
+  .brand-block h1 {
+    font-family: var(--mono); font-size: 36px; font-weight: 700;
+    letter-spacing: 0.1em; margin: 0; color: white;
+  }
+  .brand-block p {
+    font-size: 14px; letter-spacing: 0.2em; text-transform: uppercase;
+    margin: 4px 0 0 0; color: rgba(255,255,255,0.7);
+  }
+
+  .totals-block {
+    margin-top: auto;
+    padding: 40px;
+    background: rgba(0, 0, 0, 0.15);
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .trow { 
+    display: flex; justify-content: space-between; 
+    padding: 8px 0; font-family: var(--mono); font-size: 16px; 
+    color: rgba(255,255,255,0.8);
+  }
+  .trow b { color: white; font-size: 18px; text-align: right; }
+  
+  .grand {
+    margin-top: 24px; padding-top: 24px;
+    border-top: 2px dashed rgba(255,255,255,0.2);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .grand .label { font-size: 18px; letter-spacing: .08em; font-weight: 700; font-family: var(--sans); }
+  .grand .amount { font-size: 48px; font-weight: 700; color: var(--faranux-accent); font-variant-numeric: tabular-nums; font-family: var(--mono); text-align: right; }
+
+  /* ---------- Idle State ---------- */
+  .idle {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: var(--faranux-dark);
+    background-image: radial-gradient(circle at center, var(--faranux-maroon) 0%, var(--faranux-dark) 100%);
+    color: white;
+    position: relative;
+  }
+  .idle .brand-large { font-family: var(--mono); font-size: 64px; font-weight: 700; letter-spacing: 0.15em; margin-bottom: 32px; text-align: center; }
+  .idle .pulse-row { display: flex; align-items: center; gap: 16px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--faranux-accent); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: .4; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.2); } }
+  .idle .msg { font-size: 24px; font-weight: 500; color: rgba(255,255,255,0.8); text-align: center;}
+
+  /* ---------- Config Error State ---------- */
+  .config-error {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: var(--paper); padding: 40px; text-align: center;
+  }
+  .config-error h2 { color: var(--faranux-maroon); font-size: 28px; margin-bottom: 16px; }
+  .config-error p { color: var(--ink-soft); font-size: 18px; max-width: 600px; line-height: 1.6; }
+  .config-error code { background: var(--rule); padding: 4px 8px; border-radius: 4px; font-family: var(--mono); }
+
+  /* ---------- Paid Stamp ---------- */
+  .stamp-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 10; }
+  .stamp {
+    font-family: var(--mono); font-weight: 700; font-size: 80px; letter-spacing: .12em;
+    color: var(--faranux-maroon); border: 8px solid var(--faranux-maroon); border-radius: 20px;
+    padding: 20px 60px; transform: rotate(-12deg) scale(.5); opacity: 0;
+    background: rgba(255,255,255,0.95); box-shadow: 0 24px 48px rgba(0,0,0, 0.2);
+    animation: stamp-down .5s cubic-bezier(.2,1.4,.4,1) forwards;
+  }
+  @keyframes stamp-down { to { transform: rotate(-12deg) scale(1); opacity: 1; } }
+
+  /* ---------- Connection UI ---------- */
+  .conn-banner {
+    position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-50px);
+    background: var(--faranux-accent); color: var(--faranux-dark); font-size: 16px; font-weight: 700;
+    padding: 10px 24px; border-radius: 30px; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    opacity: 0; transition: all .3s ease; z-index: 50;
+  }
+  .conn-banner.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .conn-overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,.98);
+    display: none; align-items: center; justify-content: center; z-index: 60; text-align: center;
+  }
+  .conn-overlay.show { display: flex; }
+  .conn-overlay h2 { color: var(--faranux-maroon); font-family: var(--mono); font-size: 32px; margin-bottom: 16px; }
+  .conn-overlay p { color: var(--ink-soft); font-size: 20px; max-width: 480px; margin: 0 auto; line-height: 1.5; }
+
+  /* ---------- Fullscreen Buttons (Inline) ---------- */
+  .fs-btn {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    border-radius: 30px; font-size: 14px; font-weight: 600;
+    transition: all .2s; font-family: var(--sans);
+  }
+  .fs-btn:active { transform: scale(0.96); }
+  .fs-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  /* Cart Layout */
+  .fs-cart {
+    background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.1);
+    color: var(--ink-soft); padding: 8px 16px;
+  }
+  .fs-cart:hover { background: rgba(0,0,0,0.08); color: var(--ink); }
+
+  /* Idle Layout */
+  .fs-idle {
+    position: absolute; top: 24px; right: 24px;
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    color: white; padding: 10px 20px;
+  }
+  .fs-idle:hover { background: rgba(255,255,255,0.25); }
+  
+  /* Error Layout */
+  .fs-error {
+    margin-top: 32px; background: var(--faranux-maroon); border: none;
+    color: white; padding: 12px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  /* ---------- Responsive Queries ---------- */
+  @media (max-width: 900px) {
+    .cart-view { flex-direction: column; }
+    .cart-section { flex: 1 1 50%; }
+    .summary-panel { flex: 0 0 auto; max-width: 100%; width: 100%; }
+    .brand-block { display: none; } /* Hide large brand header on mobile */
+
+    .cart-header { padding: 16px 24px; }
+    .cart-header .title { font-size: 15px; }
+    .cart-items { padding: 8px 24px; }
+    .line-item { padding: 16px 0; }
+
+    .li-name { font-size: 18px; }
+    .li-meta { font-size: 14px; margin-top: 4px; }
+    .li-total { font-size: 18px; margin-left: 12px; }
+
+    .totals-block { padding: 24px; }
+    .trow { font-size: 14px; padding: 4px 0; }
+    .trow b { font-size: 16px; }
+    
+    .grand { margin-top: 16px; padding-top: 16px; }
+    .grand .amount { font-size: 32px; }
+
+    /* Collapse Fullscreen to icon-only on mobile */
+    .fs-cart { 
+      padding: 8px; border-radius: 50%; 
+      background: var(--faranux-maroon); color: white; border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .fs-cart span { display: none; }
+    .fs-cart svg { margin: 0; }
+
+    .idle .brand-large { font-size: 42px; }
+    .idle .msg { font-size: 18px; }
+  }
+
+  @media (max-width: 480px) {
+    .grand .amount { font-size: 28px; }
+    .stamp { font-size: 50px; padding: 12px 30px; border-width: 6px; }
+  }
+
+</style>
+</head>
+<body>
+
+<div class="conn-banner" id="connBanner">Reconnecting…</div>
+<div class="conn-overlay" id="connOverlay">
+  <div>
+    <h2>DISPLAY PAUSED</h2>
+    <p>Connection lost. The checkout system is still running perfectly — just ask your cashier for the total if this doesn't refresh.</p>
+  </div>
+</div>
+
+<div class="stage" id="stage"></div>
+
+<script>
+(function(){
+  // ---- Fullscreen Global Toggle ----
+  window.toggleFs = function() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  };
+
+  // ---- Configuration ----
+  const ALLOWED_API_ORIGINS = [
+    'https://api.faranux.com',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000'
+  ];
+
+  const REGISTER_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+  const params = new URLSearchParams(location.search);
+
+  function resolveApiBase(){
+    const requested = params.get('api');
+    if (!requested) return null;
+    try {
+      const origin = new URL(requested).origin;
+      if (ALLOWED_API_ORIGINS.includes(origin)) return origin;
+    } catch (e) {}
+    return null;
+  }
+
+  function resolveRegisterId(){
+    const requested = params.get('register');
+    if (!requested) return null;
+    return REGISTER_ID_RE.test(requested) ? requested : null;
+  }
+
+  const CONFIG = {
+    apiBase:      resolveApiBase(),
+    registerId:   resolveRegisterId(),
+    pollMs:       1000,
+    staleAfterMs: 8000,
+    pauseAfterMs: 20000,
+    reloadAfterMs: 120000
+  };
+
+  const stage       = document.getElementById('stage');
+  const connBanner  = document.getElementById('connBanner');
+  const connOverlay = document.getElementById('connOverlay');
+
+  let lastSignature = null;
+  let lastStatus    = 'idle';
+  let lastSuccessAt = Date.now();
+  let consecutiveFails = 0;
+  let inFlight = false;
+
+  function money(n, currency){
+    const v = Number(n || 0);
+    try { return new Intl.NumberFormat(undefined, {style:'currency', currency: currency || 'RWF'}).format(v); }
+    catch(e){ return (currency || '') + ' ' + v.toFixed(2); }
+  }
+
+  function getFsIcon() {
+    return `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            </svg>`;
+  }
+
+  function renderIdle(){
+    stage.innerHTML = `
+      <div class="idle">
+        <button class="fs-btn fs-idle" onclick="toggleFs()">
+          ${getFsIcon()} <span>Fullscreen</span>
+        </button>
+        <div class="brand-large">FARANUX</div>
+        <div class="pulse-row">
+          <span class="dot"></span>
+          <span class="msg">Ready for next customer</span>
+        </div>
+      </div>`;
+  }
+
+  function renderConfigError(){
+    const missingApi = CONFIG.apiBase === null;
+    const missingRegister = CONFIG.registerId === null;
+    let detail = missingApi && missingRegister 
+      ? 'Both <code>api</code> and <code>register</code> are missing or invalid in this page\'s URL.'
+      : missingApi 
+        ? 'The <code>api</code> value is missing, or isn\'t a recognized server address.'
+        : 'The <code>register</code> value is missing or invalid. It must contain only letters, numbers, dashes and underscores.';
+    
+    stage.innerHTML = `
+      <div class="config-error">
+        <h2>Display Not Configured</h2>
+        <p>${detail}<br><br>Please configure the display URL with valid parameters:<br><code>?api=...&amp;register=...</code></p>
+        <button class="fs-btn fs-error" onclick="toggleFs()">
+          ${getFsIcon()} <span>Fullscreen</span>
+        </button>
+      </div>`;
+  }
+
+  function renderReceipt(state, justPaid){
+    const rows = (state.items || []).map(it => `
+      <div class="line-item">
+        <div>
+          <div class="li-name">${escapeHtml(it.name || 'Item')}</div>
+          <span class="li-meta">${it.qty} × ${money(it.price, state.currency)}</span>
+        </div>
+        <div class="li-total">${money(it.total, state.currency)}</div>
+      </div>`).join('');
+
+    const feeRows = (state.fees || [])
+      .filter(f => Number(f.amount) !== 0)
+      .map(f => `<div class="trow"><span>${escapeHtml(f.label || 'Fee')}</span><b>${money(f.amount, state.currency)}</b></div>`)
+      .join('');
+
+    stage.innerHTML = `
+      <div class="cart-view">
+        <div class="cart-section">
+          <div class="cart-header">
+            <span class="title">Current Order</span>
+            <button class="fs-btn fs-cart" onclick="toggleFs()">
+              ${getFsIcon()} <span>Fullscreen</span>
+            </button>
+          </div>
+          <div class="cart-items" id="scrollTarget">
+            ${rows || '<div class="li-meta" style="padding:14px 0;">Scanning first item…</div>'}
+          </div>
+          ${justPaid ? '<div class="stamp-wrap"><div class="stamp">PAID</div></div>' : ''}
+        </div>
+        
+        <div class="summary-panel">
+          <div class="brand-block">
+            <h1>FARANUX</h1>
+            <p>Electronics</p>
+          </div>
+          
+          <div class="totals-block">
+            <div class="trow"><span>Subtotal</span><b>${money(state.subtotal, state.currency)}</b></div>
+            ${Number(state.discount) > 0 ? `<div class="trow" style="color: var(--faranux-accent);"><span>Discount</span><b>-${money(state.discount, state.currency)}</b></div>` : ''}
+            ${Number(state.shipping) > 0 ? `<div class="trow"><span>Shipping</span><b>${money(state.shipping, state.currency)}</b></div>` : ''}
+            ${feeRows}
+            <div class="trow" style="margin-top: 8px;"><span>Tax (18%)</span><b>${money(state.tax, state.currency)}</b></div>
+            
+            <div class="grand">
+              <span class="label">TOTAL</span>
+              <span class="amount">${money(state.total, state.currency)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function render(state){
+    const sig = JSON.stringify([
+      state.status, state.items, state.subtotal, state.discount,
+      state.shipping, state.fees, state.tax, state.total
+    ]);
+    if (sig === lastSignature) return; 
+    lastSignature = sig;
+
+    if (!state.items || state.items.length === 0 || state.status === 'idle') {
+      renderIdle();
+    } else {
+      renderReceipt(state, state.status === 'paid' && lastStatus !== 'paid');
+      
+      requestAnimationFrame(() => {
+        const scroller = document.getElementById('scrollTarget');
+        if (scroller) {
+          scroller.scrollTop = scroller.scrollHeight;
+        }
+      });
+    }
+    lastStatus = state.status;
+  }
+
+  function setConnUi(){
+    const since = Date.now() - lastSuccessAt;
+    connBanner.classList.toggle('show', since >= CONFIG.staleAfterMs && since < CONFIG.pauseAfterMs);
+    connOverlay.classList.toggle('show', since >= CONFIG.pauseAfterMs);
+    if (since >= CONFIG.reloadAfterMs) location.reload();
+  }
+
+  async function poll(){
+    if (inFlight || CONFIG.apiBase === null || CONFIG.registerId === null) return;
+    inFlight = true;
+    try{
+      const url = `${CONFIG.apiBase}/index.php?action=pos_live_cart_get&register_id=${encodeURIComponent(CONFIG.registerId)}&_cb=${Date.now()}`;
+      const res = await fetch(url, {cache:'no-store'});
+      if (!res.ok) throw new Error('bad status ' + res.status);
+      const state = await res.json();
+      lastSuccessAt = Date.now();
+      consecutiveFails = 0;
+      render(state);
+    }catch(err){
+      consecutiveFails++;
+    }finally{
+      inFlight = false;
+      setConnUi();
+    }
+  }
+
+  if (CONFIG.apiBase === null || CONFIG.registerId === null) {
+    renderConfigError();
+  } else {
+    renderIdle();
+    poll();
+    setInterval(poll, CONFIG.pollMs);
+  }
+
+})();
+</script>
+</body>
+</html>
