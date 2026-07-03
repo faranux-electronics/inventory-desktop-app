@@ -1,9 +1,11 @@
 const Toast = require('../../components/Toast.js');
 const API = require('../../services/api.js');
+const Modal = require('../../components/Modal.js');
 const POSFilterBar = require('../pos/components/POSFilterBar.js');
 const LocalProductGrid = require('./components/LocalProductGrid.js');
 const TransferStagingPanel = require('./components/TransferStagingPanel.js');
 const TransferTable = require('./components/TransferTable.js');
+const BranchBalancePanel = require('./components/BranchBalancePanel.js');
 
 function esc(str) {
     return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -32,6 +34,14 @@ class TransfersView {
         this.productGrid = null;
         this.stagingPanel = null;
         this.tableComponent = null;
+        this.balancePanel = null;
+
+        // Balance tab has its own pagination/session state, separate from the
+        // New Transfer grid's, since both can have independently loaded pages.
+        this._balancePage = 1;
+        this._balanceAllLoaded = false;
+        this._balanceLoading = false;
+        this._balanceSession = 0;
 
         this._resizerAbort = null;
         // FIX: persist staged items across re-renders (e.g. navigating away and back)
@@ -71,7 +81,50 @@ class TransfersView {
     }
 
     _layoutHTML() {
+        const user = this.state.getUser();
+        let canViewBalance = false;
+        
+        try {
+            const role = user?.role?.toLowerCase();
+            // 1. Fallback default
+            canViewBalance = ['admin', 'manager'].includes(role);
+            
+            // 2. Check dynamic access permissions safely
+            if (this.state.getNavPermissions) {
+                const perms = this.state.getNavPermissions();
+                if (perms) {
+                    // Scenario A: perms is a flat array of allowed keys: ['transfers', 'balance_stock']
+                    if (Array.isArray(perms)) {
+                        canViewBalance = perms.includes('balance_stock');
+                    } 
+                    // Scenario B: perms is grouped by role (using exact user.role casing or lowercase)
+                    else if (perms[user?.role] || perms[role]) {
+                        const rolePerms = perms[user?.role] || perms[role];
+                        
+                        if (Array.isArray(rolePerms)) {
+                            // If it's an array: { CASHIER: ['transfers'] }
+                            canViewBalance = rolePerms.includes('balance_stock');
+                        } else if (typeof rolePerms === 'object') {
+                            // If it's an object mapping: { CASHIER: { transfers: true, balance_stock: false } }
+                            canViewBalance = rolePerms['balance_stock'] === true;
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Permission check failed, reverting to default role check", e);
+            canViewBalance = ['admin', 'manager'].includes(user?.role?.toLowerCase());
+        }
+
+        // Failsafe: If a cashier somehow had "balance" saved as their last tab state, reset it
+        if (this.currentTab === 'balance' && !canViewBalance) {
+            this.currentTab = 'new_transfer';
+        }
+
         const isNew = this.currentTab === 'new_transfer';
+        const isBalance = this.currentTab === 'balance';
+        const isTable = !isNew && !isBalance;
+        
         return `
         <div class="trv-root" id="trvRoot">
             <div class="trv-nav-bar" id="trvTabBar">
@@ -83,6 +136,14 @@ class TransfersView {
                 <button class="trv-nav-tab ${this.currentTab === 'pending_incoming' ? 'active' : ''}" data-tab="pending_incoming">Incoming</button>
                 <button class="trv-nav-tab ${this.currentTab === 'pending_outgoing' ? 'active' : ''}" data-tab="pending_outgoing">Outgoing</button>
                 <button class="trv-nav-tab ${this.currentTab === 'history' ? 'active' : ''}" data-tab="history">History</button>
+                
+                ${canViewBalance ? `
+                <div class="trv-nav-sep"></div>
+                <button class="trv-nav-tab ${isBalance ? 'active' : ''}" data-tab="balance">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><path d="M3 3v18h18"/><path d="M7 15l4-4 4 4 5-6"/></svg>
+                    Balance Stock
+                </button>
+                ` : ''}
             </div>
 
             <div class="trv-panel" id="trvPanelNew" style="${isNew ? '' : 'display:none;'};">
@@ -105,7 +166,7 @@ class TransfersView {
                 </div>
             </div>
 
-            <div class="trv-panel trv-panel--table" id="trvPanelTable" style="${isNew ? 'display:none;' : ''}">
+            <div class="trv-panel trv-panel--table" id="trvPanelTable" style="${isTable ? '' : 'display:none;'}">
                 <div class="trv-table-toolbar">
                     <div class="trv-search-wrap">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" class="trv-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -128,6 +189,10 @@ class TransfersView {
                     <div id="transfersTableBody"></div>
                     <div id="paginationControls" class="trv-pagination"></div>
                 </div>
+            </div>
+
+            <div class="trv-panel" id="trvPanelBalance" style="${isBalance ? '' : 'display:none;'}">
+                <div id="trvBalanceMount" style="height:100%;"></div>
             </div>
         </div>`;
     }
@@ -161,6 +226,14 @@ class TransfersView {
         this.stagingPanel.render(document.getElementById('trvStagingMount'));
 
         this.tableComponent = new TransferTable(this);
+
+        this.balancePanel = new BranchBalancePanel({
+            onReview: payload => this._showBalanceReviewModal(payload),
+            onScrollEnd: () => this._loadMoreBalanceProducts(),
+            onLoadAll: () => this._loadAllBalanceProducts()
+        });
+        this.balancePanel.render(document.getElementById('trvBalanceMount'));
+
         this._attachHistoryEvents();
 
         // ── Attach Sorting Listener ──────────────────────────────────────────
@@ -186,6 +259,7 @@ class TransfersView {
         // setBranches renders tspFromBranch into the DOM — must come before
         // _fetchProductsAsync so the correct fromId is readable from the select.
         this.stagingPanel.setBranches(locations, this._userBranchId);
+        this.balancePanel.setBranches(locations, this._userBranchId);
 
         // FIX: restore any items that were staged before this re-render
         if (this._savedStagingItems.length) {
@@ -211,6 +285,8 @@ class TransfersView {
         await catPromise;
         if (this._userBranchId) await this._loadBranchInventory(this._userBranchId);
         await this.loadTransfers();
+
+        if (this.currentTab === 'balance') await this._loadBalanceData(true);
     }
 
     // Promisified wrapper so _bootstrap can await the initial fetch completion.
@@ -254,6 +330,10 @@ class TransfersView {
     }
 
     _reloadProducts() {
+        if (this.currentTab === 'balance') {
+            this._loadBalanceData(true);
+            return;
+        }
         this._currentPage = 1;
         this._allLoaded = false;
         this._syncSession++;
@@ -369,6 +449,138 @@ class TransfersView {
         } else Toast.error(res.message || 'Failed');
     }
 
+    // ─── Balance Stock tab ──────────────────────────────────────────────────
+    // Own pagination/session state (see constructor) so it never collides with
+    // the New Transfer grid's paging while both tabs hold cached data.
+    async _loadBalanceData(reset) {
+        if (reset) {
+            this._balancePage = 1;
+            this._balanceAllLoaded = false;
+            this._balanceSession++;
+            this.balancePanel?.showLoading();
+        }
+        if (this._balanceLoading || this._balanceAllLoaded) return;
+        this._balanceLoading = true;
+        const session = this._balanceSession;
+
+        try {
+            // No location filter — we need the full stock_breakdown per product,
+            // not a single branch's qty.
+            const res = await API.getInventory(this._balancePage, this._query, '', 'publish', 'name', 'ASC', this._category);
+            if (session !== this._balanceSession) return;
+
+            this.balancePanel?.setProducts(res?.data || [], reset && this._balancePage === 1);
+            if (this._balancePage >= (res?.pagination?.pages || 1)) this._balanceAllLoaded = true;
+            // Let the panel know if it should hide the "Load All" button
+            this.balancePanel?.setAllLoaded(this._balanceAllLoaded);
+        } catch (e) {
+            if (session === this._balanceSession) Toast.error(`Failed to load stock data: ${e.message}`);
+        } finally {
+            if (session === this._balanceSession) this._balanceLoading = false;
+        }
+    }
+
+    _loadMoreBalanceProducts() {
+        if (this._balanceLoading || this._balanceAllLoaded) return;
+        this._balancePage++;
+        this._loadBalanceData(false);
+    }
+
+    async _loadAllBalanceProducts() {
+        if (this._balanceLoading || this._balanceAllLoaded) return;
+        
+        const session = this._balanceSession;
+        this._balanceLoading = true;
+        let accumulatedData = []; // Store pages to render them all at once (better performance)
+        
+        try {
+            while (!this._balanceAllLoaded && session === this._balanceSession) {
+                this._balancePage++;
+                const res = await API.getInventory(this._balancePage, this._query, '', 'publish', 'name', 'ASC', this._category);
+                
+                if (session !== this._balanceSession) return; // User changed filters or left tab
+                
+                accumulatedData = accumulatedData.concat(res?.data || []);
+                
+                if (this._balancePage >= (res?.pagination?.pages || 1)) {
+                    this._balanceAllLoaded = true;
+                }
+            }
+            
+            if (session === this._balanceSession) {
+                if (accumulatedData.length > 0) {
+                    this.balancePanel?.setProducts(accumulatedData, false);
+                }
+                this.balancePanel?.setAllLoaded(true); // Hides the button
+                Toast.success('Entire catalog loaded into memory!');
+            }
+        } catch (e) {
+            if (session === this._balanceSession) {
+                Toast.error(`Failed to load full catalog: ${e.message}`);
+                this.balancePanel?._renderControls(); // Reset button UI if it failed
+            }
+        } finally {
+            if (session === this._balanceSession) this._balanceLoading = false;
+        }
+    }
+
+    // NOTE: deliberately does NOT go through _handleTransfer()/stagingPanel —
+    // that path clears the staging panel's cart on success, which would
+    // silently wipe out anything the user had manually staged in the
+    // New Transfer tab. Balance transfers submit independently.
+    _showBalanceReviewModal({fromId, toId, percent, items}) {
+        const locMap = {};
+        (this.balancePanel?._branches || []).forEach(b => locMap[b.id] = b.name);
+        const totalUnits = items.reduce((s, i) => s + i.qty, 0);
+
+        const rowsHtml = items.map(i => `
+            <tr class="border-b border-neutral-100">
+                <td class="py-sm">
+                    <div class="font-semibold text-sm">${esc(i.name)}</div>
+                    <div class="text-xs text-muted font-mono">${esc(i.sku)}</div>
+                </td>
+                <td class="text-center font-bold" style="color:#2271b1;">${i.qty}</td>
+            </tr>`).join('');
+
+        Modal.open({
+            title: `Balance Transfer: ${percent}% of stock`,
+            size: 'lg',
+            body: `
+                <div class="mb-md flex gap-md p-md bg-neutral-50 rounded border border-neutral-200">
+                    <div class="flex-1"><span class="text-muted text-xs">FROM</span><br><strong>${esc(locMap[fromId] || fromId)}</strong></div>
+                    <div class="flex-1"><span class="text-muted text-xs">TO</span><br><strong>${esc(locMap[toId] || toId)}</strong></div>
+                    <div class="flex-1"><span class="text-muted text-xs">ITEMS</span><br><strong>${items.length} products · ${totalUnits} units</strong></div>
+                </div>
+                <div class="form-group mb-md">
+                    <label class="form-label">Reason (optional)</label>
+                    <textarea id="bbpReason" class="form-input" rows="2" placeholder="e.g. Rebalancing stock to 25/75 split"></textarea>
+                </div>
+                <div class="table-container" style="max-height:360px;overflow-y:auto;">
+                    <table class="w-full text-left">
+                        <thead><tr><th class="pb-sm">Product</th><th class="text-center pb-sm">Qty</th></tr></thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                </div>`,
+            confirmText: 'Initiate Transfer',
+            cancelText: 'Cancel',
+            onConfirm: async () => {
+                const reason = document.getElementById('bbpReason')?.value.trim() || '';
+                const res = await API.initiateTransfer(
+                    items.map(i => ({product_id: i.product_id, qty: i.qty})),
+                    fromId, toId, reason
+                );
+                if (res.status === 'success') {
+                    Toast.success('Balance transfer initiated!');
+                    this.state.invalidateInventoryCache();
+                    await this._loadBalanceData(true);
+                } else {
+                    Toast.error(res.message || 'Failed to initiate transfer');
+                    throw new Error(res.message || 'Failed');
+                }
+            }
+        });
+    }
+
     async loadTransfers() {
         const tbody = document.getElementById('transfersTableBody');
         // FIX: was `<svg ...>` (literal "...") — not valid markup; replaced with full spinner SVG.
@@ -448,9 +660,14 @@ class TransfersView {
                 this.saveState();
 
                 const isNew = this.currentTab === 'new_transfer';
+                const isBalance = this.currentTab === 'balance';
+                const isTable = !isNew && !isBalance;
                 document.getElementById('trvPanelNew').style.display = isNew ? '' : 'none';
-                document.getElementById('trvPanelTable').style.display = isNew ? 'none' : '';
+                document.getElementById('trvPanelTable').style.display = isTable ? '' : 'none';
+                document.getElementById('trvPanelBalance').style.display = isBalance ? '' : 'none';
+
                 if (isNew) this._reloadProducts();
+                else if (isBalance) this._loadBalanceData(true);
                 else this.loadTransfers();
             });
         });
