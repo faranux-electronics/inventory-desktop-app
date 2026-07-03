@@ -28,25 +28,39 @@ class TransferModals {
         // modal's body only, rather than searching the entire document.
         const modalBodyId = `review-modal-body-${esc(batchId)}`;
 
-        // Canceled lines were removed before dispatch — don't show them in the receipt form
-        const activeItems = data.items.filter(i => i.status !== 'canceled');
+        // Removed the filter so canceled items appear in the list
+        const items = data.items || [];
 
-        const itemsHtml = activeItems.map(i => `
-            <tr class="border-b border-neutral-200">
+        const itemsHtml = items.map(i => {
+            const isCanceled = i.status === 'canceled';
+            
+            const rowStyle = isCanceled ? 'background-color: rgba(0,0,0,0.02);' : '';
+            const canceledCellStyle = isCanceled ? 'opacity: 0.5; text-decoration: line-through;' : '';
+            
+            // If canceled, do not render input fields so they aren't processed on submit
+            const recvHtml = isCanceled 
+                ? `<span style="${canceledCellStyle}">—</span>`
+                : `<input type="number" class="form-input form-input-sm recv-qty text-center font-bold" data-id="${esc(i.id)}" value="${parseInt(i.qty) || 0}" min="0">`;
+                
+            const noteHtml = isCanceled
+                ? `<span style="font-style:italic; color:var(--neutral-400); opacity:0.8;"><strong>(Canceled)</strong> ${esc(i.note) || ''}</span>`
+                : `<input type="text" class="form-input form-input-sm" id="note-${esc(i.id)}" placeholder="Optional note if mismatched">`;
+
+            return `
+            <tr class="border-b border-neutral-200" style="${rowStyle}">
                 <td class="py-sm">
-                    <div class="font-semibold text-sm">${esc(i.product_name)}</div>
-                    <div class="text-xs text-muted font-mono">${esc(i.product_sku || '')}</div>
+                    <div class="font-semibold text-sm" style="${canceledCellStyle}">${esc(i.product_name)}</div>
+                    <div class="text-xs text-muted font-mono" style="${canceledCellStyle}">${esc(i.product_sku || '')}</div>
                 </td>
-                <td class="text-center font-bold" style="color: #2271b1;">${parseInt(i.qty) || 0}</td>
-                <td style="width: 100px;">
-                    <input type="number" class="form-input form-input-sm recv-qty text-center font-bold"
-                           data-id="${esc(i.id)}" value="${parseInt(i.qty) || 0}" min="0">
+                <td class="text-center font-bold" style="color: #2271b1; ${canceledCellStyle}">${parseInt(i.qty) || 0}</td>
+                <td style="width: 100px;" class="text-center">
+                    ${recvHtml}
                 </td>
                 <td>
-                    <input type="text" class="form-input form-input-sm" id="note-${esc(i.id)}" placeholder="Optional note if mismatched">
+                    ${noteHtml}
                 </td>
             </tr>
-        `).join('');
+        `}).join('');
 
         Modal.open({
             title: `Confirm Receipt: ${esc(batchId)}`,
@@ -92,6 +106,7 @@ class TransferModals {
                 const itemsData = [];
                 let hasError = false;
 
+                // Canceled items won't have .recv-qty inputs, so they are safely ignored here
                 modalBody.querySelectorAll('.recv-qty').forEach(inp => {
                     const id = inp.dataset.id;
                     const val = parseInt(inp.value);
@@ -133,29 +148,44 @@ class TransferModals {
         if (res.status !== 'success') return Toast.error(res.message);
 
         const data = res.data;
-        // Canceled lines were removed via edit — exclude from the read-only details view.
-        // They remain in the DB for audit but shouldn't appear in the UI.
-        const items = data.items.filter(i => i.status !== 'canceled');
+        // Removed the filter so canceled items show in the details modal
+        const items = data.items || [];
         const firstItem = items[0] || {};
 
         const initiatedAtStr = esc(new Date(data.created_at).toLocaleString());
         const approvedAtStr = firstItem.approved_at ? esc(new Date(firstItem.approved_at).toLocaleString()) : '';
 
         const itemsHtml = items.map(i => {
+            const isCanceled = i.status === 'canceled';
+            
+            const rowStyle = isCanceled ? 'background-color: rgba(0,0,0,0.02);' : '';
+            const canceledCellStyle = isCanceled ? 'opacity: 0.5; text-decoration: line-through;' : '';
+            const canceledNoteStyle = isCanceled ? 'opacity: 0.8;' : '';
+
             const diff = (i.received_qty !== null) ? i.received_qty - i.qty : null;
-            const qtyClass = diff < 0 ? 'text-error' : (diff > 0 ? 'text-warning' : 'text-success');
+            let qtyClass = '';
+            let recvVal = i.received_qty !== null ? parseInt(i.received_qty) : '-';
+
+            if (diff !== null && !isCanceled) {
+                qtyClass = diff < 0 ? 'text-error' : (diff > 0 ? 'text-warning' : 'text-success');
+            }
+
+            let noteStr = esc(i.note) || '-';
+            if (isCanceled) {
+                noteStr = noteStr !== '-' ? `<strong>(Canceled)</strong> ${noteStr}` : '<strong>Canceled</strong>';
+            }
 
             return `
-                <tr class="border-b border-neutral-100">
+                <tr class="border-b border-neutral-100" style="${rowStyle}">
                     <td class="py-sm">
-                        <div class="font-semibold text-sm">${esc(i.product_name)}</div>
-                        <div class="text-xs text-muted font-mono">${esc(i.product_sku || '')}</div>
+                        <div class="font-semibold text-sm" style="${canceledCellStyle}">${esc(i.product_name)}</div>
+                        <div class="text-xs text-muted font-mono" style="${canceledCellStyle}">${esc(i.product_sku || '')}</div>
                     </td>
-                    <td class="text-center">${parseInt(i.qty) || 0}</td>
-                    <td class="text-center font-bold ${qtyClass}">
-                        ${i.received_qty !== null ? parseInt(i.received_qty) : '-'}
+                    <td class="text-center" style="${canceledCellStyle}">${parseInt(i.qty) || 0}</td>
+                    <td class="text-center font-bold ${qtyClass}" style="${canceledCellStyle}">
+                        ${recvVal}
                     </td>
-                    <td class="text-sm text-muted">${esc(i.note) || '-'}</td>
+                    <td class="text-sm text-muted" style="${canceledNoteStyle}">${noteStr}</td>
                 </tr>
             `;
         }).join('');

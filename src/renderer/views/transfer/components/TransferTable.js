@@ -301,8 +301,7 @@ class TransferTable {
         });
     }
     _expandContentHTML(data) {
-        // Canceled lines were removed via edit — exclude from the inline expand view
-        const items = (data.items || []).filter(i => i.status !== 'canceled');
+        const items = data.items || [];
         const firstItem = items[0] || {};
         const initStr = esc(new Date(data.created_at).toLocaleString());
         const approvedStr = firstItem.approved_at ? esc(new Date(firstItem.approved_at).toLocaleString()) : '';
@@ -334,21 +333,37 @@ class TransferTable {
         metaHTML += `</div>`;
 
         const rowsHTML = items.map(i => {
+            const isCanceled = i.status === 'canceled';
+            
+            // Row background for canceled items
+            const rowStyle = isCanceled ? 'background-color: rgba(0,0,0,0.02);' : '';
+            // Strikethrough and opacity ONLY for the product details cells
+            const canceledCellStyle = isCanceled ? 'opacity: 0.5; text-decoration: line-through;' : '';
+            // Dim the notes slightly, but NO strikethrough
+            const canceledNoteStyle = isCanceled ? 'opacity: 0.8;' : '';
+            
             const diff = (i.received_qty !== null) ? i.received_qty - i.qty : null;
             let recvClass = '';
             let recvVal = i.received_qty !== null ? esc(String(i.received_qty)) : '—';
-            if (diff !== null) {
+            
+            if (diff !== null && !isCanceled) {
                 if (diff < 0) recvClass = 'trv-qty-low';
                 else if (diff > 0) recvClass = 'trv-qty-high';
                 else recvClass = 'trv-qty-ok';
             }
+
+            let noteStr = esc(i.note) || '—';
+            if (isCanceled) {
+                noteStr = noteStr !== '—' ? `<strong>(Canceled)</strong> ${noteStr}` : '<strong>Canceled</strong>';
+            }
+
             return `
-            <tr>
-                <td class="trv-sub-td" style="font-size:11px;font-family:monospace;color:var(--neutral-400);">${esc(i.product_sku) || '—'}</td>
-                <td class="trv-sub-td" style="font-weight:600;color:var(--neutral-800);">${esc(i.product_name)}</td>
-                <td class="trv-sub-td" style="text-align:center;font-weight:700;color:var(--primary-600);">${parseInt(i.qty) || 0}</td>
-                <td class="trv-sub-td ${recvClass}" style="text-align:center;font-weight:700;">${recvVal}</td>
-                <td class="trv-sub-td" style="font-style:italic;color:var(--neutral-400);">${esc(i.note) || '—'}</td>
+            <tr style="${rowStyle}">
+                <td class="trv-sub-td" style="font-size:11px;font-family:monospace;color:var(--neutral-400); ${canceledCellStyle}">${esc(i.product_sku) || '—'}</td>
+                <td class="trv-sub-td" style="font-weight:600;color:var(--neutral-800); ${canceledCellStyle}">${esc(i.product_name)}</td>
+                <td class="trv-sub-td" style="text-align:center;font-weight:700;color:var(--primary-600); ${canceledCellStyle}">${parseInt(i.qty) || 0}</td>
+                <td class="trv-sub-td ${recvClass}" style="text-align:center;font-weight:700; ${canceledCellStyle}">${recvVal}</td>
+                <td class="trv-sub-td" style="font-style:italic;color:var(--neutral-400); ${canceledNoteStyle}">${noteStr}</td>
             </tr>`;
         }).join('');
 
