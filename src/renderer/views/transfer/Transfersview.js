@@ -228,7 +228,6 @@ class TransfersView {
         this.tableComponent = new TransferTable(this);
 
         this.balancePanel = new BranchBalancePanel({
-            onReview: payload => this._showBalanceReviewModal(payload),
             onScrollEnd: () => this._loadMoreBalanceProducts(),
             onLoadAll: () => this._loadAllBalanceProducts()
         });
@@ -522,63 +521,6 @@ class TransfersView {
         } finally {
             if (session === this._balanceSession) this._balanceLoading = false;
         }
-    }
-
-    // NOTE: deliberately does NOT go through _handleTransfer()/stagingPanel —
-    // that path clears the staging panel's cart on success, which would
-    // silently wipe out anything the user had manually staged in the
-    // New Transfer tab. Balance transfers submit independently.
-    _showBalanceReviewModal({fromId, toId, percent, items}) {
-        const locMap = {};
-        (this.balancePanel?._branches || []).forEach(b => locMap[b.id] = b.name);
-        const totalUnits = items.reduce((s, i) => s + i.qty, 0);
-
-        const rowsHtml = items.map(i => `
-            <tr class="border-b border-neutral-100">
-                <td class="py-sm">
-                    <div class="font-semibold text-sm">${esc(i.name)}</div>
-                    <div class="text-xs text-muted font-mono">${esc(i.sku)}</div>
-                </td>
-                <td class="text-center font-bold" style="color:#2271b1;">${i.qty}</td>
-            </tr>`).join('');
-
-        Modal.open({
-            title: `Balance Transfer: ${percent}% of stock`,
-            size: 'lg',
-            body: `
-                <div class="mb-md flex gap-md p-md bg-neutral-50 rounded border border-neutral-200">
-                    <div class="flex-1"><span class="text-muted text-xs">FROM</span><br><strong>${esc(locMap[fromId] || fromId)}</strong></div>
-                    <div class="flex-1"><span class="text-muted text-xs">TO</span><br><strong>${esc(locMap[toId] || toId)}</strong></div>
-                    <div class="flex-1"><span class="text-muted text-xs">ITEMS</span><br><strong>${items.length} products · ${totalUnits} units</strong></div>
-                </div>
-                <div class="form-group mb-md">
-                    <label class="form-label">Reason (optional)</label>
-                    <textarea id="bbpReason" class="form-input" rows="2" placeholder="e.g. Rebalancing stock to 25/75 split"></textarea>
-                </div>
-                <div class="table-container" style="max-height:360px;overflow-y:auto;">
-                    <table class="w-full text-left">
-                        <thead><tr><th class="pb-sm">Product</th><th class="text-center pb-sm">Qty</th></tr></thead>
-                        <tbody>${rowsHtml}</tbody>
-                    </table>
-                </div>`,
-            confirmText: 'Initiate Transfer',
-            cancelText: 'Cancel',
-            onConfirm: async () => {
-                const reason = document.getElementById('bbpReason')?.value.trim() || '';
-                const res = await API.initiateTransfer(
-                    items.map(i => ({product_id: i.product_id, qty: i.qty})),
-                    fromId, toId, reason
-                );
-                if (res.status === 'success') {
-                    Toast.success('Balance transfer initiated!');
-                    this.state.invalidateInventoryCache();
-                    await this._loadBalanceData(true);
-                } else {
-                    Toast.error(res.message || 'Failed to initiate transfer');
-                    throw new Error(res.message || 'Failed');
-                }
-            }
-        });
     }
 
     async loadTransfers() {

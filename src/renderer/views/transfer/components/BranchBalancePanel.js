@@ -4,18 +4,13 @@ function esc(str) {
     return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// How far (in percentage points) a branch's actual share can drift from its
-// target share before a cell gets flagged as over/under-stocked.
-const IMBALANCE_THRESHOLD = 5;
-
 /* =======================================================================
    BranchBalancePanel
    Per-product branch-share matrix + percentage-based bulk transfer builder.
    Mounted as a tab inside TransfersView (see trvPanelBalance).
    ======================================================================= */
 class BranchBalancePanel {
-    constructor({onReview, onScrollEnd, onLoadAll}) { 
-        this.onReview = onReview;         
+    constructor({onScrollEnd, onLoadAll}) { 
         this.onScrollEnd = onScrollEnd;   
         this.onLoadAll = onLoadAll;       
 
@@ -24,8 +19,6 @@ class BranchBalancePanel {
         this._fromId = '';
         this._toId = '';
         this._percent = 25;
-        this._targets = {};               
-        this._showTargets = false;
         this._overrides = {};             
         this._excluded = new Set();       
         this._el = null;
@@ -104,31 +97,19 @@ class BranchBalancePanel {
                     </select>
                 </div>
                 <div class="bbp-field bbp-field--pct">
-                    <label>MOVE %</label>
+                    <label>TARGET %</label>
                     <input type="number" id="bbpPercent" min="1" max="100" value="${this._percent}">
                 </div>
                 <div class="bbp-quick-pct">
                     ${[10, 25, 50, 75].map(p => `<button type="button" class="trv-btn trv-btn-ghost bbp-pct-btn" data-pct="${p}">${p}%</button>`).join('')}
                 </div>
-                <button type="button" class="trv-btn trv-btn-ghost" id="bbpToggleTargets">
-                    ${this._showTargets ? 'Hide' : 'Set'} Targets
-                </button>
                 <div class="trv-toolbar-spacer"></div>
                 
                 <!-- NEW BUTTON HERE -->
                 <button type="button" class="trv-btn trv-btn-ghost" id="bbpLoadAllBtn" style="color: var(--primary-600); border-color: var(--primary-200); background: var(--primary-50); ${this._isAllLoaded ? 'display:none;' : ''}">↓ Load Entire Catalog</button>
                 
-                <button type="button" class="trv-btn" id="bbpReviewBtn">Review &amp; Transfer</button>
+                <button type="button" class="trv-btn" id="bbpExportBtn">Export CSV</button>
             </div>
-            ${this._showTargets ? `
-            <div class="bbp-target-row">
-                <span class="bbp-target-label">Target share per branch (used only to flag over/under-stock, doesn't affect the move):</span>
-                ${this._branches.map(b => `
-                    <div class="bbp-target-input">
-                        <span>${esc(b.name)}</span>
-                        <input type="number" min="0" max="100" data-branch="${esc(b.id)}" class="bbp-target-val" value="${this._targets[b.id] ?? ''}" placeholder="%">
-                    </div>`).join('')}
-            </div>` : ''}
         `;
 
         el.querySelector('#bbpFrom').addEventListener('change', (e) => {
@@ -136,7 +117,11 @@ class BranchBalancePanel {
             this._renderControls();
             this._renderMatrix();
         });
-        el.querySelector('#bbpTo').addEventListener('change', (e) => { this._toId = e.target.value; });
+        el.querySelector('#bbpTo').addEventListener('change', (e) => {
+            this._toId = e.target.value;
+            this._overrides = {};
+            this._renderMatrix();
+        });
         el.querySelector('#bbpPercent').addEventListener('input', (e) => {
             this._percent = Math.max(1, Math.min(100, parseInt(e.target.value) || 0));
             this._overrides = {}; 
@@ -148,17 +133,7 @@ class BranchBalancePanel {
             this._renderControls();
             this._renderMatrix();
         }));
-        el.querySelector('#bbpToggleTargets').addEventListener('click', () => {
-            this._showTargets = !this._showTargets;
-            this._renderControls();
-        });
-        el.querySelectorAll('.bbp-target-val').forEach(inp => inp.addEventListener('change', () => {
-            const val = parseFloat(inp.value);
-            if (isNaN(val)) delete this._targets[inp.dataset.branch];
-            else this._targets[inp.dataset.branch] = val;
-            this._renderMatrix();
-        }));
-        el.querySelector('#bbpReviewBtn').addEventListener('click', () => this._review());
+        el.querySelector('#bbpExportBtn').addEventListener('click', () => this._exportCsv());
 
         // NEW LISTENER HERE
         el.querySelector('#bbpLoadAllBtn')?.addEventListener('click', (e) => {
@@ -188,9 +163,19 @@ class BranchBalancePanel {
 
     _computeQty(product) {
         if (this._overrides[product.id] !== undefined) return this._overrides[product.id];
-        const {map} = this._breakdown(product);
+        const {map, total} = this._breakdown(product);
         const fromQty = parseInt(map[this._fromId] || 0);
-        return Math.floor(fromQty * (this._percent / 100));
+        const toQty = this._toId ? parseInt(map[this._toId] || 0) : 0;
+
+        // Target = the destination's share if it held `percent`% of the TOTAL
+        // stock across all branches (not a percentage of the source's stock).
+        const targetQty = Math.floor(total * (this._percent / 100));
+
+        // Only move enough to close the gap between what the destination
+        // already has and that target share.
+        const needed = targetQty - toQty;
+
+        return Math.max(0, Math.min(needed, fromQty));
     }
 
     _renderMatrix() {
@@ -207,6 +192,7 @@ class BranchBalancePanel {
         }
 
         const headerCols = this._branches.map(b => `<div class="bbp-ch">${esc(b.name)}</div>`).join('');
+        const hasDestination = !!this._toId;
 
         let validCount = 0;
         let excludedValidCount = 0;
@@ -217,18 +203,14 @@ class BranchBalancePanel {
                 const qty = parseInt(map[b.id] || 0);
                 const pct = total > 0 ? (qty / total * 100) : 0;
                 let cls = 'bbp-cell';
-                const target = this._targets[b.id];
-                if (target !== undefined && total > 0) {
-                    if (pct > target + IMBALANCE_THRESHOLD) cls += ' bbp-cell--over';
-                    else if (pct < target - IMBALANCE_THRESHOLD) cls += ' bbp-cell--under';
-                }
                 if (String(b.id) === String(this._fromId)) cls += ' bbp-cell--from';
                 return `<div class="${cls}">${qty}<span class="bbp-cell-pct">${pct.toFixed(0)}%</span></div>`;
             }).join('');
 
+            const targetQty = Math.floor(total * (this._percent / 100));
             const moveQty = this._computeQty(p);
             const fromQty = parseInt(map[this._fromId] || 0);
-            const disabled = fromQty <= 0;
+            const disabled = fromQty <= 0 || !hasDestination;
             
             // Track valid items for the Master Checkbox logic
             if (!disabled) {
@@ -237,6 +219,10 @@ class BranchBalancePanel {
             }
 
             const checked = !disabled && !this._excluded.has(p.id) && moveQty > 0;
+
+            const moveCell = hasDestination
+                ? `<input type="number" class="bbp-move-qty" data-id="${esc(p.id)}" min="0" max="${fromQty}" value="${moveQty}" ${disabled ? 'disabled' : ''}>`
+                : `<span class="bbp-move-placeholder" title="Select a destination branch to calculate">—</span>`;
 
             return `
                 <div class="bbp-row ${disabled ? 'bbp-row--disabled' : ''}" data-id="${esc(p.id)}">
@@ -249,8 +235,9 @@ class BranchBalancePanel {
                     </div>
                     ${cells}
                     <div class="bbp-rc bbp-rc--total">${total}</div>
+                    <div class="bbp-rc bbp-rc--target">${targetQty}</div>
                     <div class="bbp-rc bbp-rc--move">
-                        <input type="number" class="bbp-move-qty" data-id="${esc(p.id)}" min="0" max="${fromQty}" value="${moveQty}" ${disabled ? 'disabled' : ''}>
+                        ${moveCell}
                     </div>
                 </div>`;
         }).join('');
@@ -259,6 +246,7 @@ class BranchBalancePanel {
         const isMasterChecked = validCount > 0 && excludedValidCount === 0;
 
         body.innerHTML = `
+            ${!hasDestination ? `<div class="bbp-dest-hint">Select a destination branch above to calculate Move Qty.</div>` : ''}
             <div class="bbp-matrix">
                 <div class="bbp-row bbp-row--head">
                     <div class="bbp-rc bbp-rc--check" title="Select / Deselect All">
@@ -267,7 +255,8 @@ class BranchBalancePanel {
                     <div class="bbp-rc bbp-rc--name">Product</div>
                     ${headerCols}
                     <div class="bbp-rc bbp-rc--total">Total</div>
-                    <div class="bbp-rc bbp-rc--move">Move Qty</div>
+                    <div class="bbp-rc bbp-rc--target" title="Target quantity for the destination (% of total)">Target Qty</div>
+                    <div class="bbp-rc bbp-rc--move" ${hasDestination ? '' : 'title="Select a destination branch to calculate"'}>Move Qty${hasDestination ? '' : ' <span class="bbp-move-hint">(select destination)</span>'}</div>
                 </div>
                 ${rows}
             </div>`;
@@ -329,8 +318,14 @@ class BranchBalancePanel {
         }));
     }
 
-    // ─── Build payload & hand off to the parent view for confirmation ─────
-    _review() {
+    // ─── Build the move list and download it as a CSV file ────────────────
+    _csvEscape(val) {
+        const str = String(val ?? '');
+        if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+        return str;
+    }
+
+    _exportCsv() {
         if (!this._fromId) return Toast.error('Select a source branch');
         if (!this._toId) return Toast.error('Select a destination branch');
         if (this._fromId === this._toId) return Toast.error('Source and destination must differ');
@@ -339,12 +334,53 @@ class BranchBalancePanel {
         this._products.forEach(p => {
             if (this._excluded.has(p.id)) return;
             const qty = this._computeQty(p);
-            if (qty > 0) items.push({product_id: p.id, name: p.name, sku: p.sku || '', qty});
+            if (qty > 0) items.push(p);
         });
 
         if (!items.length) return Toast.error(`No products have stock to move at ${this._percent}%`);
 
-        this.onReview?.({fromId: this._fromId, toId: this._toId, percent: this._percent, items});
+        const locMap = {};
+        this._branches.forEach(b => locMap[b.id] = b.name);
+        const fromName = locMap[this._fromId] || this._fromId;
+        const toName = locMap[this._toId] || this._toId;
+
+        const branchCols = this._branches.map(b => b.name);
+        const header = [
+            'Product', 'SKU',
+            ...branchCols,
+            'Total',
+            'Target %',
+            'Target Qty',
+            'From Branch', 'To Branch', 'Move Qty'
+        ];
+
+        const rows = items.map(p => {
+            const {map, total} = this._breakdown(p);
+            const targetQty = Math.floor(total * (this._percent / 100));
+            const moveQty = this._computeQty(p);
+            const branchVals = this._branches.map(b => parseInt(map[b.id] || 0));
+            return [p.name, p.sku || '', ...branchVals, total, this._percent, targetQty, fromName, toName, moveQty];
+        });
+
+        const csv = [header, ...rows]
+            .map(row => row.map(v => this._csvEscape(v)).join(','))
+            .join('\r\n');
+
+        // Prepend a UTF-8 BOM so Excel renders special characters (×, ±, etc.)
+        // correctly instead of misreading the file as Windows-1252.
+        const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8;'});
+        const url = URL.createObjectURL(blob);
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const safe = s => String(s).replace(/[^a-z0-9]+/gi, '_');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `BalanceTransfer_${safe(fromName)}_to_${safe(toName)}_${this._percent}pct_${dateStr}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        Toast.success(`Exported ${items.length} products to CSV`);
     }
 }
 
