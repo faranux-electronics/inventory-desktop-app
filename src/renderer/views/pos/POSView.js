@@ -221,6 +221,26 @@ class POSView {
         this._restoredCartSnapshots = null;
         this._renderTabs();
         this._activateCart(this._activeCartIdx);
+        
+        // Set default customer to cashier for new carts after activation
+        if (!snapshots || snapshots.length === 0) {
+            this._setDefaultCustomerToCashier();
+        }
+    }
+    
+    _setDefaultCustomerToCashier() {
+        try {
+            const cashierSel = document.querySelector('#posCashier');
+            if (cashierSel && cashierSel.options.length > 0) {
+                const selectedCashierName = cashierSel.options[cashierSel.selectedIndex]?.text || '';
+                const customerSearch = document.querySelector('#posCustomerSearch');
+                if (customerSearch) {
+                    customerSearch.value = selectedCashierName;
+                }
+            }
+        } catch (e) {
+            console.error('Failed to set default customer to cashier:', e);
+        }
     }
 
     _startResize(e) {
@@ -382,6 +402,9 @@ class POSView {
     }
 
     async _bootstrap() {
+        // Load branches first to ensure location map is set before products render
+        await this._loadBranches();
+        
         // Check cache first before showing loading
         if (this._isCacheValid() && this._productCache.length > 0) {
             this.productGrid.update(this._productCache, false);
@@ -401,8 +424,6 @@ class POSView {
             // Payment methods are now hardcoded in constructor
             if (taxRes?.status === 'success') this.paymentPanel.setTaxRates(taxRes.data);
         });
-
-        await this._loadBranches();
         
         // Only fetch products if cache is invalid
         if (!this._isCacheValid() || this._productCache.length === 0) {

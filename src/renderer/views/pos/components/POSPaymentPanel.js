@@ -184,9 +184,19 @@ class OrderSettingsModal {
         this.container.querySelector('#posDiscountVal').value = '0';
         this.container.querySelector('#posShipping').value = '0';
         this.container.querySelector('#posNotes').value = '';
-        this.container.querySelector('#posCustomerId').value = '';
-        this.container.querySelector('#posCustomerSearch').value = '';
-        this.container.querySelector('#posCustomerEmail').value = '';
+        
+        // Set customer to cashier by default
+        const cashierSel = this.container.querySelector('#posCashier');
+        if (cashierSel && cashierSel.options.length > 0) {
+            const selectedCashierName = cashierSel.options[cashierSel.selectedIndex]?.text || '';
+            this.container.querySelector('#posCustomerId').value = '';
+            this.container.querySelector('#posCustomerSearch').value = selectedCashierName;
+            this.container.querySelector('#posCustomerEmail').value = '';
+        } else {
+            this.container.querySelector('#posCustomerId').value = '';
+            this.container.querySelector('#posCustomerSearch').value = '';
+            this.container.querySelector('#posCustomerEmail').value = '';
+        }
 
         this._updateTaxUI();
         this._renderFees();
@@ -287,9 +297,19 @@ class OrderSettingsModal {
                 this.container.querySelector('#posDiscountVal').value = '0';
                 this.container.querySelector('#posShipping').value = '0';
                 this.container.querySelector('#posNotes').value = '';
-                this.container.querySelector('#posCustomerId').value = '';
-                this.container.querySelector('#posCustomerSearch').value = '';
-                this.container.querySelector('#posCustomerEmail').value = '';
+                
+                // Set customer to cashier by default for new carts
+                const cashierSel = this.container.querySelector('#posCashier');
+                if (cashierSel && cashierSel.options.length > 0) {
+                    const selectedCashierName = cashierSel.options[cashierSel.selectedIndex]?.text || '';
+                    this.container.querySelector('#posCustomerId').value = '';
+                    this.container.querySelector('#posCustomerSearch').value = selectedCashierName;
+                    this.container.querySelector('#posCustomerEmail').value = '';
+                } else {
+                    this.container.querySelector('#posCustomerId').value = '';
+                    this.container.querySelector('#posCustomerSearch').value = '';
+                    this.container.querySelector('#posCustomerEmail').value = '';
+                }
                 
                 this._updateTaxUI();
                 this._renderFees();
@@ -838,6 +858,13 @@ class POSPaymentPanel {
         btn.innerHTML = on
             ? `<svg class="pos-spinner-inline" viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Processing…`
             : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15"><polyline points="20 6 9 17 4 12"/></svg> Charge`;
+        
+        // Also disable void and quote buttons during processing
+        const voidBtn = this.container.querySelector('#posVoidBtn');
+        if (voidBtn) voidBtn.disabled = on;
+        
+        const quoteBtn = this.container.querySelector('#posQuoteBtn');
+        if (quoteBtn) quoteBtn.disabled = on;
     }
 
     resetForm() {
