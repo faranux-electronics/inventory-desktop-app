@@ -86,34 +86,12 @@ class TransfersView {
         
         try {
             const role = user?.role?.toLowerCase();
-            // 1. Fallback default - admin and manager can always see balance
+            // Balance stock is an internal tab within transfers view, not a top-level nav item
+            // It's controlled by role-based permissions only (admin/manager)
             canViewBalance = ['admin', 'manager'].includes(role);
             
-            // 2. Check dynamic access permissions safely
-            if (this.state.getNavPermissions) {
-                const perms = this.state.getNavPermissions();
-                if (perms) {
-                    // Scenario A: perms is a flat array of allowed keys: ['transfers', 'balance_stock']
-                    if (Array.isArray(perms)) {
-                        canViewBalance = perms.includes('balance_stock');
-                    } 
-                    // Scenario B: perms is grouped by role (using exact user.role casing or lowercase)
-                    else if (perms[user?.role] || perms[role]) {
-                        const rolePerms = perms[user?.role] || perms[role];
-                        
-                        if (Array.isArray(rolePerms)) {
-                            // If it's an array: { CASHIER: ['transfers'] }
-                            canViewBalance = rolePerms.includes('balance_stock');
-                        } else if (typeof rolePerms === 'object') {
-                            // If it's an object mapping: { CASHIER: { transfers: true, balance_stock: false } }
-                            canViewBalance = rolePerms['balance_stock'] === true;
-                        }
-                    }
-                }
-            }
-            
             // DEBUG: Log the permission check result
-            console.log('Balance stock permission check:', { role, canViewBalance, perms: this.state.getNavPermissions() });
+            console.log('Balance stock permission check:', { role, canViewBalance });
         } catch (e) {
             console.error("Permission check failed, reverting to default role check", e);
             canViewBalance = ['admin', 'manager'].includes(user?.role?.toLowerCase());

@@ -69,10 +69,8 @@ class App {
         this.sidebar.loadAppVersion();
 
         const navRes = await API.getNavPermissions();
-        console.log('Nav permissions response:', navRes);
         if (navRes.status === 'success') {
             this.state.setNavPermissions(navRes.data);
-            console.log('Nav permissions set:', navRes.data);
             // Re-render sidebar with permissions
             document.getElementById('mainSidebar').outerHTML =
                 this.sidebar.render(user, navRes.data) // see note below*
