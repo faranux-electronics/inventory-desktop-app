@@ -231,7 +231,12 @@ class TransfersView {
     async _bootstrap() {
         const locations = await this.state.loadLocations() || [];
         const locationMap = {};
-        locations.forEach(l => locationMap[l.id] = l.name);
+        locations.forEach(l => {
+            // Store both string and numeric keys to handle type mismatches
+            locationMap[l.id] = l.name;
+            locationMap[String(l.id)] = l.name;
+            locationMap[Number(l.id)] = l.name;
+        });
 
         this.productGrid.setLocationMap(locationMap);
         if (this._userBranchId) this.productGrid.setFocusBranch(this._userBranchId);

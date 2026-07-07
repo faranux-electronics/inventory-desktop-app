@@ -455,7 +455,12 @@ class POSView {
             this._branches = await this.state.loadLocations(false);
             if (this._branches && this._branches.length > 0) {
                 const locationMap = {};
-                this._branches.forEach(l => locationMap[l.id] = l.name);
+                this._branches.forEach(l => {
+                    // Store both string and numeric keys to handle type mismatches
+                    locationMap[l.id] = l.name;
+                    locationMap[String(l.id)] = l.name;
+                    locationMap[Number(l.id)] = l.name;
+                });
                 this.productGrid.setLocationMap(locationMap);
 
                 const user = this.state.getUser();

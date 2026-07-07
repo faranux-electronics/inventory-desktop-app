@@ -55,7 +55,8 @@ class LocalProductCardBuilder {
                 if (colonIdx === -1) return '';
                 const lid = pair.substring(0, colonIdx).trim();
                 const qty = parseInt(pair.substring(colonIdx + 1).trim() || 0);
-                const name = locationMap[lid] || `#${esc(lid)}`;
+                // Try both string and numeric ID for location lookup
+                const name = locationMap[lid] || locationMap[String(lid)] || locationMap[Number(lid)] || `#${esc(lid)}`;
                 const isFocus = focusBranchId && String(lid) === String(focusBranchId);
 
                 if (qty === 0 && !isFocus) return '';
