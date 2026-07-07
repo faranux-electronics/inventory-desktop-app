@@ -1067,15 +1067,32 @@ input[type="checkbox"] {
     flex-shrink: 0;
 }
 
-.brand-title {
+.brand-info {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.brand-title {
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.03em;
     color: white;
     white-space: nowrap;
-    overflow: visible;
+}
+
+#version-display {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--neutral-400, #9ca3af);
+    letter-spacing: 0.02em;
+    margin-top: -2px;
+}
+
+.sidebar.collapsed #version-display {
+    display: none;
 }
 
 .sidebar-toggle-btn {

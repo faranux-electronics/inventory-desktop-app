@@ -1,3 +1,4 @@
+const { ipcRenderer } = require('electron');
 const Modal = require('./Modal.js');
 const API = require("../services/api");
 const NAV_ITEMS = require('../config/navRegistry.js');
@@ -16,6 +17,21 @@ class Sidebar {
             this.updateBranchDisplay();
         } catch (e) {
             this.updateBranchDisplayFallback("Offline");
+        }
+    }
+
+    async loadAppVersion() {
+        try {
+            const version = await ipcRenderer.invoke('get-app-version');
+            const versionEl = document.getElementById('version-display');
+            if (versionEl) {
+                versionEl.textContent = `v${version}`;
+            }
+        } catch (err) {
+            console.error('Could not load app version:', err);
+            // Fallback in case of any error
+            const versionEl = document.getElementById('version-display');
+            if (versionEl) versionEl.textContent = 'v1.1.17';
         }
     }
 
@@ -93,10 +109,13 @@ class Sidebar {
         return `
       <div class="sidebar ${isCollapsed ? 'collapsed' : ''}" id="mainSidebar">
         <div class="sidebar-header">
-            <div class="sidebar-brand" title="Faranux Inventory">
-               <img src="src/assets/logo1.png" alt="Faranux Inventory" class="brand-logo" />
+            <div class="sidebar-brand" title="Faranux MIS">
+               <img src="src/assets/logo1.png" alt="Faranux MIS" class="brand-logo" />
             </div>
-            <span class="brand-title nav-text">FARANUX MIS</span>
+            <div class="brand-info nav-text">
+                <span class="brand-title">FARANUX MIS</span>
+                <div class="brand-title" id="version-display" >v1.0.0</div>
+            </div>
             <button id="sidebarToggle" class="sidebar-toggle-btn" title="Toggle Sidebar">
                 <i class="fa-solid fa-bars"></i>
             </button>

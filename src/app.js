@@ -67,6 +67,7 @@ class App {
     `;
         this.sidebar.attachEvents();
         this.sidebar.loadLocations(this.state);
+        this.sidebar.loadAppVersion();
 
         const navRes = await API.getNavPermissions();
         if (navRes.status === 'success') {
@@ -75,6 +76,7 @@ class App {
             document.getElementById('mainSidebar').outerHTML =
                 this.sidebar.render(user, navRes.data) // see note below*
             this.sidebar.attachEvents();
+            this.sidebar.loadAppVersion();
         }
 
         if (!this.notifManager) {
