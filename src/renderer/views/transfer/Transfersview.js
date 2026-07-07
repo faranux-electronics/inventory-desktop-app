@@ -86,7 +86,7 @@ class TransfersView {
         
         try {
             const role = user?.role?.toLowerCase();
-            // 1. Fallback default
+            // 1. Fallback default - admin and manager can always see balance
             canViewBalance = ['admin', 'manager'].includes(role);
             
             // 2. Check dynamic access permissions safely
@@ -111,6 +111,9 @@ class TransfersView {
                     }
                 }
             }
+            
+            // DEBUG: Log the permission check result
+            console.log('Balance stock permission check:', { role, canViewBalance, perms: this.state.getNavPermissions() });
         } catch (e) {
             console.error("Permission check failed, reverting to default role check", e);
             canViewBalance = ['admin', 'manager'].includes(user?.role?.toLowerCase());
