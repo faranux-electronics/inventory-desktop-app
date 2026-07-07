@@ -418,19 +418,16 @@ class POSView {
             if (res?.status === 'success') this.filterBar.populateCategories(res.data || []);
         });
 
-        const metaPromise = Promise.all([
-            API.getWCTaxRates?.().catch(() => null)
-        ]).then(([taxRes]) => {
-            // Payment methods are now hardcoded in constructor
-            if (taxRes?.status === 'success') this.paymentPanel.setTaxRates(taxRes.data);
-        });
+        // Tax rate is fixed globally at 18% (no longer fetched via
+        // API.getTaxRates() — see POSPaymentPanel.setTaxRates()).
+        this.paymentPanel.setTaxRates();
         
         // Only fetch products if cache is invalid
         if (!this._isCacheValid() || this._productCache.length === 0) {
             await this._fetchProductsAsync();
         }
 
-        await Promise.all([catPromise, metaPromise]);
+        await catPromise;
     }
 
     _showBootSpinner() {
