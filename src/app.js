@@ -44,14 +44,13 @@ class App {
         };
 
         this.currentView = null;
-        this.init();
     }
 
-    init() {
+    async init() {
         const user = this.state.getUser();
         if (user) {
-            this.renderApp(user);
-            this.navigate('transfers');
+            await this.renderApp(user);
+            await this.navigate('transfers');
         } else {
             this.navigate('login');
         }
@@ -85,7 +84,16 @@ class App {
         }
     }
 
-    navigate(viewName) {
+    async ensureNavPermissionsLoaded() {
+        if (!this.state.getNavPermissions()) {
+            const navRes = await API.getNavPermissions();
+            if (navRes.status === 'success') {
+                this.state.setNavPermissions(navRes.data);
+            }
+        }
+    }
+
+    async navigate(viewName) {
         const view = this.views[viewName];
         if (!view) return;
         this.currentView = view;
@@ -100,11 +108,17 @@ class App {
             }
             if (!document.querySelector('.sidebar')) this.renderApp(user);
             this.sidebar.setActive(viewName);
+            
+            // Ensure nav permissions are loaded before rendering views that depend on them
+            if (viewName === 'transfers') {
+                await this.ensureNavPermissionsLoaded();
+            }
+            
             view.render();
         }
     }
 
-    handleLogout() {
+    async handleLogout() {
         this.state.logout();
 
         if (this.notifManager) {
@@ -112,7 +126,7 @@ class App {
             this.notifManager = null;
         }
 
-        this.navigate('login');
+        await this.navigate('login');
         Toast.info('Logged out successfully');
     }
 }
@@ -125,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initUpdater();
 
     window.app = new App();
+    window.app.init();
 });
 
 module.exports = App;
