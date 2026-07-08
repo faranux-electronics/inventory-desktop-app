@@ -138,7 +138,7 @@ class PdfGenerator {
             styles: {
                 font: 'helvetica',
                 fontSize: 10,
-                cellPadding: {top: 2, bottom: 2, left: 4, right: 4}
+                cellPadding: { top: 2, bottom: 2, left: 4, right: 4 }
             },
             columnStyles: {
                 0: { fontStyle: 'bold', textColor: lightText, cellWidth: 30 },
@@ -147,7 +147,7 @@ class PdfGenerator {
                 3: { halign: 'center', fontStyle: 'bold', cellWidth: 30 },
                 4: { cellWidth: 'auto' }
             },
-            margin: {bottom: 30} // Give space for footer
+            margin: { bottom: 30 } // Give space for footer
         });
 
         // --- 4. Signatures ---
@@ -216,7 +216,7 @@ class PdfGenerator {
             throw new Error("PDF libraries missing. Please run: npm install jspdf jspdf-autotable");
         }
 
-        const doc = new jsPDF({format: 'a4'});
+        const doc = new jsPDF({ format: 'a4' });
         const pageHeight = doc.internal.pageSize.height;
 
         // --- Color Palette ---
@@ -243,8 +243,8 @@ class PdfGenerator {
         doc.setFont("helvetica", "normal");
 
         const now = new Date();
-        const dateStr = now.toLocaleDateString('en-RW', {year: 'numeric', month: 'short', day: '2-digit'});
-        const timeStr = now.toLocaleTimeString('en-RW', {hour: '2-digit', minute: '2-digit'});
+        const dateStr = now.toLocaleDateString('en-RW', { year: 'numeric', month: 'short', day: '2-digit' });
+        const timeStr = now.toLocaleTimeString('en-RW', { hour: '2-digit', minute: '2-digit' });
         const quoteId = 'QUOTE-' + Date.now().toString(36).toUpperCase();
 
         // Quote Info
@@ -328,16 +328,16 @@ class PdfGenerator {
             styles: {
                 font: 'helvetica',
                 fontSize: 10,
-                cellPadding: {top: 2, bottom: 2, left: 4, right: 4}
+                cellPadding: { top: 2, bottom: 2, left: 4, right: 4 }
             },
             columnStyles: {
-                0: {fontStyle: 'bold', textColor: lightText, cellWidth: 30},
-                1: {cellWidth: 'auto'},
-                2: {halign: 'center', cellWidth: 20},
-                3: {halign: 'right', cellWidth: 35},
-                4: {halign: 'right', fontStyle: 'bold', cellWidth: 35}
+                0: { fontStyle: 'bold', textColor: lightText, cellWidth: 30 },
+                1: { cellWidth: 'auto' },
+                2: { halign: 'center', cellWidth: 20 },
+                3: { halign: 'right', cellWidth: 35 },
+                4: { halign: 'right', fontStyle: 'bold', cellWidth: 35 }
             },
-            margin: {bottom: 35} // Give space for footer
+            margin: { bottom: 35 } // Give space for footer
         });
 
         // --- 4. Totals ---
@@ -361,8 +361,8 @@ class PdfGenerator {
             checkPageOverflow(7); // Check if we have space for a row
             doc.setFont("helvetica", isBold ? "bold" : "normal");
             doc.setTextColor(...color);
-            doc.text(label, pageX - 45, finalY, {align: 'right'});
-            doc.text(`${amount.toLocaleString()} Frw`, pageX, finalY, {align: 'right'});
+            doc.text(label, pageX - 45, finalY, { align: 'right' });
+            doc.text(`${amount.toLocaleString()} Frw`, pageX, finalY, { align: 'right' });
             finalY += 7;
         };
 
@@ -422,9 +422,9 @@ class PdfGenerator {
             doc.setFontSize(9);
             doc.setFont("helvetica", "normal");
             doc.setTextColor(156, 163, 175);
-            doc.text("This quotation is valid for 30 days. Thank you for considering Faranux Electronics!", 105, 275, {align: 'center'});
-            doc.text("KIGALI - NYARUGENGE | Street KN 119 ST | Francine's Building, 1st Floor", 105, 280, {align: 'center'});
-            doc.text("BK: 00262-00682142-32 | MoMo: *182*8*1*400056# | Generated securely by Faranux Electronics System", 105, 285, {align: 'center'});
+            doc.text("This quotation is valid for 30 days. Thank you for considering Faranux Electronics!", 105, 275, { align: 'center' });
+            doc.text("KIGALI - NYARUGENGE | Street KN 119 ST | Francine's Building, 1st Floor", 105, 280, { align: 'center' });
+            doc.text("BK: 00262-00682142-32 | MoMo: *182*8*1*400056# | Generated securely by Faranux Electronics System", 105, 285, { align: 'center' });
         }
 
         // --- 6. Output PDF ---
@@ -442,10 +442,10 @@ class PdfGenerator {
     }
 
     /**
-     * Generates an A4 PDF Receipt for the POS
-     * @param {object} data - The sale details from POSReceipt
+     * Builds the receipt jsPDF document WITHOUT saving/downloading it.
+     * Returns { doc, receiptId } so callers decide what to do with it.
      */
-    static async generateReceiptPDF(data) {
+    static async _buildReceiptDoc(data) {
         let jsPDF;
         let autoTable;
 
@@ -460,7 +460,7 @@ class PdfGenerator {
             throw new Error("PDF libraries missing. Please run: npm install jspdf jspdf-autotable");
         }
 
-        const doc = new jsPDF({format: 'a4'});
+        const doc = new jsPDF({ format: 'a4' });
         const pageHeight = doc.internal.pageSize.height;
 
         // --- Color Palette ---
@@ -487,8 +487,8 @@ class PdfGenerator {
         doc.setFont("helvetica", "normal");
 
         const now = new Date();
-        const dateStr = now.toLocaleDateString('en-RW', {year: 'numeric', month: 'short', day: '2-digit'});
-        const timeStr = now.toLocaleTimeString('en-RW', {hour: '2-digit', minute: '2-digit'});
+        const dateStr = now.toLocaleDateString('en-RW', { year: 'numeric', month: 'short', day: '2-digit' });
+        const timeStr = now.toLocaleTimeString('en-RW', { hour: '2-digit', minute: '2-digit' });
         const receiptId = data.wcOrderId ? `WC-${data.wcOrderId}` : 'POS-' + Date.now().toString(36).toUpperCase();
 
         // Order Info
@@ -573,16 +573,16 @@ class PdfGenerator {
             styles: {
                 font: 'helvetica',
                 fontSize: 10,
-                cellPadding: {top: 2, bottom: 2, left: 4, right: 4}
+                cellPadding: { top: 2, bottom: 2, left: 4, right: 4 }
             },
             columnStyles: {
-                0: {fontStyle: 'bold', textColor: lightText, cellWidth: 30},
-                1: {cellWidth: 'auto'},
-                2: {halign: 'center', cellWidth: 20},
-                3: {halign: 'right', cellWidth: 35},
-                4: {halign: 'right', fontStyle: 'bold', cellWidth: 35}
+                0: { fontStyle: 'bold', textColor: lightText, cellWidth: 30 },
+                1: { cellWidth: 'auto' },
+                2: { halign: 'center', cellWidth: 20 },
+                3: { halign: 'right', cellWidth: 35 },
+                4: { halign: 'right', fontStyle: 'bold', cellWidth: 35 }
             },
-            margin: {bottom: 35} // Give space for footer
+            margin: { bottom: 35 } // Give space for footer
         });
 
         // --- 4. Totals ---
@@ -606,8 +606,8 @@ class PdfGenerator {
             checkPageOverflow(7); // Check if we have space for a row
             doc.setFont("helvetica", isBold ? "bold" : "normal");
             doc.setTextColor(...color);
-            doc.text(label, pageX - 45, finalY, {align: 'right'});
-            doc.text(`${amount.toLocaleString()} Frw`, pageX, finalY, {align: 'right'});
+            doc.text(label, pageX - 45, finalY, { align: 'right' });
+            doc.text(`${amount.toLocaleString()} Frw`, pageX, finalY, { align: 'right' });
             finalY += 7;
         };
 
@@ -667,12 +667,36 @@ class PdfGenerator {
             doc.setFontSize(9);
             doc.setFont("helvetica", "normal");
             doc.setTextColor(156, 163, 175);
-            doc.text("Thank you for your purchase!", 105, 275, {align: 'center'});
-            doc.text("KIGALI - NYARUGENGE | Street KN 119 ST | Francine's Building, 1st Floor", 105, 280, {align: 'center'});
-            doc.text("BK: 00262-00682142-32 | MoMo: *182*8*1*400056# | Generated securely by Faranux Electronics System", 105, 285, {align: 'center'});
+            doc.text("Thank you for your purchase!", 105, 275, { align: 'center' });
+            doc.text("KIGALI - NYARUGENGE | Street KN 119 ST | Francine's Building, 1st Floor", 105, 280, { align: 'center' });
+            doc.text("BK: 00262-00682142-32 | MoMo: *182*8*1*400056# | Generated securely by Faranux Electronics System", 105, 285, { align: 'center' });
         }
 
-        // --- 6. Output PDF ---
+        return { doc, receiptId };
+    }
+
+    static async printReceiptPDF(data) {
+        const { ipcRenderer } = require('electron');
+        const { doc, receiptId } = await this._buildReceiptDoc(data);
+
+        doc.autoPrint(); // embeds the JS print action the browser's PDF viewer will run
+        const arrayBuffer = doc.output('arraybuffer');
+
+        const result = await ipcRenderer.invoke('open-pdf-in-browser', {
+            buffer: arrayBuffer,
+            filename: `Receipt_${receiptId}.pdf`
+        });
+
+        if (!result || !result.success) {
+            throw new Error(result?.error || 'Failed to open receipt in browser');
+        }
+    }
+
+    /**
+     * Downloads the receipt as a file (previous default "generate" behavior).
+     */
+    static async downloadReceiptPDF(data) {
+        const { doc, receiptId } = await this._buildReceiptDoc(data);
         const pdfBlob = doc.output('blob');
         const blobUrl = URL.createObjectURL(pdfBlob);
 

@@ -31,6 +31,23 @@ let tray = null;
 let isQuitting = false;
 let mainWindow = null;
 
+const fs = require('fs');
+const os = require('os');
+
+let pdfServer = null;
+let pdfServerTimeout = null;
+
+function closePdfServer() {
+    if (pdfServerTimeout) {
+        clearTimeout(pdfServerTimeout);
+        pdfServerTimeout = null;
+    }
+    if (pdfServer) {
+        pdfServer.close();
+        pdfServer = null;
+    }
+}
+
 function cleanupAuthServer() {
     if (authTimeout) {
         clearTimeout(authTimeout);
@@ -282,6 +299,7 @@ if (!gotTheLock) {
 
 app.on('window-all-closed', () => {
     cleanupAuthServer();
+    closePdfServer();
     if (process.platform === 'darwin') {
         app.quit();
     }
@@ -289,13 +307,9 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', async (e) => {
     e.preventDefault();
-
-    // Clean up the tray icon so it doesn't linger in Windows
-    if (tray && !tray.isDestroyed()) {
-        tray.destroy();
-    }
-
+    if (tray && !tray.isDestroyed()) tray.destroy();
     await cleanupAuthServer();
+    closePdfServer();
     app.exit(0);
 });
 
@@ -316,7 +330,7 @@ ipcMain.handle('get-app-version', () => {
 
 ipcMain.handle('get-api-url', () => {
     // This sends the variable you already defined at the top of index.js
-    return API_URL_ENDPOINT; 
+    return API_URL_ENDPOINT;
 });
 
 // Google Login handler
@@ -443,6 +457,50 @@ ipcMain.handle('login-google', async () => {
             shell.openExternal(authUrl);
         });
     });
+});
+
+ipcMain.handle('open-pdf-in-browser', async (event, { buffer, filename }) => {
+    try {
+        closePdfServer(); // close any previous ephemeral server first
+
+        const tempDir = path.join(os.tmpdir(), 'faranux-mis-print');
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+        const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = path.join(tempDir, safeFilename);
+        fs.writeFileSync(filePath, Buffer.from(buffer));
+
+        return await new Promise((resolve) => {
+            pdfServer = http.createServer((req, res) => {
+                res.writeHead(200, {
+                    'Content-Type': 'application/pdf',
+                    'Content-Disposition': `inline; filename="${safeFilename}"`
+                });
+                fs.createReadStream(filePath).pipe(res);
+            });
+
+            pdfServer.on('error', (err) => {
+                resolve({ success: false, error: err.message });
+            });
+
+            pdfServer.listen(0, '127.0.0.1', async () => {
+                const port = pdfServer.address().port;
+                const url = `http://127.0.0.1:${port}/${encodeURIComponent(safeFilename)}`;
+
+                await shell.openExternal(url);
+
+                // Auto-shutdown the ephemeral server after 2 minutes, cleanup temp file
+                pdfServerTimeout = setTimeout(() => {
+                    closePdfServer();
+                    fs.unlink(filePath, () => { });
+                }, 2 * 60 * 1000);
+
+                resolve({ success: true });
+            });
+        });
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
 });
 
 // Handler to manually cancel Google login
