@@ -23,7 +23,7 @@ class TotalsCalculator {
         const feesTotal = fees.reduce((s, f) => s + (parseFloat(f.amount) || 0), 0);
 
         const afterDisc = Math.max(0, subtotal - discount);
-        const preTax    = afterDisc + shippingCost + feesTotal;
+        const preTax = afterDisc + shippingCost + feesTotal;
 
         let taxAmt = 0;
         if (taxOn && taxRate > 0) {
@@ -94,7 +94,7 @@ class CustomerSearch {
                 this.resultsPanel.innerHTML = `<div class="pos-ac-item" style="color:#6b7280;">Use "${q}" as walk-in</div>`;
                 this.resultsPanel.querySelector('.pos-ac-item').addEventListener('click', () => this._selectWalkIn(q));
             }
-        } catch(e) { this.resultsPanel.style.display = 'none'; }
+        } catch (e) { this.resultsPanel.style.display = 'none'; }
     }
 
     _selectItem(data) {
@@ -148,9 +148,6 @@ class OrderSettingsModal {
     }
 
     // --- State Persistence ---
-    // Keeps the settings-modal toggle in sync when live cart gets enabled
-    // programmatically (e.g. from the per-tab eye icon) rather than by the
-    // user clicking this toggle directly.
     setLiveCartEnabledUi(enabled) {
         localStorage.setItem('pos_live_cart_enabled', enabled);
         const toggleEl = this.container.querySelector('#posLiveCartToggleEl');
@@ -160,17 +157,13 @@ class OrderSettingsModal {
     }
 
     loadLocalSettings() {
-        // Clean up old global settings if they exist
         localStorage.removeItem('pos_order_settings');
 
-        // No global settings - everything is per-cart
-        // Reset to defaults until cart-specific settings are loaded
         this.state.fees = [];
         this.state.taxOn = false;
         this.state.taxInclusive = false;
         this.state.taxOnItems = false;
 
-        // Tax rate is fixed globally at 18% by default.
         this.state.selTaxRate = OrderSettingsModal.DEFAULT_TAX_RATE;
         this.state.selTaxName = 'VAT';
         this._syncTaxRateSelectUI();
@@ -182,7 +175,6 @@ class OrderSettingsModal {
         this.container.querySelector('#posShipping').value = '0';
         this.container.querySelector('#posNotes').value = '';
 
-        // Set customer to cashier by default
         const cashierSel = this.container.querySelector('#posCashier');
         if (cashierSel && cashierSel.options.length > 0) {
             const selectedCashierName = cashierSel.options[cashierSel.selectedIndex]?.text || '';
@@ -197,10 +189,10 @@ class OrderSettingsModal {
 
         this._updateTaxUI();
         this._renderFees();
+        this._enableAllInputs();
     }
 
     saveLocalSettings() {
-        // Save all settings per-cart
         if (this.cartId) {
             const data = this.getData();
             const cartSettings = {
@@ -221,6 +213,7 @@ class OrderSettingsModal {
         }
     }
 
+    // FIX: Explicitly set all fields, with defaults for missing values
     loadCartSettings(cartId) {
         if (!cartId) return;
         try {
@@ -228,52 +221,53 @@ class OrderSettingsModal {
             if (savedStr) {
                 const saved = JSON.parse(savedStr);
 
-                // Restore all cart-specific settings
+                // Fees
                 if (saved.fees) this.state.fees = saved.fees;
+
+                // Discount type & raw value
                 if (saved.discountType) this.container.querySelector('#posDiscountType').value = saved.discountType;
-                if (saved.discountRaw) this.container.querySelector('#posDiscountVal').value = saved.discountRaw;
-                if (saved.shipping) this.container.querySelector('#posShipping').value = saved.shipping;
+                this.container.querySelector('#posDiscountVal').value = (saved.discountRaw !== undefined) ? saved.discountRaw : '0';
+
+                // Shipping – explicit default 0
+                this.container.querySelector('#posShipping').value = (saved.shipping !== undefined) ? saved.shipping : '0';
+
                 if (saved.notes) this.container.querySelector('#posNotes').value = saved.notes;
 
-                // Restore tax settings
+                // Tax
                 this.state.taxOn = !!saved.taxOn;
                 this.state.taxInclusive = !!saved.taxInclusive;
                 this.state.taxOnItems = !!saved.taxOnItems;
-
-                // Restore tax rate. This is the single source of truth for
-                // both the internal state and the dropdown UI — see
-                // _syncTaxRateSelectUI() for how a rate that doesn't match
-                // one of the fixed options (18/15/10/5/0) is handled.
                 this.state.selTaxRate = saved.taxRate || OrderSettingsModal.DEFAULT_TAX_RATE;
                 this.state.selTaxName = saved.taxName || 'VAT';
                 this._syncTaxRateSelectUI();
-
                 this._updateTaxUI();
                 this._fireTaxMode();
 
-                // Restore cashier
+                // Cashier (if saved)
                 this.savedCashierId = saved.cashier?.id || null;
                 const cashierSel = this.container.querySelector('#posCashier');
                 if (cashierSel && saved.cashier?.id) {
                     cashierSel.value = saved.cashier.id;
                 }
 
-                // Restore customer
+                // Customer
                 if (saved.customer) {
                     this.container.querySelector('#posCustomerId').value = saved.customer.id || '';
                     this.container.querySelector('#posCustomerSearch').value = saved.customer.name || '';
                     this.container.querySelector('#posCustomerEmail').value = saved.customer.email || '';
+                } else {
+                    // Reset customer to cashier if no saved customer
+                    const cashierName = cashierSel?.options[cashierSel.selectedIndex]?.text || '';
+                    this.container.querySelector('#posCustomerSearch').value = cashierName;
+                    this.container.querySelector('#posCustomerId').value = '';
+                    this.container.querySelector('#posCustomerEmail').value = '';
                 }
-
-                this._renderFees();
-                this.onChange();
             } else {
-                // No saved settings for this cart, use defaults
+                // No saved settings – reset everything to defaults
                 this.state.fees = [];
                 this.state.taxOn = false;
                 this.state.taxInclusive = false;
                 this.state.taxOnItems = false;
-
                 this.state.selTaxRate = OrderSettingsModal.DEFAULT_TAX_RATE;
                 this.state.selTaxName = 'VAT';
                 this._syncTaxRateSelectUI();
@@ -283,32 +277,44 @@ class OrderSettingsModal {
                 this.container.querySelector('#posShipping').value = '0';
                 this.container.querySelector('#posNotes').value = '';
 
-                // Set customer to cashier by default for new carts
+                // Set customer to current cashier
                 const cashierSel = this.container.querySelector('#posCashier');
-                if (cashierSel && cashierSel.options.length > 0) {
-                    const selectedCashierName = cashierSel.options[cashierSel.selectedIndex]?.text || '';
-                    this.container.querySelector('#posCustomerId').value = '';
-                    this.container.querySelector('#posCustomerSearch').value = selectedCashierName;
-                    this.container.querySelector('#posCustomerEmail').value = '';
-                } else {
-                    this.container.querySelector('#posCustomerId').value = '';
-                    this.container.querySelector('#posCustomerSearch').value = '';
-                    this.container.querySelector('#posCustomerEmail').value = '';
-                }
+                const cashierName = cashierSel?.options[cashierSel.selectedIndex]?.text || '';
+                this.container.querySelector('#posCustomerSearch').value = cashierName;
+                this.container.querySelector('#posCustomerId').value = '';
+                this.container.querySelector('#posCustomerEmail').value = '';
 
                 this._updateTaxUI();
-                this._renderFees();
-                this.onChange();
+                this._fireTaxMode();
             }
-        } catch (e) {}
+            this._renderFees();
+            this._updateTaxUI();
+            this._enableAllInputs();
+            this.onChange();
+        } catch (e) { /* ignore */ }
+    }
+
+    // --- Helper to ensure no inputs are disabled ---
+    _enableAllInputs() {
+        const inputs = this.modalEl.querySelectorAll('input, select, textarea, button');
+        inputs.forEach(el => {
+            el.disabled = false;
+            el.removeAttribute('disabled');
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.readOnly = false;
+                el.removeAttribute('readonly');
+            }
+        });
     }
 
     // --- Public API ---
     show() {
         this.modalEl.style.display = 'flex';
         requestAnimationFrame(() => this.modalEl.classList.add('pcm-overlay--in'));
+        // Immediately enable, then again after any queued tasks
+        this._enableAllInputs();
+        setTimeout(() => this._enableAllInputs(), 0);
 
-        // Add Escape key handler
         this._escapeHandler = (e) => {
             if (e.key === 'Escape') {
                 this.hide();
@@ -322,18 +328,12 @@ class OrderSettingsModal {
         setTimeout(() => { this.modalEl.style.display = 'none'; }, 220);
         this.onChange();
 
-        // Remove Escape key handler
         if (this._escapeHandler) {
             document.removeEventListener('keydown', this._escapeHandler);
             this._escapeHandler = null;
         }
     }
 
-    // Tax rate is fixed globally at 18% (previously fetched per-tenant via
-    // API.getTaxRates(); that call has been removed). This rebuilds the
-    // fixed rate dropdown and re-syncs it against whatever rate is
-    // currently in state, so a per-cart custom rate isn't silently
-    // clobbered — see _syncTaxRateSelectUI().
     setTaxRates() {
         this.state.taxRates = [{ name: 'VAT', rate: OrderSettingsModal.DEFAULT_TAX_RATE }];
         const sel = this.container.querySelector('#posTaxRateSelect');
@@ -353,17 +353,9 @@ class OrderSettingsModal {
             this.state.selTaxName = 'VAT';
         }
         this._syncTaxRateSelectUI();
+        this._enableAllInputs();
     }
 
-    // Single source of truth for reflecting this.state.selTaxRate onto the
-    // #posTaxRateSelect dropdown (and the custom-rate input). Previously
-    // each caller (setTaxRates, loadCartSettings, loadLocalSettings, reset)
-    // duplicated this matching logic, and setTaxRates()'s copy didn't
-    // handle the "no match" case — it just called `sel.value = rate`, which
-    // silently no-ops when the rate isn't one of the dropdown's fixed
-    // options. That left the dropdown visually showing 18% while
-    // state.selTaxRate still held the real (custom) rate, so totals didn't
-    // match what the UI displayed.
     _syncTaxRateSelectUI() {
         const sel = this.container.querySelector('#posTaxRateSelect');
         const customInput = this.container.querySelector('#posCustomTaxRate');
@@ -389,7 +381,6 @@ class OrderSettingsModal {
         this.state.staffList = staffList;
         this.state.fallbackMode = fallback;
 
-        // Target either the select OR the fallback input (if recovering from an error)
         let el = this.container.querySelector('#posCashier') || this.container.querySelector('#posCashierInput');
         if (!el) return;
 
@@ -398,10 +389,9 @@ class OrderSettingsModal {
             inp.id = 'posCashierInput'; inp.type = 'text';
             inp.className = 'pos-input';
             inp.placeholder = '⚠️ API Error: Type name manually';
-            inp.style.borderColor = '#EF4444'; // Red error border
+            inp.style.borderColor = '#EF4444';
             el.replaceWith(inp);
         } else {
-            // If it was an input (recovering from fallback), change it back to select
             if (el.tagName === 'INPUT') {
                 const sel = document.createElement('select');
                 sel.id = 'posCashier';
@@ -412,11 +402,10 @@ class OrderSettingsModal {
 
             el.innerHTML = '<option value="">— Select cashier —</option>' +
                 staffList.map(u => `<option value="${u.id}" data-name="${u.display_name}" data-email="${u.email || ''}">${u.display_name}</option>`).join('');
-            el.style.borderColor = ''; // Clear error border
+            el.style.borderColor = '';
 
-            // Auto-select cashier if logged-in email matches
             if (!this.savedCashierId) {
-                const user = window._posUser || null; // Get logged-in user from global
+                const user = window._posUser || null;
                 if (user?.email) {
                     const matchingCashier = staffList.find(s => s.email === user.email);
                     if (matchingCashier) {
@@ -432,11 +421,12 @@ class OrderSettingsModal {
                 this.onChange();
             }
         }
+        this._enableAllInputs();
     }
 
     reset() {
         // Reset all per-cart settings
-        ['posDiscountVal','posNotes','posShipping','posCustomerSearch','posCustomerId','posCustomerEmail'].forEach(id => {
+        ['posDiscountVal', 'posNotes', 'posShipping', 'posCustomerSearch', 'posCustomerId', 'posCustomerEmail'].forEach(id => {
             const el = this.container.querySelector(`#${id}`);
             if (el) el.value = id === 'posDiscountVal' ? '0' : '';
         });
@@ -452,6 +442,7 @@ class OrderSettingsModal {
 
         this._renderFees();
         this._updateTaxUI();
+        this._enableAllInputs();
         this.onChange();
     }
 
@@ -519,14 +510,12 @@ class OrderSettingsModal {
             const customInput = this.container.querySelector('#posCustomTaxRate');
 
             if (value === 'custom') {
-                // Show custom input field
                 if (customInput) {
                     customInput.style.display = 'block';
                     customInput.value = this.state.selTaxRate || OrderSettingsModal.DEFAULT_TAX_RATE;
                     customInput.focus();
                 }
             } else {
-                // Hide custom input field
                 if (customInput) {
                     customInput.style.display = 'none';
                 }
@@ -537,7 +526,6 @@ class OrderSettingsModal {
             }
         });
 
-        // Handle custom tax rate input
         this.container.querySelector('#posCustomTaxRate').addEventListener('input', e => {
             const rate = parseFloat(e.target.value);
             if (!isNaN(rate) && rate >= 0 && rate <= 100) {
@@ -550,7 +538,6 @@ class OrderSettingsModal {
         this.container.querySelector('#posCustomTaxRate').addEventListener('blur', e => {
             const rate = parseFloat(e.target.value);
             if (isNaN(rate) || rate < 0 || rate > 100) {
-                // Revert to default if invalid
                 e.target.value = OrderSettingsModal.DEFAULT_TAX_RATE;
                 this.state.selTaxRate = OrderSettingsModal.DEFAULT_TAX_RATE;
                 this.state.selTaxName = 'VAT';
@@ -561,7 +548,6 @@ class OrderSettingsModal {
         this.container.querySelector('#posTaxOnTotal').addEventListener('change', () => { this.state.taxOnItems = false; this._fireTaxMode(); });
         this.container.querySelector('#posTaxOnItems').addEventListener('change', () => { this.state.taxOnItems = true; this._fireTaxMode(); });
 
-        // Live cart toggle
         const liveCartEnabled = localStorage.getItem('pos_live_cart_enabled') === 'true';
         const liveCartToggleEl = this.container.querySelector('#posLiveCartToggleEl');
         if (liveCartToggleEl) {
@@ -576,20 +562,17 @@ class OrderSettingsModal {
             if (toggleEl) {
                 toggleEl.className = 'pos-toggle' + (newState ? ' on' : '');
             }
-            // Notify parent to enable/disable live cart
             if (this.onLiveCartToggle) {
                 this.onLiveCartToggle(newState);
             }
         });
 
-        // Live cart register ID
         const registerId = localStorage.getItem('pos_live_cart_register_id') || 'till-1';
         const registerInput = this.container.querySelector('#posLiveCartRegisterId');
         if (registerInput) {
             registerInput.value = registerId;
             registerInput.addEventListener('change', () => {
                 localStorage.setItem('pos_live_cart_register_id', registerInput.value || 'till-1');
-                // Notify parent of register ID change
                 if (this.onLiveCartRegisterChange) {
                     this.onLiveCartRegisterChange(registerInput.value || 'till-1');
                 }
@@ -622,7 +605,7 @@ class OrderSettingsModal {
         this.container.querySelector('#posTaxInclEl').className = 'pos-toggle' + (this.state.taxInclusive ? ' on' : '');
         this.container.querySelector('#posTaxInclLabel').textContent = this.state.taxInclusive ? 'Incl' : 'Excl';
 
-        if(this.state.taxOnItems) this.container.querySelector('#posTaxOnItems').checked = true;
+        if (this.state.taxOnItems) this.container.querySelector('#posTaxOnItems').checked = true;
         else this.container.querySelector('#posTaxOnTotal').checked = true;
     }
 
@@ -781,7 +764,6 @@ class POSPaymentPanel {
         this.onPrintQuote = onPrintQuote;
         this._subtotal = 0;
         this.currentCartId = null;
-        // Initialize hardcoded payment methods immediately
         this._methods = [
             { id: 'cod', title: 'Cash' },
             { id: 'momo', title: 'Momo' },
@@ -796,7 +778,6 @@ class POSPaymentPanel {
         this._initModal();
         this._bindEvents();
         this._loadStaff();
-        // Render payment methods immediately since they're hardcoded
         this._renderMethods();
     }
 
@@ -807,23 +788,19 @@ class POSPaymentPanel {
         this.modal = new OrderSettingsModal(
             modalContainer,
             () => {
-                this.modal.saveLocalSettings(); // Save automatically on every interaction
+                this.modal.saveLocalSettings();
                 this._refreshTotals();
             },
             (mode) => this.onTaxModeChange(mode),
-            null // Cart ID will be set when cart is activated
+            null
         );
 
-        // Initialize with the fixed default tax rate
         this.modal.setTaxRates();
-
-        // Restore from storage immediately after initialization
         this.modal.loadLocalSettings();
     }
 
     setCurrentCartId(cartId) {
         this.currentCartId = cartId;
-        // Load per-cart settings for this cart
         if (this.modal) {
             this.modal.cartId = cartId;
             this.modal.loadCartSettings(cartId);
@@ -841,8 +818,6 @@ class POSPaymentPanel {
         }
     }
 
-    // Syncs the settings-modal "Enable Live Cart Display" toggle when the
-    // master flag is flipped from outside the modal (see POSView._toggleLiveCart).
     setLiveCartEnabledUi(enabled) {
         if (this.modal) {
             this.modal.setLiveCartEnabledUi(enabled);
@@ -887,14 +862,11 @@ class POSPaymentPanel {
         });
     }
 
-    // --- External APIs (Called by POSView) ---
+    // --- External APIs ---
     setPaymentMethods(methods) {
-        // Payment methods are hardcoded in constructor, no-op for API calls
-        // This method is kept for compatibility but doesn't change the methods
+        // Hardcoded, no-op
     }
 
-    // Tax rate is fixed globally at 18% — no `rates` argument is accepted
-    // or needed here anymore (previously fetched via API.getTaxRates()).
     setTaxRates() {
         this.modal.setTaxRates();
     }
@@ -918,7 +890,6 @@ class POSPaymentPanel {
             ? `<svg class="pos-spinner-inline" viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Processing…`
             : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15"><polyline points="20 6 9 17 4 12"/></svg> Charge`;
 
-        // Also disable void and quote buttons during processing
         const voidBtn = this.container.querySelector('#posVoidBtn');
         if (voidBtn) voidBtn.disabled = on;
 
@@ -928,11 +899,11 @@ class POSPaymentPanel {
 
     resetForm() {
         this.modal.reset();
-        this._refreshTotals();
-        // Re-apply current cart ID to modal
-        if (this.modal && this.currentCartId) {
+        if (this.currentCartId) {
             this.modal.cartId = this.currentCartId;
+            this.modal.loadCartSettings(this.currentCartId);
         }
+        this._refreshTotals();
     }
 
     // --- UI Rendering ---
@@ -994,7 +965,6 @@ class POSPaymentPanel {
         const calc = TotalsCalculator.calculate({ subtotal: this._subtotal, ...modalData });
         const activeMethod = this.container.querySelector('.pos-method-btn.active');
 
-        // --- VALIDATION BLOCK ---
         if (!activeMethod) {
             return Toast.error('Please select a payment method before charging.');
         }
@@ -1011,12 +981,10 @@ class POSPaymentPanel {
             return Toast.error('Please assign a cashier in the Order Details menu.');
         }
 
-        // --- CUSTOMER OVERRIDE BLOCK ---
         let finalCustomerId = modalData.customer.id;
         let finalCustomerName = modalData.customer.name;
         let finalCustomerEmail = modalData.customer.email;
 
-        // If no customer is assigned or it's left as "Walk-in", fallback to Cashier details
         if (!finalCustomerName || finalCustomerName.toLowerCase() === 'walk-in') {
             finalCustomerId = modalData.cashier.id;
             finalCustomerName = modalData.cashier.name;
@@ -1048,7 +1016,6 @@ class POSPaymentPanel {
             cashierName: modalData.cashier.name,
             cashierEmail: modalData.cashier.email || null,
 
-            // Use the overridden customer variables here
             customerId: finalCustomerId || null,
             customerName: finalCustomerName,
             customerEmail: finalCustomerEmail || null,
@@ -1070,9 +1037,8 @@ class POSPaymentPanel {
             } else {
                 throw new Error('Empty staff response');
             }
-        } catch(e) {
+        } catch (e) {
             console.error('Staff Load Error:', e);
-            // Fallback to text input with the red error styling
             this.modal.setStaff([], true);
         } finally {
             if (refreshBtn) refreshBtn.style.opacity = '1';

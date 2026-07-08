@@ -27,7 +27,6 @@ class POSView {
         this._allLoaded = false;
         this._currentPage = 1;
 
-        // Product cache to prevent reloading on tab focus
         this._productCache = [];
         this._cacheParams = null;
 
@@ -79,12 +78,10 @@ class POSView {
         this._initComponents();
         this._initResizer();
 
-        // Reset loading state like TransfersView does
         this._loadingPage = false;
         this._allLoaded = false;
         this._currentPage = 1;
 
-        // Show loading state on product grid instead of boot spinner
         if (this.productGrid) {
             this.productGrid.showLoading(false);
         }
@@ -183,18 +180,15 @@ class POSView {
             paymentResizeHandle.addEventListener('pointerdown', (e) => this._startResize(e));
         }
 
-        // Set logged-in user globally for cashier auto-selection
         const user = this.state.getUser();
         if (user) {
             window._posUser = user;
         }
 
-        // Live cart display configuration
         this._liveCartRegisterId = localStorage.getItem('pos_live_cart_register_id') || 'till-1';
         this._liveCartEnabled = localStorage.getItem('pos_live_cart_enabled') === 'true';
         this._liveCartIndex = parseInt(localStorage.getItem('pos_live_cart_index') || '-1');
 
-        // Set initial live cart status
         setTimeout(() => {
             this.paymentPanel.setLiveCartStatus(this._liveCartEnabled && this._liveCartIndex >= 0);
         }, 100);
@@ -222,7 +216,6 @@ class POSView {
         this._renderTabs();
         this._activateCart(this._activeCartIdx);
 
-        // Set default customer to cashier for new carts after activation
         if (!snapshots || snapshots.length === 0) {
             this._setDefaultCustomerToCashier();
         }
@@ -291,10 +284,10 @@ class POSView {
         return { id: cartId, name, cart };
     }
 
+    // FIX: Compute next available cart number
     _addCart() {
         if (this._carts.length >= MAX_CARTS) return Toast.info(`Maximum ${MAX_CARTS} carts open at once`);
 
-        // Find next available number
         const usedNumbers = this._carts
             .map(c => parseInt(c.name.replace('Sale ', ''), 10))
             .filter(n => !isNaN(n));
@@ -310,19 +303,16 @@ class POSView {
     }
 
     _removeCart(idx) {
-        // Clean up per-cart settings when cart is removed
         const cartId = this._carts[idx]?.id;
         if (cartId) {
             localStorage.removeItem(`pos_cart_settings_${cartId}`);
         }
 
-        // If removing the live cart, clear the live cart display
         if (this._liveCartIndex === idx) {
             this._liveCartIndex = -1;
             localStorage.setItem('pos_live_cart_index', '-1');
             this._reportLiveCartResult(API.clearLiveCart(this._liveCartRegisterId), 'clear (cart removed)');
         } else if (this._liveCartIndex > idx) {
-            // Adjust live cart index if it's after the removed cart
             this._liveCartIndex--;
             localStorage.setItem('pos_live_cart_index', this._liveCartIndex);
         }
@@ -330,7 +320,6 @@ class POSView {
         if (this._carts.length === 1) {
             this._carts[0].cart.clear();
             this._carts[0].name = 'Sale 1';
-            // Reset cart settings when clearing the only cart
             this.paymentPanel.resetForm();
             this._renderTabs();
             this._activateCart(0);
@@ -399,7 +388,6 @@ class POSView {
         mount.innerHTML = '';
         entry.cart.render(mount);
         this.paymentPanel.updateTotals(entry.cart.getSubtotal(), entry.cart.isEmpty());
-        // Update payment panel with current cart ID for per-cart settings
         this.paymentPanel.setCurrentCartId(entry.id);
     }
 
@@ -408,10 +396,8 @@ class POSView {
     }
 
     async _bootstrap() {
-        // Load branches first to ensure location map is set before products render
         await this._loadBranches();
 
-        // Check cache first before showing loading
         if (this._isCacheValid() && this._productCache.length > 0) {
             this.productGrid.update(this._productCache, false);
             this._currentPage = 1;
@@ -424,11 +410,8 @@ class POSView {
             if (res?.status === 'success') this.filterBar.populateCategories(res.data || []);
         });
 
-        // Tax rate is fixed globally at 18% (no longer fetched via
-        // API.getTaxRates() — see POSPaymentPanel.setTaxRates()).
         this.paymentPanel.setTaxRates();
 
-        // Only fetch products if cache is invalid
         if (!this._isCacheValid() || this._productCache.length === 0) {
             await this._fetchProductsAsync();
         }
@@ -480,7 +463,6 @@ class POSView {
             if (this._branches && this._branches.length > 0) {
                 const locationMap = {};
                 this._branches.forEach(l => {
-                    // Store both string and numeric keys to handle type mismatches
                     locationMap[l.id] = l.name;
                     locationMap[String(l.id)] = l.name;
                     locationMap[Number(l.id)] = l.name;
@@ -491,8 +473,6 @@ class POSView {
                 if (user?.branch_id) {
                     this.productGrid.setFocusBranch(user.branch_id);
 
-                    // --- ON-LOAD CART VALIDATION ---
-                    // Instantly validate carts persisted from LocalStorage to match current branch stock limits
                     try {
                         const res = await API.getBranchStockDictionary(user.branch_id);
                         if (res?.status === 'success') {
@@ -524,7 +504,7 @@ class POSView {
     _reloadProducts() {
         this._allLoaded = false;
         this._currentPage = 1;
-        this._productCache = []; // Clear cache on reload
+        this._productCache = [];
         this._cacheParams = null;
         clearTimeout(this._reloadDebounce);
         this._reloadDebounce = setTimeout(() => this._loadProducts(1, false), 220);
@@ -577,7 +557,6 @@ class POSView {
                     this.productGrid.update(res?.data || [], false);
                     if (1 >= (res?.pagination?.pages || 1)) this._allLoaded = true;
 
-                    // Cache the results
                     this._productCache = res?.data || [];
                     this._updateCacheParams();
                 })
@@ -597,7 +576,6 @@ class POSView {
     async _loadProducts(page, append) {
         if (this._loadingPage && append) return;
 
-        // Use cache if valid and not appending
         if (!append && page === 1 && this._isCacheValid() && this._productCache.length > 0) {
             this.productGrid.update(this._productCache, false);
             this._currentPage = 1;
@@ -633,7 +611,6 @@ class POSView {
 
             this.productGrid.update(products, append);
 
-            // Update cache on first page load
             if (!append && page === 1) {
                 this._productCache = products;
                 this._updateCacheParams();
@@ -700,7 +677,6 @@ class POSView {
             const modalData = this.paymentPanel.modal.getData();
             const user = this.state.getUser();
 
-            // Calculate totals using the same logic as checkout
             const subtotal = cart.getSubtotal();
             const discountRaw = modalData.discountRaw;
             const discountType = modalData.discountType;
@@ -711,7 +687,6 @@ class POSView {
             const taxInclusive = modalData.taxInclusive;
             const taxOnItems = modalData.taxOnItems;
 
-            // Calculate totals
             const discountVal = parseFloat(discountRaw) || 0;
             const discount = discountType === 'percent'
                 ? Math.round(subtotal * discountVal / 100)
@@ -789,41 +764,24 @@ class POSView {
 
     _toggleLiveCart(idx) {
         if (this._liveCartIndex === idx) {
-            // Toggle off
             this._liveCartIndex = -1;
             localStorage.setItem('pos_live_cart_index', '-1');
-            // Clear the live cart
             this._reportLiveCartResult(API.clearLiveCart(this._liveCartRegisterId), 'clear (toggle off cart)');
             this.paymentPanel.setLiveCartStatus(false);
         } else {
-            // Toggle on for this cart
             this._liveCartIndex = idx;
             localStorage.setItem('pos_live_cart_index', idx);
-            // Selecting a cart here implies the feature is on. Without this,
-            // _liveCartEnabled can still be false (e.g. a fresh session that
-            // never touched the settings-modal toggle), which makes every
-            // subsequent _updateLiveCart() call from _onCartChange() a silent
-            // no-op — quantity/add/remove edits stop reaching the display
-            // until the eye is clicked off and on again to force a one-off
-            // update. Keep both flags in sync so live updates just work.
             if (!this._liveCartEnabled) {
                 this._liveCartEnabled = true;
                 localStorage.setItem('pos_live_cart_enabled', 'true');
                 this.paymentPanel.setLiveCartEnabledUi(true);
             }
-            // Update live cart with this cart's data
             this._updateLiveCartForCart(idx);
             this.paymentPanel.setLiveCartStatus(true);
         }
         this._renderTabs();
     }
 
-    // API.request() (see services/api.js) never rejects — on any failure it
-    // resolves with {status: 'error', message}. That means every previous
-    // `.catch(...)` on a live-cart call was dead code that could never run.
-    // This helper actually checks the resolved status so failures (e.g. an
-    // invalid/blocked register_id from the backend) surface in the console
-    // instead of failing silently.
     async _reportLiveCartResult(resultPromise, label) {
         const res = await resultPromise;
         if (!res || res.status === 'error') {
@@ -833,7 +791,6 @@ class POSView {
     }
 
     async _updateLiveCart() {
-        // Only update if this is the live cart
         if (this._liveCartEnabled && this._activeCartIdx === this._liveCartIndex) {
             await this._updateLiveCartForCart(this._activeCartIdx);
         }
@@ -846,10 +803,8 @@ class POSView {
         const cart = cartEntry.cart;
         const items = cart.getItems();
 
-        // Get modal data for this specific cart
         const modalData = this.paymentPanel.modal.getData();
 
-        // Calculate totals
         const subtotal = cart.getSubtotal();
         const discountRaw = modalData.discountRaw;
         const discountType = modalData.discountType;
@@ -915,8 +870,6 @@ class POSView {
         const user = this.state.getUser();
         if (!user?.branch_id) return Toast.error('You must be assigned to a branch to process sales.');
 
-        // --- LIVE CHECKOUT VALIDATION ---
-        // Instantly scans the current database inventory right before the money is processed
         this.paymentPanel.setLoading(true);
         try {
             const res = await API.getBranchStockDictionary(user.branch_id);
@@ -976,7 +929,6 @@ class POSView {
                 this.paymentPanel.resetForm();
                 this._reloadProducts();
 
-                // Clear live cart after successful checkout
                 this._reportLiveCartResult(API.clearLiveCart(this._liveCartRegisterId), 'clear (checkout complete)');
 
                 this.receipt.show({

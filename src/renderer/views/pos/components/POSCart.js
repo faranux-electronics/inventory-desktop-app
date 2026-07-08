@@ -1,21 +1,22 @@
 /**
  * POSCart — cart state + item list rendering
  * Enhanced: Economized space, compact rows, tighter flex layout
+ * Fixed: qty input now accepts multi-digit numbers (no on‑input re‑render)
  */
 class POSCart {
     constructor({ onChange }) {
         this.onChange = onChange;
-        this._items   = [];
-        this._taxOn      = false;
+        this._items = [];
+        this._taxOn = false;
         this._taxOnItems = false;
-        this._taxRate    = 0;
+        this._taxRate = 0;
         this._taxInclusive = false;
     }
 
     setTaxMode({ taxOn, taxOnItems, taxRate, taxInclusive }) {
-        this._taxOn       = taxOn;
-        this._taxOnItems  = taxOnItems;
-        this._taxRate     = taxRate;
+        this._taxOn = taxOn;
+        this._taxOnItems = taxOnItems;
+        this._taxRate = taxRate;
         this._taxInclusive = taxInclusive;
         this._renderItems();
     }
@@ -26,10 +27,10 @@ class POSCart {
         this._renderItems();
     }
 
-    getItems()     { return [...this._items]; }
-    isEmpty()      { return this._items.length === 0; }
+    getItems() { return [...this._items]; }
+    isEmpty() { return this._items.length === 0; }
     getItemCount() { return this._items.reduce((s, i) => s + i.qty, 0); }
-    getSubtotal()  { return this._items.reduce((s, i) => s + i.price * i.qty, 0); }
+    getSubtotal() { return this._items.reduce((s, i) => s + i.price * i.qty, 0); }
 
     clear() {
         this._items = [];
@@ -39,7 +40,6 @@ class POSCart {
 
     restoreItem(item) {
         const restoredItem = { ...item };
-        // Ensure originalPrice is set if not present (for backwards compatibility)
         if (!restoredItem.originalPrice) {
             restoredItem.originalPrice = item.price;
         }
@@ -74,9 +74,7 @@ class POSCart {
     }
 
     addMiscItem({ name, price, qty, notes }) {
-        // Generate a unique ID for miscellaneous items
         const miscId = 'misc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-
         const itemPrice = parseInt(price || 0);
 
         this._items.push({
@@ -86,7 +84,7 @@ class POSCart {
             price: itemPrice,
             originalPrice: itemPrice,
             qty: qty || 1,
-            maxStock: 999999, // No stock limit for misc items
+            maxStock: 999999,
             sku: '',
             isMisc: true,
             notes: notes || ''
@@ -98,12 +96,11 @@ class POSCart {
     }
 
     updateQty(productId, delta) {
-        const idx  = this._items.findIndex(i => String(i.id) === String(productId));
+        const idx = this._items.findIndex(i => String(i.id) === String(productId));
         if (idx === -1) return;
         const item = this._items[idx];
         const next = item.qty + delta;
 
-        // Misc items have unlimited stock, regular items respect maxStock
         if (next <= 0) {
             this._items.splice(idx, 1);
         } else if (!item.isMisc && next > item.maxStock) {
@@ -134,7 +131,6 @@ class POSCart {
     }
 
     _showPriceEditModal(item) {
-        // Remove existing modal if present
         document.getElementById('posPriceEditModalOverlay')?.remove();
 
         const overlay = document.createElement('div');
@@ -200,7 +196,6 @@ class POSCart {
             closeModal();
         });
 
-        // Enter key to confirm
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 overlay.querySelector('#posPriceEditConfirm').click();
@@ -210,21 +205,12 @@ class POSCart {
         });
     }
 
-    /**
-     * Strict Live Validation:
-     * Scans the cart against the exact stock dictionary of the assigned branch.
-     * Decreases quantities or removes items if stock is missing or the branch changed.
-     */
     validateAgainstDictionary(stockDict) {
         let modified = false;
 
         for (let i = this._items.length - 1; i >= 0; i--) {
             const item = this._items[i];
-
-            // Skip misc items - they don't exist in the stock dictionary
-            if (item.isMisc) {
-                continue;
-            }
+            if (item.isMisc) continue;
 
             const linkId = item.wc_product_id || item.id;
             const actualStock = parseInt(stockDict[linkId] || 0);
@@ -256,15 +242,11 @@ class POSCart {
         const el = this._el || document.querySelector('#posCartItems');
         if (!el) return;
 
-        // Save focused qty input ID (and caret position) so we can restore focus after DOM re-render
+        // Save focused qty input ID so we can restore focus after DOM re-render
         let focusedQtyId = null;
-        let focusedSelectionStart = null;
-        let focusedSelectionEnd = null;
         const focusedEl = document.activeElement;
         if (focusedEl && focusedEl.classList.contains('pos-qty-input')) {
             focusedQtyId = String(focusedEl.dataset.id);
-            focusedSelectionStart = focusedEl.selectionStart;
-            focusedSelectionEnd = focusedEl.selectionEnd;
         }
 
         if (!this._items.length) {
@@ -277,16 +259,12 @@ class POSCart {
         }
 
         el.innerHTML = this._items.map(item => {
-            // Show tax-inclusive price when tax is per item and exclusive
-            // For "on total" mode or inclusive tax, always show base price
             const showTaxPrice = this._taxOn && this._taxOnItems && this._taxRate > 0 && !this._taxInclusive;
             const displayPrice = showTaxPrice
                 ? Math.round(item.price * (1 + this._taxRate / 100))
                 : item.price;
-            // Line total uses display price to match the unit price shown
             const lineTotal = displayPrice * item.qty;
 
-            // Show tax label based on tax mode
             const showTaxLabel = this._taxOn && this._taxRate > 0;
             const taxLabel = showTaxLabel
                 ? (this._taxOnItems
@@ -300,7 +278,6 @@ class POSCart {
             const miscBadge = isMisc ? `<span class="pos-misc-badge">Custom</span>` : '';
             const notesDisplay = item.notes ? `<div class="pos-cart-row-notes">${item.notes}</div>` : '';
 
-            // Show price change indicator
             const priceChanged = item.originalPrice && item.price !== item.originalPrice;
             const priceChangeIndicator = priceChanged
                 ? `<span class="pos-price-changed" title="Original: ${item.originalPrice.toLocaleString()} Frw">★</span>`
@@ -335,49 +312,28 @@ class POSCart {
         }).join('');
 
         el.querySelectorAll('.pos-qty-minus').forEach(b => b.addEventListener('click', () => this.updateQty(b.dataset.id, -1)));
-        el.querySelectorAll('.pos-qty-plus').forEach(b  => b.addEventListener('click', () => this.updateQty(b.dataset.id, +1)));
+        el.querySelectorAll('.pos-qty-plus').forEach(b => b.addEventListener('click', () => this.updateQty(b.dataset.id, +1)));
         el.querySelectorAll('.pos-price-editable').forEach(span => {
             span.addEventListener('click', () => {
                 const itemId = span.dataset.id;
                 const item = this._items.find(i => String(i.id) === String(itemId));
                 if (!item) return;
-
                 this._showPriceEditModal(item);
             });
         });
+
+        // FIX: Quantity input now only updates on blur or Enter; no on‑input re‑render
         el.querySelectorAll('.pos-qty-input').forEach(input => {
-            // Some browsers (notably Safari, and Chrome in some cases) auto-select the entire
-            // value of a type="number" input as soon as it receives focus via mouse click.
-            // Prevent that default so a click just places the caret where the user clicked.
-            input.addEventListener('mouseup', (e) => e.preventDefault());
-
-            // Update the displayed line total live as the user types, WITHOUT touching cart
-            // state or triggering a re-render. Re-rendering mid-keystroke (via updateQty on
-            // every 'input' event) was what caused the field to get re-selected on every
-            // character typed. TransferStagingPanel avoids this by only committing on
-            // 'change'/blur, once focus has already left the field - same approach here.
-            input.addEventListener('input', () => {
-                const newQty = parseInt(input.value);
-                const itemId = input.dataset.id;
-                const item = this._items.find(i => String(i.id) === String(itemId));
-                if (!item) return;
-                if (isNaN(newQty) || input.value === '' || newQty < 1) return;
-
-                const row = input.closest('.pos-cart-row');
-                const totalEl = row && row.querySelector('.pos-cart-row-total');
-                if (!totalEl) return;
-
-                const showTaxPrice = this._taxOn && this._taxOnItems && this._taxRate > 0 && !this._taxInclusive;
-                const displayPrice = showTaxPrice
-                    ? Math.round(item.price * (1 + this._taxRate / 100))
-                    : item.price;
-                const cappedQty = item.isMisc ? newQty : Math.min(newQty, item.maxStock);
-                totalEl.textContent = (displayPrice * cappedQty).toLocaleString();
+            // Enter key triggers blur to finalize
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur();
+                }
             });
 
-            // Commit the quantity (and trigger the real re-render) once the user leaves the
-            // field, either by blurring or pressing Enter.
-            const commit = () => {
+            // Finalize on blur
+            input.addEventListener('blur', () => {
                 const newQty = parseInt(input.value);
                 const itemId = input.dataset.id;
                 const item = this._items.find(i => String(i.id) === String(itemId));
@@ -395,28 +351,17 @@ class POSCart {
                     const delta = newQty - item.qty;
                     if (delta !== 0) this.updateQty(itemId, delta);
                 }
-            };
-
-            input.addEventListener('blur', commit);
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    input.blur(); // triggers commit via blur handler above
-                }
             });
         });
-        el.querySelectorAll('.pos-del-btn').forEach(b   => b.addEventListener('click', () => this.updateQty(b.dataset.id, -9999)));
 
-        // Restore focus to the previously-active qty input so keyboard entry continues uninterrupted.
-        // Restore the caret position (not select-all) so typing multi-digit numbers doesn't get
-        // clobbered by each keystroke re-selecting and overwriting the whole value.
+        el.querySelectorAll('.pos-del-btn').forEach(b => b.addEventListener('click', () => this.updateQty(b.dataset.id, -9999)));
+
+        // Restore focus to the previously-active qty input so keyboard entry continues uninterrupted
         if (focusedQtyId) {
             const restored = el.querySelector(`.pos-qty-input[data-id="${focusedQtyId}"]`);
             if (restored) {
                 restored.focus();
-                const len = restored.value.length;
-                const start = focusedSelectionStart !== null ? Math.min(focusedSelectionStart, len) : len;
-                const end = focusedSelectionEnd !== null ? Math.min(focusedSelectionEnd, len) : len;
-                restored.setSelectionRange(start, end);
+                restored.select();
             }
         }
     }
