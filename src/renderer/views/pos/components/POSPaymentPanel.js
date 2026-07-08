@@ -1011,6 +1011,18 @@ class POSPaymentPanel {
             return Toast.error('Please assign a cashier in the Order Details menu.');
         }
 
+        // --- CUSTOMER OVERRIDE BLOCK ---
+        let finalCustomerId = modalData.customer.id;
+        let finalCustomerName = modalData.customer.name;
+        let finalCustomerEmail = modalData.customer.email;
+
+        // If no customer is assigned or it's left as "Walk-in", fallback to Cashier details
+        if (!finalCustomerName || finalCustomerName.toLowerCase() === 'walk-in') {
+            finalCustomerId = modalData.cashier.id;
+            finalCustomerName = modalData.cashier.name;
+            finalCustomerEmail = modalData.cashier.email;
+        }
+
         this.onRequestCheckout({
             paymentMethod: activeMethod?.dataset.title || 'Cash',
             paymentMethodId: activeMethod?.dataset.method || 'cod',
@@ -1036,9 +1048,10 @@ class POSPaymentPanel {
             cashierName: modalData.cashier.name,
             cashierEmail: modalData.cashier.email || null,
 
-            customerId: modalData.customer.id || null,
-            customerName: modalData.customer.name,
-            customerEmail: modalData.customer.email || null,
+            // Use the overridden customer variables here
+            customerId: finalCustomerId || null,
+            customerName: finalCustomerName,
+            customerEmail: finalCustomerEmail || null,
         });
     }
 
