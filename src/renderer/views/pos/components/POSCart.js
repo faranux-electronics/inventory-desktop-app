@@ -256,11 +256,15 @@ class POSCart {
         const el = this._el || document.querySelector('#posCartItems');
         if (!el) return;
 
-        // Save focused qty input ID so we can restore focus after DOM re-render
+        // Save focused qty input ID (and caret position) so we can restore focus after DOM re-render
         let focusedQtyId = null;
+        let focusedSelectionStart = null;
+        let focusedSelectionEnd = null;
         const focusedEl = document.activeElement;
         if (focusedEl && focusedEl.classList.contains('pos-qty-input')) {
             focusedQtyId = String(focusedEl.dataset.id);
+            focusedSelectionStart = focusedEl.selectionStart;
+            focusedSelectionEnd = focusedEl.selectionEnd;
         }
 
         if (!this._items.length) {
@@ -342,38 +346,38 @@ class POSCart {
             });
         });
         el.querySelectorAll('.pos-qty-input').forEach(input => {
-            // Use 'input' event to update line total immediately as user types
-            // Focus restoration ensures field stays focused during re-renders
+            // Some browsers (notably Safari, and Chrome in some cases) auto-select the entire
+            // value of a type="number" input as soon as it receives focus via mouse click.
+            // Prevent that default so a click just places the caret where the user clicked.
+            input.addEventListener('mouseup', (e) => e.preventDefault());
+
+            // Update the displayed line total live as the user types, WITHOUT touching cart
+            // state or triggering a re-render. Re-rendering mid-keystroke (via updateQty on
+            // every 'input' event) was what caused the field to get re-selected on every
+            // character typed. TransferStagingPanel avoids this by only committing on
+            // 'change'/blur, once focus has already left the field - same approach here.
             input.addEventListener('input', () => {
                 const newQty = parseInt(input.value);
                 const itemId = input.dataset.id;
                 const item = this._items.find(i => String(i.id) === String(itemId));
                 if (!item) return;
+                if (isNaN(newQty) || input.value === '' || newQty < 1) return;
 
-                // If empty or partial input, just keep the field as-is (don't force re-render yet)
-                if (isNaN(newQty) || input.value === '') {
-                    return;
-                }
+                const row = input.closest('.pos-cart-row');
+                const totalEl = row && row.querySelector('.pos-cart-row-total');
+                if (!totalEl) return;
 
-                // Only enforce maxStock for non-misc items
-                if (!item.isMisc && newQty > item.maxStock) {
-                    input.value = item.maxStock;
-                    const delta = item.maxStock - item.qty;
-                    if (delta !== 0) this.updateQty(itemId, delta);
-                    return;
-                }
-
-                // Prevent clearing to 0 - minimum is 1
-                if (newQty < 1) {
-                    return;
-                }
-
-                const delta = newQty - item.qty;
-                if (delta !== 0) this.updateQty(itemId, delta);
+                const showTaxPrice = this._taxOn && this._taxOnItems && this._taxRate > 0 && !this._taxInclusive;
+                const displayPrice = showTaxPrice
+                    ? Math.round(item.price * (1 + this._taxRate / 100))
+                    : item.price;
+                const cappedQty = item.isMisc ? newQty : Math.min(newQty, item.maxStock);
+                totalEl.textContent = (displayPrice * cappedQty).toLocaleString();
             });
 
-            // Also handle blur/change to finalize the quantity if user leaves without pressing Enter
-            input.addEventListener('blur', () => {
+            // Commit the quantity (and trigger the real re-render) once the user leaves the
+            // field, either by blurring or pressing Enter.
+            const commit = () => {
                 const newQty = parseInt(input.value);
                 const itemId = input.dataset.id;
                 const item = this._items.find(i => String(i.id) === String(itemId));
@@ -391,16 +395,28 @@ class POSCart {
                     const delta = newQty - item.qty;
                     if (delta !== 0) this.updateQty(itemId, delta);
                 }
+            };
+
+            input.addEventListener('blur', commit);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    input.blur(); // triggers commit via blur handler above
+                }
             });
         });
         el.querySelectorAll('.pos-del-btn').forEach(b   => b.addEventListener('click', () => this.updateQty(b.dataset.id, -9999)));
 
-        // Restore focus to the previously-active qty input so keyboard entry continues uninterrupted
+        // Restore focus to the previously-active qty input so keyboard entry continues uninterrupted.
+        // Restore the caret position (not select-all) so typing multi-digit numbers doesn't get
+        // clobbered by each keystroke re-selecting and overwriting the whole value.
         if (focusedQtyId) {
             const restored = el.querySelector(`.pos-qty-input[data-id="${focusedQtyId}"]`);
             if (restored) {
                 restored.focus();
-                restored.select();
+                const len = restored.value.length;
+                const start = focusedSelectionStart !== null ? Math.min(focusedSelectionStart, len) : len;
+                const end = focusedSelectionEnd !== null ? Math.min(focusedSelectionEnd, len) : len;
+                restored.setSelectionRange(start, end);
             }
         }
     }

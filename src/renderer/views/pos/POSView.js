@@ -78,17 +78,17 @@ class POSView {
         content.innerHTML = this._layoutHTML();
         this._initComponents();
         this._initResizer();
-        
+
         // Reset loading state like TransfersView does
         this._loadingPage = false;
         this._allLoaded = false;
         this._currentPage = 1;
-        
+
         // Show loading state on product grid instead of boot spinner
         if (this.productGrid) {
             this.productGrid.showLoading(false);
         }
-        
+
         this._bootstrap();
     }
 
@@ -169,11 +169,11 @@ class POSView {
             onConfirm: data => this._handleConfirmedCheckout(data), onCancel: () => {
             }
         });
-        this.receipt = new POSReceipt({onNewSale: () => this._startNewSale()});
+        this.receipt = new POSReceipt({ onNewSale: () => this._startNewSale() });
 
         this.miscModal = new POSMiscModal({
             onConfirm: (data) => this._handleAddMiscItem(data),
-            onCancel: () => {}
+            onCancel: () => { }
         });
 
         this._initCartTabs();
@@ -221,13 +221,13 @@ class POSView {
         this._restoredCartSnapshots = null;
         this._renderTabs();
         this._activateCart(this._activeCartIdx);
-        
+
         // Set default customer to cashier for new carts after activation
         if (!snapshots || snapshots.length === 0) {
             this._setDefaultCustomerToCashier();
         }
     }
-    
+
     _setDefaultCustomerToCashier() {
         try {
             const cashierSel = document.querySelector('#posCashier');
@@ -288,18 +288,24 @@ class POSView {
                 this._saveViewState();
             }
         });
-        return {id: cartId, name, cart};
+        return { id: cartId, name, cart };
     }
 
     _addCart() {
         if (this._carts.length >= MAX_CARTS) return Toast.info(`Maximum ${MAX_CARTS} carts open at once`);
-        const newCart = this._createCartEntry(`Sale ${this._carts.length + 1}`);
+
+        // Find next available number
+        const usedNumbers = this._carts
+            .map(c => parseInt(c.name.replace('Sale ', ''), 10))
+            .filter(n => !isNaN(n));
+        let nextNumber = 1;
+        while (usedNumbers.includes(nextNumber)) nextNumber++;
+
+        const newCart = this._createCartEntry(`Sale ${nextNumber}`);
         this._carts.push(newCart);
         this._activeCartIdx = this._carts.length - 1;
         this._renderTabs();
         this._activateCart(this._activeCartIdx);
-        // New cart starts with fresh settings (defaults)
-        // Settings will be loaded by loadCartSettings in _activateCart
         this._saveViewState();
     }
 
@@ -404,7 +410,7 @@ class POSView {
     async _bootstrap() {
         // Load branches first to ensure location map is set before products render
         await this._loadBranches();
-        
+
         // Check cache first before showing loading
         if (this._isCacheValid() && this._productCache.length > 0) {
             this.productGrid.update(this._productCache, false);
@@ -421,7 +427,7 @@ class POSView {
         // Tax rate is fixed globally at 18% (no longer fetched via
         // API.getTaxRates() — see POSPaymentPanel.setTaxRates()).
         this.paymentPanel.setTaxRates();
-        
+
         // Only fetch products if cache is invalid
         if (!this._isCacheValid() || this._productCache.length === 0) {
             await this._fetchProductsAsync();
@@ -570,7 +576,7 @@ class POSView {
                     if (session !== this._syncSession) return;
                     this.productGrid.update(res?.data || [], false);
                     if (1 >= (res?.pagination?.pages || 1)) this._allLoaded = true;
-                    
+
                     // Cache the results
                     this._productCache = res?.data || [];
                     this._updateCacheParams();
@@ -590,7 +596,7 @@ class POSView {
 
     async _loadProducts(page, append) {
         if (this._loadingPage && append) return;
-        
+
         // Use cache if valid and not appending
         if (!append && page === 1 && this._isCacheValid() && this._productCache.length > 0) {
             this.productGrid.update(this._productCache, false);
@@ -626,7 +632,7 @@ class POSView {
             }
 
             this.productGrid.update(products, append);
-            
+
             // Update cache on first page load
             if (!append && page === 1) {
                 this._productCache = products;
@@ -634,7 +640,7 @@ class POSView {
             } else if (append) {
                 this._productCache = [...this._productCache, ...products];
             }
-            
+
             this._currentPage = page;
             if (page >= (res.pagination?.pages || 1)) this._allLoaded = true;
             if (append) this.productGrid.setSyncStatus('done', products.length);
@@ -935,7 +941,7 @@ class POSView {
             return Toast.error(`Insufficient branch stock: ${itemNames}`);
         }
 
-        this.confirmModal.show({...params, items});
+        this.confirmModal.show({ ...params, items });
     }
 
     async _handleConfirmedCheckout(data) {
@@ -951,13 +957,13 @@ class POSView {
 
         const saleItems = cart.getItems();
         const payload = {
-           branch_id: user.branch_id, payment_method: paymentMethod, discount,
-            discount_type: discountType, notes, total, 
+            branch_id: user.branch_id, payment_method: paymentMethod, discount,
+            discount_type: discountType, notes, total,
             tax_rate: taxAmount > 0 ? taxRate : 0,
             tax_name: taxName, tax_inclusive: taxInclusive, tax_on_items: !!taxOnItems,
             tax_amount: taxAmount || 0,
             fees: fees || [], shipping: shipping || 0,
-            items: saleItems.map(i => ({id: i.id, qty: i.qty, price: i.price, name: i.name, branch_id: i.branchId})),
+            items: saleItems.map(i => ({ id: i.id, qty: i.qty, price: i.price, name: i.name, branch_id: i.branchId })),
             cashier_id: cashierId, cashier_name: cashierName, cashier_email: cashierEmail || '',
             customer_id: customerId, customer_name: customerName, customer_email: customerEmail,
         };
