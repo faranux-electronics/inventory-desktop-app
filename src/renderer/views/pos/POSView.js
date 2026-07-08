@@ -951,8 +951,9 @@ class POSView {
 
         const saleItems = cart.getItems();
         const payload = {
-            branch_id: user.branch_id, payment_method: paymentMethod, discount,
-            discount_type: discountType, notes, total, tax_rate: taxRate,
+           branch_id: user.branch_id, payment_method: paymentMethod, discount,
+            discount_type: discountType, notes, total, 
+            tax_rate: taxAmount > 0 ? taxRate : 0,
             tax_name: taxName, tax_inclusive: taxInclusive, tax_on_items: !!taxOnItems,
             tax_amount: taxAmount || 0,
             fees: fees || [], shipping: shipping || 0,
