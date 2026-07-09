@@ -7,6 +7,7 @@ const POSPaymentPanel = require('./components/POSPaymentPanel.js');
 const POSConfirmModal = require('./components/POSConfirmModal.js');
 const POSReceipt = require('./components/POSReceipt.js');
 const POSMiscModal = require('./components/POSMiscModal.js');
+const Modal = require('../../components/Modal.js');
 const PdfGenerator = require('../../utils/PdfGenerator.js');
 
 const DEFAULT_LEFT_PCT = 50;
@@ -41,6 +42,8 @@ class POSView {
         this.miscModal = null;
 
         this._branches = [];
+        this._liveCartDebounceTimer = null;
+        this._liveCartGen = 0;
         this._loadViewState();
     }
 
@@ -363,8 +366,18 @@ class POSView {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
                 const idx = +btn.dataset.idx;
-                if (!this._carts[idx].cart.isEmpty() && !confirm(`Clear "${this._carts[idx].name}" and close this cart?`)) return;
-                this._removeCart(idx);
+                if (this._carts[idx].cart.isEmpty()) {
+                    this._removeCart(idx);
+                    return;
+                }
+                Modal.open({
+                    title: 'Close Cart',
+                    body: `<p>Clear "${this._carts[idx].name}" and close this cart?</p>`,
+                    confirmText: 'Close Cart',
+                    cancelText: 'Keep Cart',
+                    confirmClass: 'btn-danger',
+                    onConfirm: () => this._removeCart(idx)
+                });
             });
         });
 
@@ -657,13 +670,28 @@ class POSView {
     _voidActiveCart() {
         const cart = this._activeCart;
         if (!cart || cart.isEmpty()) return;
-        if (!confirm('Are you sure you want to void the current cart?')) return;
 
-        cart.clear();
-        this.paymentPanel.resetForm();
-        this.paymentPanel.updateTotals(0, true);
-        this._renderTabs();
-        this._saveViewState();
+        Modal.open({
+            title: 'Void Cart',
+            body: '<p>Are you sure you want to void the current cart? This cannot be undone.</p>',
+            confirmText: 'Void Cart',
+            cancelText: 'Cancel',
+            confirmClass: 'btn-danger',
+            onConfirm: () => {
+                clearTimeout(this._liveCartDebounceTimer);
+                this._liveCartGen++;
+
+                cart.clear();
+                this.paymentPanel.resetForm();
+                this.paymentPanel.updateTotals(0, true);
+                this._renderTabs();
+                this._saveViewState();
+
+                if (this._liveCartEnabled && this._activeCartIdx === this._liveCartIndex) {
+                    this._reportLiveCartResult(API.clearLiveCart(this._liveCartRegisterId), 'clear (void)');
+                }
+            }
+        });
     }
 
     async _handlePrintQuote() {
@@ -759,7 +787,12 @@ class POSView {
         if (!entry) return;
         this.paymentPanel.updateTotals(entry.cart.getSubtotal(), items.length === 0);
         this._renderTabs();
-        this._updateLiveCart();
+        this._scheduleLiveCartUpdate();
+    }
+
+    _scheduleLiveCartUpdate() {
+        clearTimeout(this._liveCartDebounceTimer);
+        this._liveCartDebounceTimer = setTimeout(() => this._updateLiveCart(), 300);
     }
 
     _toggleLiveCart(idx) {
@@ -799,6 +832,8 @@ class POSView {
     async _updateLiveCartForCart(idx) {
         const cartEntry = this._carts[idx];
         if (!cartEntry) return;
+
+        const myGen = ++this._liveCartGen;
 
         const cart = cartEntry.cart;
         const items = cart.getItems();
@@ -856,6 +891,9 @@ class POSView {
         };
 
         const res = await API.updateLiveCart(this._liveCartRegisterId, cartData);
+
+        if (myGen !== this._liveCartGen) return;
+
         if (!res || res.status === 'error') {
             console.error('Failed to update live cart:', res?.message || 'unknown error');
             this.paymentPanel.setLiveCartStatus(false);

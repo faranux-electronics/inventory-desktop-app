@@ -3,6 +3,8 @@
  * Enhanced: Economized space, compact rows, tighter flex layout
  * Fixed: qty input now accepts multi-digit numbers (no on‑input re‑render)
  */
+const Modal = require('../../../components/Modal.js');
+
 class POSCart {
     constructor({ onChange }) {
         this.onChange = onChange;
@@ -179,6 +181,7 @@ class POSCart {
         input.select();
 
         const closeModal = () => {
+            overlay.style.pointerEvents = 'none';
             overlay.classList.remove('pos-price-edit-overlay--in');
             setTimeout(() => overlay.remove(), 220);
         };
@@ -189,7 +192,13 @@ class POSCart {
         overlay.querySelector('#posPriceEditConfirm').addEventListener('click', () => {
             const newPrice = parseInt(input.value);
             if (isNaN(newPrice) || newPrice < 0) {
-                alert('Please enter a valid price');
+                Modal.open({
+                    title: 'Invalid Price',
+                    body: '<p>Please enter a valid price.</p>',
+                    confirmText: 'OK',
+                    cancelText: '',
+                    onConfirm: () => input.focus()
+                });
                 return;
             }
             this.updatePrice(item.id, newPrice);
