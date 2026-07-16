@@ -167,7 +167,7 @@ if (!gotTheLock) {
         app.setLoginItemSettings({
             openAtLogin: true,
             openAsHidden: true,
-            name: 'Faranux MIS',
+            name: 'Faranux ERP',
             args: ['--autostart']
         });
 
@@ -176,7 +176,7 @@ if (!gotTheLock) {
         tray = new Tray(iconPath);
 
         const contextMenu = Menu.buildFromTemplate([
-            { label: 'Show Faranux MIS', click: () => mainWindow.show() },
+            { label: 'Show Faranux ERP', click: () => mainWindow.show() },
             { type: 'separator' },
             {
                 label: 'Quit',
@@ -187,7 +187,7 @@ if (!gotTheLock) {
             }
         ]);
 
-        tray.setToolTip('Faranux MIS');
+        tray.setToolTip('Faranux ERP');
         tray.setContextMenu(contextMenu);
 
         tray.on('click', () => {

@@ -12,13 +12,16 @@ class LocalProductCardBuilder {
         const localStock = parseInt(p.stock_quantity || 0);
         const wcStock = parseInt(p.wc_stock_quantity || 0);
         const isOOS = localStock <= 0;
+        const isTransferable = isOOS && wcStock > 0;
         const isLow = localStock > 0 && localStock <= 5;
         const isBackordered = p.stock_status === 'onbackorder';
         const onSale = !!p.on_sale;
         const feat = !!p.featured;
 
         const div = document.createElement('div');
-        div.className = 'lpg-row' + (isOOS ? ' lpg-row--oos' : '');
+        div.className = 'lpg-row'
+            + (isOOS && !isTransferable ? ' lpg-row--oos' : '')
+            + (isTransferable ? ' lpg-row--transferable' : '');
         div.dataset.id = p.id;
 
         // ── Thumbnail ──────────────────────────────────────────────────────
@@ -37,6 +40,8 @@ class LocalProductCardBuilder {
         let primaryBadge;
         if (isBackordered) {
             primaryBadge = `<span class="lpg-badge lpg-badge--backorder">Backorder</span>`;
+        } else if (isTransferable) {
+            primaryBadge = `<span class="lpg-badge lpg-badge--transferable">Transferable</span>`;
         } else if (isOOS) {
             primaryBadge = `<span class="lpg-badge lpg-badge--oos">Out of Stock</span>`;
         } else if (isLow) {
@@ -49,16 +54,33 @@ class LocalProductCardBuilder {
 
         // ── Branch breakdown badges ────────────────────────────────────────
         let breakdownHtml = '';
+        const branchStocks = {};
+        const breakdown = [];
+
         if (p.stock_breakdown) {
-            const badges = p.stock_breakdown.toString().split(',').map(pair => {
+            p.stock_breakdown.toString().split(',').forEach(pair => {
                 const colonIdx = pair.lastIndexOf(':');
-                if (colonIdx === -1) return '';
+                if (colonIdx === -1) return;
                 const lid = pair.substring(0, colonIdx).trim();
                 const qty = parseInt(pair.substring(colonIdx + 1).trim() || 0);
+                branchStocks[lid] = qty;
+                breakdown.push({ lid, qty });
+            });
+        }
+
+        // Ensure focus branch is included even if missing from breakdown (shows as 0)
+        if (focusBranchId && !branchStocks.hasOwnProperty(String(focusBranchId)) && !branchStocks.hasOwnProperty(Number(focusBranchId))) {
+            breakdown.push({ lid: String(focusBranchId), qty: 0 });
+            branchStocks[String(focusBranchId)] = 0;
+        }
+
+        if (breakdown.length > 0) {
+            const badges = breakdown.map(({ lid, qty }) => {
                 // Try both string and numeric ID for location lookup
                 const name = locationMap[lid] || locationMap[String(lid)] || locationMap[Number(lid)] || `#${esc(lid)}`;
                 const isFocus = focusBranchId && String(lid) === String(focusBranchId);
 
+                // Always show focus branch even if qty is 0 (important for transferable items)
                 if (qty === 0 && !isFocus) return '';
 
                 let cls = 'lpg-branch-badge';
@@ -286,7 +308,7 @@ class LocalProductGrid {
         }
     }
 
-    showEmpty(msg = 'No products found.') {
+    showEmpty(msg = 'No products found. Check your filters or search query.') {
         this._list.innerHTML = `
             <div class="lpg-state">
                 <svg viewBox="0 0 24 24" fill="none" stroke="rgba(36,59,83,.25)" stroke-width="1.5" width="36">

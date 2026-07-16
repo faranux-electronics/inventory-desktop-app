@@ -6,8 +6,9 @@
 const Modal = require('../../../components/Modal.js');
 
 class POSCart {
-    constructor({ onChange }) {
+    constructor({ onChange, onRequestTransfer }) {
         this.onChange = onChange;
+        this.onRequestTransfer = onRequestTransfer;
         this._items = [];
         this._taxOn = false;
         this._taxOnItems = false;
@@ -30,6 +31,7 @@ class POSCart {
     }
 
     getItems() { return [...this._items]; }
+    getTransferableItems() { return this._items.filter(i => i.isTransferable); }
     isEmpty() { return this._items.length === 0; }
     getItemCount() { return this._items.reduce((s, i) => s + i.qty, 0); }
     getSubtotal() { return this._items.reduce((s, i) => s + i.price * i.qty, 0); }
@@ -50,14 +52,22 @@ class POSCart {
 
     addProduct(product, qty = 1) {
         const localStock = parseInt(product.stock_quantity || 0);
+        const poolStock = parseInt(product.wc_stock_quantity || 0);
 
-        if (localStock <= 0) return false;
+        // Truly unavailable: nothing at this branch AND nothing in the pool to transfer
+        if (localStock <= 0 && poolStock <= 0) return false;
+
+        const isTransferable = localStock <= 0; // local is 0, but pool has stock — sellable pending transfer
+        const cap = isTransferable ? poolStock : localStock;
 
         const ex = this._items.find(i => i.id === product.id);
         if (ex) {
             const next = ex.qty + qty;
-            if (next > ex.maxStock) return 'max';
+            if (next > (ex.isTransferable ? poolStock : ex.maxStock)) return 'max';
             ex.qty = next;
+            ex.isTransferable = isTransferable;
+            ex.maxStock = cap;
+            if (isTransferable) ex.stockBreakdown = product.stock_breakdown || '';
         } else {
             this._items.push({
                 id: product.id,
@@ -66,8 +76,10 @@ class POSCart {
                 price: parseInt(product.price || 0),
                 originalPrice: parseInt(product.price || 0),
                 qty,
-                maxStock: localStock,
+                maxStock: cap,
                 sku: product.sku || '',
+                isTransferable,
+                stockBreakdown: isTransferable ? (product.stock_breakdown || '') : '',
             });
         }
         this._renderItems();
@@ -224,16 +236,28 @@ class POSCart {
             const linkId = item.wc_product_id || item.id;
             const actualStock = parseInt(stockDict[linkId] || 0);
 
-            if (item.maxStock !== actualStock) {
-                item.maxStock = actualStock;
-                modified = true;
+            // Transfer has landed — item now has real local stock, no longer "pending"
+            if (item.isTransferable && actualStock > 0) {
+                // If enough local stock arrived to cover the requested quantity, graduate it fully
+                if (actualStock >= item.qty) {
+                    item.isTransferable = false;
+                    modified = true;
+                }
             }
 
-            if (item.qty > actualStock) {
-                item.qty = actualStock;
-                modified = true;
+            if (!item.isTransferable) {
+                if (item.maxStock !== actualStock) {
+                    item.maxStock = actualStock;
+                    modified = true;
+                }
+
+                if (item.qty > actualStock) {
+                    item.qty = actualStock;
+                    modified = true;
+                }
             }
 
+            // Remove items that have been clamped to 0
             if (item.qty <= 0) {
                 this._items.splice(i, 1);
                 modified = true;
@@ -267,7 +291,16 @@ class POSCart {
             return;
         }
 
-        el.innerHTML = this._items.map(item => {
+        const pendingTransferItems = this._items.filter(i => i.isTransferable);
+        const transferBanner = pendingTransferItems.length > 0 ? `
+            <div class="pos-transfer-banner">
+                <div class="pos-transfer-banner-text">
+                    <strong>${pendingTransferItems.length}</strong> item${pendingTransferItems.length > 1 ? 's' : ''} awaiting transfer to your branch
+                </div>
+                <button class="pos-transfer-banner-btn" id="posRequestTransferBtn">Request Transfer</button>
+            </div>` : '';
+
+        el.innerHTML = transferBanner + this._items.map(item => {
             const showTaxPrice = this._taxOn && this._taxOnItems && this._taxRate > 0 && !this._taxInclusive;
             const displayPrice = showTaxPrice
                 ? Math.round(item.price * (1 + this._taxRate / 100))
@@ -282,9 +315,13 @@ class POSCart {
                 : '';
 
             const isMisc = item.isMisc;
-            const stockLabel = isMisc ? 'Unlimited' : item.maxStock;
+            const isPendingTransfer = !isMisc && item.isTransferable;
+            const stockLabel = isMisc ? 'Unlimited' : (isPendingTransfer ? `${item.maxStock} (other branch)` : item.maxStock);
             const skuLabel = isMisc ? 'Custom' : (item.sku || 'N/A');
             const miscBadge = isMisc ? `<span class="pos-misc-badge">Custom</span>` : '';
+            const transferBadge = isPendingTransfer
+                ? `<span class="pos-transfer-badge" title="Not yet in stock at your branch — pending incoming transfer">Pending Transfer</span>`
+                : '';
             const notesDisplay = item.notes ? `<div class="pos-cart-row-notes">${item.notes}</div>` : '';
 
             const priceChanged = item.originalPrice && item.price !== item.originalPrice;
@@ -295,11 +332,12 @@ class POSCart {
             const priceDisplay = `<span class="pos-price-editable" data-id="${item.id}" title="Click to edit price">${displayPrice.toLocaleString()} Frw</span>${priceChangeIndicator}`;
 
             return `
-<div class="pos-cart-row ${isMisc ? 'pos-cart-row--misc' : ''}" data-id="${item.id}">
+<div class="pos-cart-row ${isMisc ? 'pos-cart-row--misc' : ''} ${isPendingTransfer ? 'pos-cart-row--transfer' : ''}" data-id="${item.id}">
     <div class="pos-cart-row-info">
         <div class="pos-cart-row-name-line">
             <span class="pos-cart-row-name" title="${item.name}">${item.name}</span>
             ${miscBadge}
+            ${transferBadge}
         </div>
         <div class="pos-cart-row-meta">
             ${isMisc ? '' : `${item.sku ? `SKU: ${item.sku} · ` : ''}`}${priceDisplay}${taxLabel}
@@ -319,6 +357,11 @@ class POSCart {
     </div>
 </div>`;
         }).join('');
+
+        const requestTransferBtn = el.querySelector('#posRequestTransferBtn');
+        if (requestTransferBtn && this.onRequestTransfer) {
+            requestTransferBtn.addEventListener('click', () => this.onRequestTransfer(pendingTransferItems));
+        }
 
         el.querySelectorAll('.pos-qty-minus').forEach(b => b.addEventListener('click', () => this.updateQty(b.dataset.id, -1)));
         el.querySelectorAll('.pos-qty-plus').forEach(b => b.addEventListener('click', () => this.updateQty(b.dataset.id, +1)));

@@ -1,6 +1,7 @@
 const Toast = require('../../components/Toast.js');
 const API = require('../../services/api.js');
 const POSFilterBar = require('./components/POSFilterBar.js');
+const POSProductLoader = require('./components/POSProductLoader.js');
 const LocalProductGrid = require('../transfer/components/LocalProductGrid.js');
 const POSCart = require('./components/POSCart.js');
 const POSPaymentPanel = require('./components/POSPaymentPanel.js');
@@ -24,12 +25,12 @@ class POSView {
         this._category = '';
         this._stockFilter = 'all';
         this._featured = false;
-        this._loadingPage = false;
-        this._allLoaded = false;
-        this._currentPage = 1;
 
-        this._productCache = [];
-        this._cacheParams = null;
+        this.productLoader = new POSProductLoader({
+            api: API,
+            getUser: () => this.state.getUser(),
+            productGrid: null // wired up in _initComponents() once the grid exists
+        });
 
         this._carts = [];
         this._activeCartIdx = 0;
@@ -81,9 +82,7 @@ class POSView {
         this._initComponents();
         this._initResizer();
 
-        this._loadingPage = false;
-        this._allLoaded = false;
-        this._currentPage = 1;
+        this.productLoader.resetPaging();
 
         if (this.productGrid) {
             this.productGrid.showLoading(false);
@@ -127,7 +126,8 @@ class POSView {
                 this._category = f.category;
                 this._stockFilter = f.stockFilter;
                 this._featured = f.featured;
-                this._reloadProducts();
+                this.productLoader.setFilters(f);
+                this.productLoader.reload();
                 this._saveViewState();
             },
             onAddMisc: () => this._showMiscModal()
@@ -136,9 +136,14 @@ class POSView {
 
         this.productGrid = new LocalProductGrid({
             onSelect: product => this._handleAddToCart(product),
-            onScrollEnd: () => this._loadMoreProducts()
+            onScrollEnd: () => this.productLoader.loadMore()
         });
         this.productGrid.render(document.getElementById('posGridMount'));
+        this.productLoader.productGrid = this.productGrid;
+        this.productLoader.setFilters({
+            query: this._query, category: this._category,
+            stockFilter: this._stockFilter, featured: this._featured
+        });
 
         this.paymentPanel = new POSPaymentPanel({
             onRequestCheckout: params => this._handleRequestCheckout(params),
@@ -227,12 +232,15 @@ class POSView {
     _setDefaultCustomerToCashier() {
         try {
             const cashierSel = document.querySelector('#posCashier');
-            if (cashierSel && cashierSel.options.length > 0) {
-                const selectedCashierName = cashierSel.options[cashierSel.selectedIndex]?.text || '';
+            
+            if (cashierSel && cashierSel.value) {
+                const opt = cashierSel.options[cashierSel.selectedIndex];
                 const customerSearch = document.querySelector('#posCustomerSearch');
-                if (customerSearch) {
-                    customerSearch.value = selectedCashierName;
-                }
+                const customerId = document.querySelector('#posCustomerId');
+                const customerEmail = document.querySelector('#posCustomerEmail');
+                if (customerSearch) customerSearch.value = opt?.text || '';
+                if (customerId) customerId.value = cashierSel.value;
+                if (customerEmail) customerEmail.value = opt?.dataset?.email || '';
             }
         } catch (e) {
             console.error('Failed to set default customer to cashier:', e);
@@ -282,7 +290,8 @@ class POSView {
             onChange: items => {
                 this._onCartChange(items);
                 this._saveViewState();
-            }
+            },
+            onRequestTransfer: items => this._handleRequestTransfer(items)
         });
         return { id: cartId, name, cart };
     }
@@ -411,13 +420,8 @@ class POSView {
     async _bootstrap() {
         await this._loadBranches();
 
-        if (this._isCacheValid() && this._productCache.length > 0) {
-            this.productGrid.update(this._productCache, false);
-            this._currentPage = 1;
-            this._allLoaded = true;
-        } else {
-            this._showBootSpinner();
-        }
+        const servedFromCache = this.productLoader.renderFromCacheIfValid();
+        if (!servedFromCache) this._showBootSpinner();
 
         const catPromise = API.getCategories().then(res => {
             if (res?.status === 'success') this.filterBar.populateCategories(res.data || []);
@@ -425,8 +429,9 @@ class POSView {
 
         this.paymentPanel.setTaxRates();
 
-        if (!this._isCacheValid() || this._productCache.length === 0) {
-            await this._fetchProductsAsync();
+        if (!servedFromCache) {
+            await this.productLoader.fetchInitial();
+            this._hideBootSpinner();
         }
 
         await catPromise;
@@ -511,139 +516,6 @@ class POSView {
         } catch (e) {
             console.warn('POS: branch load failed', e);
             this._branches = [];
-        }
-    }
-
-    _reloadProducts() {
-        this._allLoaded = false;
-        this._currentPage = 1;
-        this._productCache = [];
-        this._cacheParams = null;
-        clearTimeout(this._reloadDebounce);
-        this._reloadDebounce = setTimeout(() => this._loadProducts(1, false), 220);
-    }
-
-    _isCacheValid() {
-        if (!this._cacheParams) return false;
-        const user = this.state.getUser();
-        const branchId = user?.branch_id || '';
-        return (
-            this._cacheParams.query === this._query &&
-            this._cacheParams.category === this._category &&
-            this._cacheParams.stockFilter === this._stockFilter &&
-            this._cacheParams.featured === this._featured &&
-            this._cacheParams.branchId === branchId
-        );
-    }
-
-    _updateCacheParams() {
-        const user = this.state.getUser();
-        const branchId = user?.branch_id || '';
-        this._cacheParams = {
-            query: this._query,
-            category: this._category,
-            stockFilter: this._stockFilter,
-            featured: this._featured,
-            branchId: branchId
-        };
-    }
-
-    async _loadMoreProducts() {
-        if (this._loadingPage || this._allLoaded) return;
-        await this._loadProducts(this._currentPage + 1, true);
-    }
-
-    _fetchProductsAsync() {
-        return new Promise(resolve => {
-            this._currentPage = 1;
-            this._allLoaded = false;
-
-            const session = this._syncSession = (this._syncSession || 0) + 1;
-            this.productGrid.showLoading(false);
-
-            const user = this.state.getUser();
-            const branchId = user?.branch_id || '';
-
-            API.posGetInventory(1, this._query, branchId, this._category, this._stockFilter, this._featured)
-                .then(res => {
-                    if (session !== this._syncSession) return;
-                    this.productGrid.update(res?.data || [], false);
-                    if (1 >= (res?.pagination?.pages || 1)) this._allLoaded = true;
-
-                    this._productCache = res?.data || [];
-                    this._updateCacheParams();
-                })
-                .catch(e => {
-                    if (session === this._syncSession) this.productGrid.showError(`Error: ${e.message}`);
-                })
-                .finally(() => {
-                    if (session === this._syncSession) {
-                        this._loadingPage = false;
-                        this._hideBootSpinner();
-                    }
-                    resolve();
-                });
-        });
-    }
-
-    async _loadProducts(page, append) {
-        if (this._loadingPage && append) return;
-
-        if (!append && page === 1 && this._isCacheValid() && this._productCache.length > 0) {
-            this.productGrid.update(this._productCache, false);
-            this._currentPage = 1;
-            this._allLoaded = true;
-            return;
-        }
-
-        this._syncSession = (this._syncSession || 0) + 1;
-        const currentSession = this._syncSession;
-
-        if (append) this.productGrid.setSyncStatus('syncing');
-        else this.productGrid.showLoading(false);
-
-        this._loadingPage = true;
-        const user = this.state.getUser();
-        const branchId = user?.branch_id || '';
-
-        try {
-            const res = await API.posGetInventory(page, this._query, branchId, this._category, this._stockFilter, this._featured);
-            if (currentSession !== this._syncSession) return;
-
-            if (res.status !== 'success') {
-                if (!append) this.productGrid.showError(res.message || 'Failed to load products.');
-                return;
-            }
-
-            const products = res.data || [];
-            if (products.length === 0) {
-                if (!append) this.productGrid.showEmpty();
-                this._allLoaded = true;
-                return;
-            }
-
-            this.productGrid.update(products, append);
-
-            if (!append && page === 1) {
-                this._productCache = products;
-                this._updateCacheParams();
-            } else if (append) {
-                this._productCache = [...this._productCache, ...products];
-            }
-
-            this._currentPage = page;
-            if (page >= (res.pagination?.pages || 1)) this._allLoaded = true;
-            if (append) this.productGrid.setSyncStatus('done', products.length);
-
-        } catch (e) {
-            if (currentSession === this._syncSession && !append) {
-                this.productGrid.showError(`Error: ${e.message}`);
-            }
-        } finally {
-            if (currentSession === this._syncSession) {
-                this._loadingPage = false;
-                if (page === 1) this._hideBootSpinner();
-            }
         }
     }
 
@@ -775,11 +647,76 @@ class POSView {
         const cart = this._activeCart;
         if (!cart) return;
 
+        const localStock = parseInt(product.stock_quantity || 0);
+        const wcStock = parseInt(product.wc_stock_quantity || 0);
+        const isTransferable = localStock <= 0 && wcStock > 0;
+
         const result = cart.addProduct(product);
-        if (result === false) return Toast.error('No stock available in your branch for this item');
-        if (result === 'max') return Toast.error(`Max branch stock reached`);
+        if (result === false) return Toast.error('No stock available for this item');
+        if (result === 'max') return Toast.error(isTransferable ? 'Max transferable stock reached' : `Max branch stock reached`);
+
+        if (isTransferable) {
+            Toast.info(`Added "${product.name}" — pending transfer, not yet in stock at your branch`);
+        }
 
         this.productGrid.flash(product.id);
+    }
+
+    /**
+     * Opens ONE consolidated transfer-request modal covering every item in
+     * the active cart that's still pending an incoming transfer. TODO: wire
+     * the confirm handler to the actual transfer-creation endpoint/component
+     * (see TransferManager) once confirmed — this currently drafts the
+     * request and surfaces intent via a toast.
+     */
+    _handleRequestTransfer(items) {
+        if (!items || items.length === 0) return;
+
+        const branchMap = {};
+        (this._branches || []).forEach(b => { branchMap[String(b.id)] = b.name; });
+
+        const parseBreakdown = (breakdown) => (breakdown || '').toString().split(',')
+            .map(pair => {
+                const idx = pair.lastIndexOf(':');
+                if (idx === -1) return null;
+                const locId = pair.substring(0, idx).trim();
+                const qty = parseInt(pair.substring(idx + 1).trim() || 0);
+                return { locId, qty };
+            })
+            .filter(b => b && b.qty > 0);
+
+        const rowsHtml = items.map((item, i) => {
+            const branches = parseBreakdown(item.stockBreakdown);
+            const optionsHtml = branches.map(b =>
+                `<option value="${b.locId}">${branchMap[String(b.locId)] || ('Branch #' + b.locId)} (${b.qty} available)</option>`
+            ).join('');
+
+            return `
+                <div class="pos-transfer-request-row" data-idx="${i}">
+                    <div class="pos-transfer-request-name">${item.name}</div>
+                    <div class="pos-transfer-request-fields">
+                        <select class="pos-transfer-source" data-idx="${i}">${optionsHtml}</select>
+                        <input class="pos-transfer-qty" data-idx="${i}" type="number" min="1" value="${item.qty}" style="width:70px;">
+                    </div>
+                </div>`;
+        }).join('');
+
+        Modal.open({
+            title: `Request Transfer (${items.length} item${items.length > 1 ? 's' : ''})`,
+            body: `<div class="pos-transfer-request-list">${rowsHtml}</div>`,
+            confirmText: 'Request Transfer',
+            cancelText: 'Cancel',
+            onConfirm: () => {
+                const requests = items.map((item, i) => {
+                    const sourceBranch = document.querySelector(`.pos-transfer-source[data-idx="${i}"]`)?.value;
+                    const qty = parseInt(document.querySelector(`.pos-transfer-qty[data-idx="${i}"]`)?.value || item.qty);
+                    return { product_id: item.id, name: item.name, from_branch: sourceBranch, qty };
+                });
+                // TODO: replace with the real batched transfer-creation call, e.g.:
+                // API.createTransferRequest({ to_branch: this.state.getUser()?.branch_id, items: requests })
+                Toast.info(`Transfer request drafted for ${requests.length} item(s)`);
+            }
+        });
     }
 
     _onCartChange(items) {
@@ -926,6 +863,15 @@ class POSView {
         this.paymentPanel.setLoading(false);
 
         const items = cart.getItems();
+
+        // Hard stop: nothing pending an incoming transfer may be charged, even if
+        // validateAgainstDictionary above didn't need to change anything.
+        const stillPendingTransfer = items.filter(i => i.isTransferable);
+        if (stillPendingTransfer.length > 0) {
+            const names = stillPendingTransfer.map(i => i.name).join(', ');
+            return Toast.error(`Cannot charge — still awaiting transfer to your branch: ${names}`);
+        }
+
         const invalidItems = items.filter(item => item.qty > item.maxStock);
         if (invalidItems.length > 0) {
             const itemNames = invalidItems.map(i => `${i.name} (qty: ${i.qty}, branch stock: ${i.maxStock})`).join(', ');
@@ -965,7 +911,7 @@ class POSView {
                 const wcOrderId = res.wc_order_id || null;
                 cart.clear();
                 this.paymentPanel.resetForm();
-                this._reloadProducts();
+                this.productLoader.reload();
 
                 this._reportLiveCartResult(API.clearLiveCart(this._liveCartRegisterId), 'clear (checkout complete)');
 

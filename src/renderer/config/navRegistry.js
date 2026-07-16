@@ -5,15 +5,15 @@
  */
 const NAV_ITEMS = [
     {
-        key: 'transfers',
-        label: 'Transfers',
-        icon: 'fa-truck-arrow-right',
-        defaultRoles: ['admin', 'manager', 'cashier'],
-    },
-    {
         key: 'pos',
         label: 'Point of Sale',
         icon: 'fa-cash-register',
+        defaultRoles: ['admin', 'manager', 'cashier'],
+    },
+    {
+        key: 'transfers',
+        label: 'Transfers',
+        icon: 'fa-truck-arrow-right',
         defaultRoles: ['admin', 'manager', 'cashier'],
     },
     {

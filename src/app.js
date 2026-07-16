@@ -1,5 +1,5 @@
 // Main Application Entry Point
-const {ipcRenderer} = require('electron');
+const { ipcRenderer } = require('electron');
 const Sidebar = require('./src/renderer/components/Sidebar.js');
 const Toast = require('./src/renderer/components/Toast.js');
 const State = require('./src/renderer/services/state.js');
@@ -34,11 +34,11 @@ class App {
             login: new LoginView(this),
             products: new ProductsView(this),
             branches: new BranchesView(this),
+            pos: new PosView(this),
             transfers: new TransfersView(this),
             import: new ImportView(this),
             profile: new ProfileView(this),
             access: new AccessView(this),
-            pos: new PosView(this),
             logs: new LogsView(this),
             nots: new NotsView(this)
         };
@@ -50,7 +50,7 @@ class App {
         const user = this.state.getUser();
         if (user) {
             await this.renderApp(user);
-            await this.navigate('transfers');
+            await this.navigate('pos');
         } else {
             this.navigate('login');
         }
@@ -108,12 +108,12 @@ class App {
             }
             if (!document.querySelector('.sidebar')) await this.renderApp(user);
             this.sidebar.setActive(viewName);
-            
+
             // Ensure nav permissions are loaded before rendering views that depend on them
-            if (viewName === 'transfers') {
+            if (viewName === 'pos') {
                 await this.ensureNavPermissionsLoaded();
             }
-            
+
             view.render();
         }
     }

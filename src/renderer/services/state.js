@@ -61,6 +61,7 @@ class StateManager {
         if (stockFilter && stockFilter !== 'all') {
             results = results.filter(p => {
                 const stock  = parseInt(p.stock_quantity || 0);
+                const wcStock = parseInt(p.wc_stock_quantity || 0);
                 // Change 'const' to 'let' so we can modify it
                 let status = p.stock_status || (stock > 0 ? 'instock' : 'outofstock');
 
@@ -70,9 +71,10 @@ class StateManager {
                 }
 
                 if (stockFilter === 'instock')     return status === 'instock'    || (stock > 0 && status !== 'onbackorder');
-                if (stockFilter === 'outofstock')  return status === 'outofstock' || (stock <= 0 && status !== 'onbackorder');
+                if (stockFilter === 'outofstock')  return (status === 'outofstock' || (stock <= 0 && status !== 'onbackorder')) && wcStock <= 0;
                 if (stockFilter === 'lowstock')    return stock > 0 && stock <= 5 && status !== 'onbackorder';
-                if (stockFilter === 'backordered' || stockFilter === 'onbackorder') return status === 'onbackorder';
+                if (stockFilter === 'backordered' || stockFilter === 'onbackorder') return stock < 0;
+                if (stockFilter === 'transferable') return stock <= 0 && wcStock > 0 && status !== 'onbackorder';
 
                 return false;
             });

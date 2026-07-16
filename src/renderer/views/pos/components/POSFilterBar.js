@@ -2,9 +2,9 @@
  * POSFilterBar — search, category, stock status, featured filters
  */
 class POSFilterBar {
-    constructor({ initialQuery='', initialCategory='', initialStockFilter='all',
-                    initialFeatured = false, minimal = false, onFilter, onAddMisc
-                }) {
+    constructor({ initialQuery = '', initialCategory = '', initialStockFilter = 'all',
+        initialFeatured = false, minimal = false, onFilter, onAddMisc
+    }) {
         this.onFilter = onFilter;
         this.onAddMisc = onAddMisc;
         this._q = initialQuery;
@@ -36,15 +36,18 @@ class POSFilterBar {
             ${this._minimal ? '' : `
             <div class="pos-filter-chips" id="posFilterChips">
                 <span style="font-size:10px;color:#9ca3af;font-weight:600;margin-right:2px;">STOCK:</span>
-                <button class="pos-chip ${this._stock==='all' ? 'active' : ''}" data-stock="all">All</button>
-                <button class="pos-chip ${this._stock==='instock' ? 'active' : ''}" data-stock="instock">
+                <button class="pos-chip ${this._stock === 'all' ? 'active' : ''}" data-stock="all">All</button>
+                <button class="pos-chip ${this._stock === 'instock' ? 'active' : ''}" data-stock="instock">
                     <svg viewBox="0 0 10 10" width="8"><circle cx="5" cy="5" r="4" fill="#16a34a"/></svg> In Stock
                 </button>
-                <button class="pos-chip ${this._stock==='outofstock' ? 'active' : ''}" data-stock="outofstock">
+                <button class="pos-chip ${this._stock === 'outofstock' ? 'active' : ''}" data-stock="outofstock">
                     <svg viewBox="0 0 10 10" width="8"><circle cx="5" cy="5" r="4" fill="#dc2626"/></svg> Out of Stock
                 </button>
-                <button class="pos-chip ${this._stock==='onbackorder' ? 'active' : ''}" data-stock="onbackorder">
+                <button class="pos-chip ${this._stock === 'onbackorder' ? 'active' : ''}" data-stock="onbackorder">
                     <svg viewBox="0 0 10 10" width="8"><circle cx="5" cy="5" r="4" fill="#d97706"/></svg> Backorder
+                </button>
+                <button class="pos-chip ${this._stock === 'transferable' ? 'active' : ''}" data-stock="transferable">
+                    <svg viewBox="0 0 10 10" width="8"><circle cx="5" cy="5" r="4" fill="#2563eb"/></svg> Transferable
                 </button>
                 <span style="width:1px;background:#e5e7eb;margin:0 4px;height:16px;"></span>
                 <button class="pos-chip pos-chip--feat ${this._featured ? 'active' : ''}" id="posFeaturedChip">
@@ -86,10 +89,10 @@ class POSFilterBar {
 
     _emit() {
         this.onFilter({
-            query:       this._q,
-            category:    this._cat,
+            query: this._q,
+            category: this._cat,
             stockFilter: this._stock,
-            featured:    this._featured
+            featured: this._featured
         });
     }
 
@@ -128,8 +131,8 @@ class POSFilterBar {
 
         document.addEventListener('keydown', e => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); this.focus(); }
-            if ((e.metaKey || e.ctrlKey) && e.key === 'm') { 
-                e.preventDefault(); 
+            if ((e.metaKey || e.ctrlKey) && e.key === 'm') {
+                e.preventDefault();
                 if (this.onAddMisc) this.onAddMisc();
             }
         });

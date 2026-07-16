@@ -109,11 +109,11 @@ class Sidebar {
         return `
       <div class="sidebar ${isCollapsed ? 'collapsed' : ''}" id="mainSidebar">
         <div class="sidebar-header">
-            <div class="sidebar-brand" title="Faranux MIS">
-               <img src="src/assets/logo1.png" alt="Faranux MIS" class="brand-logo" />
+            <div class="sidebar-brand" title="Faranux ERP">
+               <img src="src/assets/logo1.png" alt="Faranux ERP" class="brand-logo" />
             </div>
             <div class="brand-info nav-text">
-                <span class="brand-title">FARANUX MIS</span>
+                <span class="brand-title">FARANUX ERP</span>
                 <div class="brand-title" id="version-display" >v1.0.0</div>
             </div>
             <button id="sidebarToggle" class="sidebar-toggle-btn" title="Toggle Sidebar">

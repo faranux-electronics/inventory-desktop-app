@@ -1235,6 +1235,17 @@
     background: #E2E8F0;
 }
 
+/* Transferable: still clickable (add to cart pending an incoming transfer),
+   so unlike --oos it keeps full opacity and a pointer cursor. */
+.lpg-row--transferable {
+    background: rgba(37, 99, 235, 0.04);
+    border-left: 3px solid #2563EB;
+}
+
+.lpg-row--transferable:hover {
+    background: rgba(37, 99, 235, 0.08);
+}
+
 .lpg-row--flash {
     animation: trv-flash .32s ease;
 }
@@ -1325,7 +1336,11 @@
     color: #991B1B;
     border-color: #FEE2E2;
 }
-
+.lpg-badge--transferable {
+    background: #2563EB;
+    color: #FFFFFF;
+    border-color: #2563EB;
+}
 .lpg-badge--backorder {
     background: #fffbeb;
     color: #b45309;

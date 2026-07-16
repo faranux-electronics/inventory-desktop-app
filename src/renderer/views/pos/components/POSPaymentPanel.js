@@ -176,11 +176,11 @@ class OrderSettingsModal {
         this.container.querySelector('#posNotes').value = '';
 
         const cashierSel = this.container.querySelector('#posCashier');
-        if (cashierSel && cashierSel.options.length > 0) {
-            const selectedCashierName = cashierSel.options[cashierSel.selectedIndex]?.text || '';
-            this.container.querySelector('#posCustomerId').value = '';
-            this.container.querySelector('#posCustomerSearch').value = selectedCashierName;
-            this.container.querySelector('#posCustomerEmail').value = '';
+        if (cashierSel && cashierSel.value) {
+            const opt = cashierSel.options[cashierSel.selectedIndex];
+            this.container.querySelector('#posCustomerId').value = cashierSel.value;
+            this.container.querySelector('#posCustomerSearch').value = opt?.text || '';
+            this.container.querySelector('#posCustomerEmail').value = opt?.dataset?.email || '';
         } else {
             this.container.querySelector('#posCustomerId').value = '';
             this.container.querySelector('#posCustomerSearch').value = '';
@@ -250,15 +250,21 @@ class OrderSettingsModal {
                     cashierSel.value = saved.cashier.id;
                 }
 
-                // Customer
-                if (saved.customer) {
+                const savedCustomerName = (saved.customer?.name || '').trim();
+                const isPlaceholderName = !savedCustomerName || /^loading/i.test(savedCustomerName) || savedCustomerName.startsWith('—');
+
+                if (saved.customer && !isPlaceholderName) {
                     this.container.querySelector('#posCustomerId').value = saved.customer.id || '';
-                    this.container.querySelector('#posCustomerSearch').value = saved.customer.name || '';
+                    this.container.querySelector('#posCustomerSearch').value = savedCustomerName;
                     this.container.querySelector('#posCustomerEmail').value = saved.customer.email || '';
+                } else if (cashierSel && cashierSel.value) {
+                    // Reset customer to cashier if no valid saved customer
+                    const opt = cashierSel.options[cashierSel.selectedIndex];
+                    this.container.querySelector('#posCustomerSearch').value = opt?.text || '';
+                    this.container.querySelector('#posCustomerId').value = cashierSel.value;
+                    this.container.querySelector('#posCustomerEmail').value = opt?.dataset?.email || '';
                 } else {
-                    // Reset customer to cashier if no saved customer
-                    const cashierName = cashierSel?.options[cashierSel.selectedIndex]?.text || '';
-                    this.container.querySelector('#posCustomerSearch').value = cashierName;
+                    this.container.querySelector('#posCustomerSearch').value = '';
                     this.container.querySelector('#posCustomerId').value = '';
                     this.container.querySelector('#posCustomerEmail').value = '';
                 }
@@ -277,12 +283,14 @@ class OrderSettingsModal {
                 this.container.querySelector('#posShipping').value = '0';
                 this.container.querySelector('#posNotes').value = '';
 
-                // Set customer to current cashier
+                // Set customer to current cashier (only once a real cashier is loaded)
                 const cashierSel = this.container.querySelector('#posCashier');
-                const cashierName = cashierSel?.options[cashierSel.selectedIndex]?.text || '';
-                this.container.querySelector('#posCustomerSearch').value = cashierName;
-                this.container.querySelector('#posCustomerId').value = '';
-                this.container.querySelector('#posCustomerEmail').value = '';
+                if (cashierSel && cashierSel.value) {
+                    const opt = cashierSel.options[cashierSel.selectedIndex];
+                    this.container.querySelector('#posCustomerSearch').value = opt?.text || '';
+                    this.container.querySelector('#posCustomerId').value = cashierSel.value;
+                    this.container.querySelector('#posCustomerEmail').value = opt?.dataset?.email || '';
+                }
 
                 this._updateTaxUI();
                 this._fireTaxMode();
@@ -420,6 +428,16 @@ class OrderSettingsModal {
                 el.value = this.savedCashierId;
                 this.onChange();
             }
+
+            const customerSearch = this.container.querySelector('#posCustomerSearch');
+            if (customerSearch && !customerSearch.value.trim() && el.value) {
+                const opt = el.options[el.selectedIndex];
+                customerSearch.value = opt?.text || '';
+                const customerId = this.container.querySelector('#posCustomerId');
+                const customerEmail = this.container.querySelector('#posCustomerEmail');
+                if (customerId) customerId.value = el.value;
+                if (customerEmail) customerEmail.value = opt?.dataset?.email || '';
+            }
         }
         this._enableAllInputs();
     }
@@ -430,6 +448,18 @@ class OrderSettingsModal {
             const el = this.container.querySelector(`#${id}`);
             if (el) el.value = id === 'posDiscountVal' ? '0' : '';
         });
+
+        // Reset customer back to the current cashier instead of leaving it blank
+        const cashierSel = this.container.querySelector('#posCashier');
+        if (cashierSel && cashierSel.value) {
+            const opt = cashierSel.options[cashierSel.selectedIndex];
+            const customerSearch = this.container.querySelector('#posCustomerSearch');
+            const customerId = this.container.querySelector('#posCustomerId');
+            const customerEmail = this.container.querySelector('#posCustomerEmail');
+            if (customerSearch) customerSearch.value = opt?.text || '';
+            if (customerId) customerId.value = cashierSel.value;
+            if (customerEmail) customerEmail.value = opt?.dataset?.email || '';
+        }
 
         this.state.fees = [];
         this.state.taxOn = false;

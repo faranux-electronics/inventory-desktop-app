@@ -551,6 +551,108 @@
     background: linear-gradient(90deg, rgba(36, 59, 83, 0.03) 0%, #FFFFFF 100%);
 }
 
+/* =========================================
+   Transferable stock — out of stock locally,
+   available at another branch pending transfer
+   ========================================= */
+/* Product grid card styles (.lpg-row--transferable, .lpg-badge--transferable,
+   .lpg-transfer-btn) live in transfer.css alongside the rest of LocalProductGrid */
+
+/* Cart row — item added while still pending an incoming transfer */
+.pos-cart-row--transfer {
+    border-left: 3px solid #2563EB;
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.04) 0%, #FFFFFF 100%);
+}
+.pos-transfer-badge {
+    display: inline-flex; align-items: center;
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    color: #FFFFFF;
+    font-size: 9px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+}
+
+/* Consolidated "Request Transfer" banner — shown above the cart list
+   when one or more items are still pending an incoming transfer */
+.pos-transfer-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: rgba(37, 99, 235, 0.06);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: 8px;
+}
+.pos-transfer-banner-text {
+    font-size: 12px;
+    color: #1D4ED8;
+    font-weight: 500;
+}
+.pos-transfer-banner-btn {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    transition: all .15s ease;
+}
+.pos-transfer-banner-btn:hover {
+    background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+}
+
+/* Consolidated request-transfer modal body — per-item source branch + qty */
+.pos-transfer-request-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+.pos-transfer-request-row {
+    padding: 10px;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    background: #F8FAFC;
+}
+.pos-transfer-request-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #243B53;
+    margin-bottom: 6px;
+}
+.pos-transfer-request-fields {
+    display: flex;
+    gap: 8px;
+}
+.pos-transfer-source {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 12px;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 6px;
+    background: #FFFFFF;
+    color: #243B53;
+}
+.pos-transfer-qty {
+    padding: 6px 8px;
+    font-size: 12px;
+    border: 1.5px solid #E2E8F0;
+    border-radius: 6px;
+    background: #FFFFFF;
+    color: #243B53;
+}
+
 /* Spinners */
 .pos-spinner        { stroke: #932013; fill: none; stroke-linecap: round; animation: pos-spin 1s linear infinite; }
 .pos-spinner-inline { stroke: #FFFFFF; fill: none; stroke-linecap: round; animation: pos-spin 1s linear infinite; }
