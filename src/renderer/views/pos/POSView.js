@@ -409,7 +409,7 @@ class POSView {
         if (!mount) return;
         mount.innerHTML = '';
         entry.cart.render(mount);
-        this.paymentPanel.updateTotals(entry.cart.getSubtotal(), entry.cart.isEmpty());
+        this.paymentPanel.updateTotals(entry.cart.getSubtotal(), entry.cart.isEmpty(), entry.cart.getBlockingItems());
         this.paymentPanel.setCurrentCartId(entry.id);
     }
 
@@ -532,7 +532,7 @@ class POSView {
         const result = cart.addMiscItem(data);
         if (result) {
             Toast.success(`Added "${data.name}" to cart`);
-            this.paymentPanel.updateTotals(cart.getSubtotal(), cart.isEmpty());
+            this.paymentPanel.updateTotals(cart.getSubtotal(), cart.isEmpty(), cart.getBlockingItems());
             this._saveViewState();
         } else {
             Toast.error('Failed to add item to cart');
@@ -647,18 +647,7 @@ class POSView {
         const cart = this._activeCart;
         if (!cart) return;
 
-        const localStock = parseInt(product.stock_quantity || 0);
-        const wcStock = parseInt(product.wc_stock_quantity || 0);
-        const isTransferable = localStock <= 0 && wcStock > 0;
-
-        const result = cart.addProduct(product);
-        if (result === false) return Toast.error('No stock available for this item');
-        if (result === 'max') return Toast.error(isTransferable ? 'Max transferable stock reached' : `Max branch stock reached`);
-
-        if (isTransferable) {
-            Toast.info(`Added "${product.name}" — pending transfer, not yet in stock at your branch`);
-        }
-
+        cart.addProduct(product);
         this.productGrid.flash(product.id);
     }
 
@@ -722,7 +711,7 @@ class POSView {
     _onCartChange(items) {
         const entry = this._carts[this._activeCartIdx];
         if (!entry) return;
-        this.paymentPanel.updateTotals(entry.cart.getSubtotal(), items.length === 0);
+        this.paymentPanel.updateTotals(entry.cart.getSubtotal(), items.length === 0, entry.cart.getBlockingItems());
         this._renderTabs();
         this._scheduleLiveCartUpdate();
     }

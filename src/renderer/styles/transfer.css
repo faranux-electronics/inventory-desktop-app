@@ -1226,13 +1226,13 @@
 }
 
 .lpg-row--oos {
-    opacity: .55;
-    cursor: default;
-    background: #E2E8F0;
+    opacity: .85;
+    cursor: pointer;
+    background: #F1F5F9;
 }
 
 .lpg-row--oos:hover {
-    background: #E2E8F0;
+    background: rgba(38, 137, 196, 0.08);
 }
 
 /* Transferable: still clickable (add to cart pending an incoming transfer),

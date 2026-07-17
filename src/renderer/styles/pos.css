@@ -89,6 +89,8 @@
     flex-shrink: 0; overflow-y: auto; overflow-x: hidden; min-height: 200px; max-height: 35vh;
     border-top: 3px solid #243B53; background: #FFFFFF;
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Resize handle for payment panel */
@@ -314,10 +316,14 @@
 .pos-list-row--flash { animation: flash-green .3s; }
 /* Update this section in pos.css */
 .pos-list-row--oos {
-    opacity: .55;
-    /* Remove pointer-events: none; from here */
-    background: linear-gradient(90deg, #F1F5F9 0%, #E2E8F0 100%);
-    cursor: default; /* Change from not-allowed so it doesn't look blocked */
+    opacity: .85;
+    background: linear-gradient(90deg, #F8FAFC 0%, #F1F5F9 100%);
+    cursor: pointer;
+}
+
+.pos-list-row--oos:hover {
+    background: linear-gradient(90deg, rgba(147, 32, 19, 0.04) 0%, rgba(147, 32, 19, 0.02) 100%);
+    transform: translateX(2px);
 }
 
 /* Add these new rules below it */
@@ -377,7 +383,7 @@
 .pos-cart-items {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     padding: 0;
     width: 100%;
     box-sizing: border-box;
@@ -397,9 +403,9 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
-    padding: 10px 12px;
+    padding: 7px 10px;
     background: #FFFFFF; border: 1px solid #E2E8F0;
-    border-radius: 8px; gap: 10px;
+    border-radius: 8px; gap: 8px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     transition: all .15s ease;
 }
@@ -414,34 +420,35 @@
 .pos-cart-row-info { min-width: 0; padding-right: 4px; }
 .pos-cart-row-name-line { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .pos-cart-row-name {
-    font-size: 14px; font-weight: 700; color: #23201f;
+    font-size: 13px; font-weight: 700; color: #23201f;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    line-height: 1.3; letter-spacing: -0.15px; min-width: 0;
+    line-height: 1.25; letter-spacing: -0.15px; min-width: 0;
 }
 .pos-cart-row-meta {
-    font-size: 12px; color: rgba(36, 59, 83, 0.65);
-    margin-top: 2px; font-weight: 500;
+    font-size: 11px; color: rgba(36, 59, 83, 0.65);
+    margin-top: 1px; font-weight: 500;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .pos-cart-row-meta-dot { margin: 0 1px; opacity: .6; }
 .pos-cart-row-notes {
-    font-size: 12px; color: #932013; margin-top: 2px; font-style: italic;
+    font-size: 11px; color: #932013; margin-top: 1px; font-style: italic;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .pos-cart-row-controls {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
     flex-wrap: wrap;
 }
 .pos-cart-row-total {
-    min-width: 72px; text-align: right; flex-shrink: 0;
-    font-weight: 800; color: #932013; font-size: 14px; letter-spacing: -0.3px;
+    min-width: 60px; text-align: right; flex-shrink: 0;
+    font-weight: 800; color: #932013; font-size: 13px; letter-spacing: -0.3px;
 }
 .pos-qty-ctrl { 
     display: flex; 
+    flex: 0 0 auto;
     border: 1.5px solid #E2E8F0; 
     border-radius: 8px; 
     overflow: hidden; 
@@ -455,9 +462,9 @@
     box-shadow: 0 2px 6px rgba(147, 32, 19, 0.15);
 }
 .pos-qty-btn {
-    width: 28px; height: 28px; 
+    width: 24px; height: 24px; 
     background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
-    border: none; cursor: pointer; font-size: 14px; color: #243B53;
+    border: none; cursor: pointer; font-size: 13px; color: #243B53;
     display: flex; align-items: center; justify-content: center;
     transition: all .15s ease;
     font-weight: 800;
@@ -472,16 +479,17 @@
     transform: scale(0.95);
 }
 .pos-qty-val {
-    width: 36px; height: 28px;
+    width: 32px; height: 24px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 800; color: #243B53;
+    font-size: 13px; font-weight: 800; color: #243B53;
     border-left: 1px solid #E2E8F0; border-right: 1px solid #E2E8F0;
     background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
     letter-spacing: -0.3px;
 }
 .pos-qty-input {
-    min-width: 36px; height: 28px;
-    font-size: 14px; text-align: center;
+    width: 38px; min-width: 38px; max-width: 38px; height: 24px;
+    flex: 0 0 auto;
+    font-size: 13px; text-align: center;
     border: 1px solid #E2E8F0; border-radius: 0;
     padding: 0;
     background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
@@ -504,10 +512,10 @@
     border: 1.5px solid #FECACA;
     border-radius: 8px;
     cursor: pointer;
-    color: #EF4444; font-size: 14px; padding: 6px 8px; line-height: 1;
+    color: #EF4444; font-size: 13px; padding: 4px 6px; line-height: 1;
     transition: all .15s ease;
     display: flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px;
+    width: 26px; height: 26px;
     box-shadow: 0 1px 3px rgba(239, 68, 68, 0.15);
 }
 .pos-del-btn:hover { 
@@ -581,21 +589,21 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
     background: rgba(37, 99, 235, 0.06);
     border: 1px solid rgba(37, 99, 235, 0.2);
     border-radius: 8px;
 }
 .pos-transfer-banner-text {
-    font-size: 12px;
+    font-size: 11.5px;
     color: #1D4ED8;
     font-weight: 500;
 }
 .pos-transfer-banner-btn {
     flex-shrink: 0;
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 5px 10px;
+    font-size: 11.5px;
     font-weight: 700;
     color: #FFFFFF;
     background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
@@ -609,6 +617,25 @@
     background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%);
     transform: translateY(-1px);
     box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+}
+
+/* =========================================
+   Out of stock — no stock at branch AND none in the
+   pool to transfer. Sellable for a quote, not chargeable.
+   ========================================= */
+.pos-cart-row--oos {
+    border-left: 3px solid #DC2626;
+    background: linear-gradient(90deg, rgba(220, 38, 38, 0.05) 0%, #FFFFFF 100%);
+}
+.pos-oos-badge {
+    display: inline-flex; align-items: center;
+    background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+    color: #FFFFFF;
+    font-size: 9px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3);
 }
 
 /* Consolidated request-transfer modal body — per-item source branch + qty */
@@ -659,28 +686,48 @@
 @keyframes pos-spin { to { transform: rotate(360deg); } }
 
 /* ── Payment panel — compact ── */
-.pos-payment-panel { display: flex; flex-direction: column; }
+.pos-payment-panel { display: flex; flex-direction: column; flex: 1; }
 .pos-pp-section    { padding: 6px 10px; border-bottom: 1px solid #E2E8F0; }
 .pos-pp-section:last-child { border-bottom: none; }
 
 /* Compact section with totals and settings icon */
 .pos-pp-section--compact {
-    padding: 6px 10px;
+    padding: 5px 10px;
     background: #F8FAFC;
     border-bottom: 1px solid #E2E8F0;
 }
 
 /* Payment methods row - horizontal instead of grid */
 .pos-pp-section--methods {
-    padding: 6px 10px;
+    padding: 5px 8px;
     border-bottom: 1px solid #E2E8F0;
+}
+
+/* Warning shown above the checkout buttons when the cart has items that
+   can be quoted but not charged (out of stock / pending transfer). */
+.pos-stock-warning {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    margin: 0 10px 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #B91C1C;
+    background: rgba(220, 38, 38, 0.08);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    border-radius: 8px;
 }
 
 /* Checkout section - always visible */
 .pos-pp-section--checkout {
-    padding: 8px 10px;
+    padding: 6px 10px 12px; 
     border-bottom: none;
     background: #FFFFFF;
+    margin-top: auto; 
+    position: sticky; 
+    bottom: 0; 
+    z-index: 10; 
 }
 
 .pos-pp-section--checkout-flex {
@@ -694,7 +741,7 @@
    Lives next to the totals, since order adjustments
    (discount, tax, shipping, customer) are set before charging. */
 .pos-settings-btn-icon {
-    padding: 6px 10px;
+    padding: 5px 8px;
     background: #FFFFFF;
     color: #243B53;
     border: 1px solid #E2E8F0;
@@ -733,9 +780,9 @@
 
 .pos-method-btn {
     min-width: 50px;
-    height: 32px;
+    height: 28px;
     border-radius: 6px;
-    padding: 5px 10px;
+    padding: 4px 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -817,7 +864,7 @@
 .pos-ac-sub    { font-size: 11px; color: rgba(36, 59, 83, 0.6); }
 
 /* Totals grid — compact */
-.pos-totals-grid { display: flex; flex-direction: column; gap: 6px; }
+.pos-totals-grid { display: flex; flex-direction: column; gap: 4px; }
 .pos-trow {
     display: flex; justify-content: space-between;
     align-items: center; font-size: 12.5px; color: #4a4744;
@@ -829,8 +876,8 @@
 .pos-trow--tax { color: #932013; font-weight: 700; }
 .pos-trow--total {
     font-size: 15px; font-weight: 700; color: #23201f;
-    padding-top: 8px;
-    border-top: 1.5px dashed #E2E8F0; margin-top: 6px;
+    padding-top: 5px;
+    border-top: 1.5px dashed #E2E8F0; margin-top: 3px;
     letter-spacing: -0.3px;
 }
 .pos-trow--total span:last-child {
@@ -1103,7 +1150,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    padding: 5px 10px;
     background: #F8FAFC;
     border-radius: 20px;
     font-size: 11px;
@@ -1151,11 +1198,11 @@
 .pos-checkout-btn {
     flex: 1 1 auto;
     min-width: 170px;
-    padding: 12px 12px;
+    padding: 10px 12px;
     background: linear-gradient(135deg, #B03A2F 0%, #A73528 100%);
     color: #FFFFFF;
     border: none; border-radius: 8px;
-    font-size: 14.5px; font-weight: 700; cursor: pointer;
+    font-size: 14px; font-weight: 700; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 8px;
     transition: all .15s ease;
     box-shadow: 0 4px 14px rgba(176, 58, 47, 0.24);
@@ -1175,8 +1222,8 @@
 
 .pos-void-btn {
     flex: 0 0 auto;
-    min-width: 100px;
-    padding: 12px 14px;
+    min-width: 90px;
+    padding: 10px 12px;
     background: #F8FAFC;
     color: #932013;
     border: 1px solid #E2E8F0;
@@ -1198,8 +1245,8 @@
 
 .pos-quote-btn {
     flex: 0 0 auto;
-    min-width: 100px;
-    padding: 12px 14px;
+    min-width: 90px;
+    padding: 10px 12px;
     background: #F8FAFC;
     color: #059669;
     border: 1px solid #E2E8F0;

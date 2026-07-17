@@ -32,6 +32,7 @@ class POSCart {
 
     getItems() { return [...this._items]; }
     getTransferableItems() { return this._items.filter(i => i.isTransferable); }
+    getBlockingItems() { return this._items.filter(i => i.isTransferable || i.isOOS); }
     isEmpty() { return this._items.length === 0; }
     getItemCount() { return this._items.reduce((s, i) => s + i.qty, 0); }
     getSubtotal() { return this._items.reduce((s, i) => s + i.price * i.qty, 0); }
@@ -54,18 +55,18 @@ class POSCart {
         const localStock = parseInt(product.stock_quantity || 0);
         const poolStock = parseInt(product.wc_stock_quantity || 0);
 
-        // Truly unavailable: nothing at this branch AND nothing in the pool to transfer
-        if (localStock <= 0 && poolStock <= 0) return false;
-
-        const isTransferable = localStock <= 0; // local is 0, but pool has stock — sellable pending transfer
+        // Items may be added to the cart regardless of stock level so they can be
+        // included on a quotation. maxStock/isTransferable/isOOS are still tracked
+        // and are enforced only when the cashier actually charges the sale.
+        const isTransferable = localStock <= 0 && poolStock > 0; // local is 0, but pool has stock — sellable pending transfer
+        const isOOS = localStock <= 0 && poolStock <= 0; // nothing available anywhere
         const cap = isTransferable ? poolStock : localStock;
 
         const ex = this._items.find(i => i.id === product.id);
         if (ex) {
-            const next = ex.qty + qty;
-            if (next > (ex.isTransferable ? poolStock : ex.maxStock)) return 'max';
-            ex.qty = next;
+            ex.qty = ex.qty + qty;
             ex.isTransferable = isTransferable;
+            ex.isOOS = isOOS;
             ex.maxStock = cap;
             if (isTransferable) ex.stockBreakdown = product.stock_breakdown || '';
         } else {
@@ -79,6 +80,7 @@ class POSCart {
                 maxStock: cap,
                 sku: product.sku || '',
                 isTransferable,
+                isOOS,
                 stockBreakdown: isTransferable ? (product.stock_breakdown || '') : '',
             });
         }
@@ -117,8 +119,6 @@ class POSCart {
 
         if (next <= 0) {
             this._items.splice(idx, 1);
-        } else if (!item.isMisc && next > item.maxStock) {
-            return 'max';
         } else {
             item.qty = next;
         }
@@ -316,11 +316,15 @@ class POSCart {
 
             const isMisc = item.isMisc;
             const isPendingTransfer = !isMisc && item.isTransferable;
-            const stockLabel = isMisc ? 'Unlimited' : (isPendingTransfer ? `${item.maxStock} (other branch)` : item.maxStock);
+            const isOutOfStock = !isMisc && !isPendingTransfer && item.isOOS;
+            const stockLabel = isMisc ? 'Unlimited' : (isPendingTransfer ? `${item.maxStock} (other branch)` : (isOutOfStock ? 'Out of stock' : item.maxStock));
             const skuLabel = isMisc ? 'Custom' : (item.sku || 'N/A');
             const miscBadge = isMisc ? `<span class="pos-misc-badge">Custom</span>` : '';
             const transferBadge = isPendingTransfer
                 ? `<span class="pos-transfer-badge" title="Not yet in stock at your branch — pending incoming transfer">Pending Transfer</span>`
+                : '';
+            const oosBadge = isOutOfStock
+                ? `<span class="pos-oos-badge" title="No stock at your branch or in the pool — can be quoted, not charged">Out of Stock</span>`
                 : '';
             const notesDisplay = item.notes ? `<div class="pos-cart-row-notes">${item.notes}</div>` : '';
 
@@ -332,12 +336,13 @@ class POSCart {
             const priceDisplay = `<span class="pos-price-editable" data-id="${item.id}" title="Click to edit price">${displayPrice.toLocaleString()} Frw</span>${priceChangeIndicator}`;
 
             return `
-<div class="pos-cart-row ${isMisc ? 'pos-cart-row--misc' : ''} ${isPendingTransfer ? 'pos-cart-row--transfer' : ''}" data-id="${item.id}">
+<div class="pos-cart-row ${isMisc ? 'pos-cart-row--misc' : ''} ${isPendingTransfer ? 'pos-cart-row--transfer' : ''} ${isOutOfStock ? 'pos-cart-row--oos' : ''}" data-id="${item.id}">
     <div class="pos-cart-row-info">
         <div class="pos-cart-row-name-line">
             <span class="pos-cart-row-name" title="${item.name}">${item.name}</span>
             ${miscBadge}
             ${transferBadge}
+            ${oosBadge}
         </div>
         <div class="pos-cart-row-meta">
             ${isMisc ? '' : `${item.sku ? `SKU: ${item.sku} · ` : ''}`}${priceDisplay}${taxLabel}
@@ -349,7 +354,7 @@ class POSCart {
     <div class="pos-cart-row-controls">
         <div class="pos-qty-ctrl">
             <button class="pos-qty-btn pos-qty-minus" data-id="${item.id}">−</button>
-            <input type="number" class="pos-qty-input" data-id="${item.id}" value="${item.qty}" min="1" max="${isMisc ? 999999 : item.maxStock}">
+            <input type="number" class="pos-qty-input" data-id="${item.id}" value="${item.qty}" min="1">
             <button class="pos-qty-btn pos-qty-plus" data-id="${item.id}">+</button>
         </div>
         <div class="pos-cart-row-total">${lineTotal.toLocaleString()}</div>
@@ -393,10 +398,6 @@ class POSCart {
 
                 if (isNaN(newQty) || input.value === '') {
                     input.value = item.qty;
-                } else if (!item.isMisc && newQty > item.maxStock) {
-                    input.value = item.maxStock;
-                    const delta = item.maxStock - item.qty;
-                    if (delta !== 0) this.updateQty(itemId, delta);
                 } else if (newQty < 1) {
                     input.value = item.qty;
                 } else {

@@ -793,6 +793,7 @@ class POSPaymentPanel {
         this.onVoidCart = onVoidCart;
         this.onPrintQuote = onPrintQuote;
         this._subtotal = 0;
+        this._blockingItems = [];
         this.currentCartId = null;
         this._methods = [
             { id: 'cod', title: 'Cash' },
@@ -901,21 +902,48 @@ class POSPaymentPanel {
         this.modal.setTaxRates();
     }
 
-    updateTotals(subtotal, empty) {
+    updateTotals(subtotal, empty, blockingItems = []) {
         this._subtotal = subtotal;
+        this._blockingItems = blockingItems || [];
         this._refreshTotals();
+
         const btn = this.container.querySelector('#posCheckoutBtn');
-        if (btn) btn.disabled = empty;
+        if (btn) btn.disabled = empty || this._blockingItems.length > 0;
+
         const voidBtn = this.container.querySelector('#posVoidBtn');
         if (voidBtn) voidBtn.disabled = empty;
+
         const quoteBtn = this.container.querySelector('#posQuoteBtn');
         if (quoteBtn) quoteBtn.disabled = empty;
+
+        this._refreshStockWarning(empty);
+    }
+
+    _refreshStockWarning(empty) {
+        const warning = this.container.querySelector('#posStockWarning');
+        if (!warning) return;
+
+        if (empty || !this._blockingItems || this._blockingItems.length === 0) {
+            warning.style.display = 'none';
+            warning.textContent = '';
+            return;
+        }
+
+        const oosCount = this._blockingItems.filter(i => i.isOOS).length;
+        const transferCount = this._blockingItems.filter(i => i.isTransferable).length;
+
+        const parts = [];
+        if (oosCount > 0) parts.push(`${oosCount} out of stock`);
+        if (transferCount > 0) parts.push(`${transferCount} awaiting transfer`);
+
+        warning.textContent = `Cannot charge — ${parts.join(', ')}. You can still save this as a Quote.`;
+        warning.style.display = 'flex';
     }
 
     setLoading(on) {
         const btn = this.container.querySelector('#posCheckoutBtn');
         if (!btn) return;
-        btn.disabled = on;
+        btn.disabled = on || (!on && this._blockingItems && this._blockingItems.length > 0);
         btn.innerHTML = on
             ? `<svg class="pos-spinner-inline" viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Processing…`
             : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15"><polyline points="20 6 9 17 4 12"/></svg> Charge`;
@@ -981,6 +1009,11 @@ class POSPaymentPanel {
 
         this.container.querySelector('#posDynamicTotals').innerHTML = dynHTML;
 
+        // When there's nothing adjusting the subtotal (no discount/shipping/fee/tax),
+        // Subtotal and Total are identical — skip the redundant row to save space.
+        const subtotalRow = this.container.querySelector('#posSubtotalRow');
+        if (subtotalRow) subtotalRow.style.display = dynHTML ? 'flex' : 'none';
+
         const custLabel = this.container.querySelector('#posActiveCustomer');
         if (modalData.customer.name && modalData.customer.name.toLowerCase() !== 'walk-in') {
             custLabel.style.display = 'block';
@@ -991,6 +1024,10 @@ class POSPaymentPanel {
     }
 
     _handleCheckout() {
+        if (this._blockingItems && this._blockingItems.length > 0) {
+            return Toast.error('Cannot charge while the cart has out-of-stock or pending-transfer items.');
+        }
+
         const modalData = this.modal.getData();
         const calc = TotalsCalculator.calculate({ subtotal: this._subtotal, ...modalData });
         const activeMethod = this.container.querySelector('.pos-method-btn.active');
@@ -1083,7 +1120,7 @@ class POSPaymentPanel {
                     <div style="flex: 1; min-width: 0; text-align: right;">
                         <div id="posActiveCustomer" class="pos-active-customer"></div>
                         <div class="pos-totals-grid">
-                            <div class="pos-trow"><span>Subtotal</span><span id="posSubtotal">0 Frw</span></div>
+                            <div id="posSubtotalRow" class="pos-trow"><span>Subtotal</span><span id="posSubtotal">0 Frw</span></div>
                             <div id="posDynamicTotals" class="pos-dynamic-totals"></div>
                             <div class="pos-trow pos-trow--total"><span>Total</span><span id="posTotal">0 Frw</span></div>
                         </div>
@@ -1105,6 +1142,7 @@ class POSPaymentPanel {
                 </div>
             </div>
 
+            <div id="posStockWarning" class="pos-stock-warning" style="display:none;"></div>
             <div class="pos-pp-section pos-pp-section--checkout pos-pp-section--checkout-flex">
                 <button id="posVoidBtn" class="pos-void-btn" disabled>
                     Void

@@ -386,7 +386,7 @@ class LocalProductGrid {
             }
 
             const row = e.target.closest('.lpg-row');
-            if (!row || row.classList.contains('lpg-row--oos')) return;
+            if (!row) return;
 
             const product = this._products.find(p => String(p.id) === row.dataset.id);
             if (product) {
