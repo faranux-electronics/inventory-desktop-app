@@ -10,9 +10,10 @@ class LocalProductCardBuilder {
         // POS sets this to 'branch_stock' allowing local UI logic to disable the item
         // if the cashier has 0 stock locally.
         const localStock = parseInt(p.stock_quantity || 0);
-        const transferablePool = parseInt(p.transferable_pool || 0);
+        const rawPool = parseInt(p.transferable_pool || 0);
+        const otherBranchStock = Math.max(0, rawPool - localStock);
         const isOOS = localStock <= 0;
-        const isTransferable = isOOS && transferablePool > 0;
+        const isTransferable = isOOS && otherBranchStock > 0;
         const isLow = localStock > 0 && localStock <= 5;
         const isBackordered = p.stock_status === 'onbackorder';
         const onSale = !!p.on_sale;
@@ -46,9 +47,7 @@ class LocalProductCardBuilder {
             primaryBadge = `<span class="lpg-badge lpg-badge--low">Low (${localStock})</span>`;
         }
 
-        const wcLabel = transferablePool > 0
-            ? `<span class="lpg-wc-badge" title="Sum of stock across other branches">Available Elsewhere: ${transferablePool}</span>`
-            : '';
+        const wcLabel = `<span class="lpg-wc-badge" title="Sum of stock across other branches">Available Elsewhere: ${otherBranchStock}</span>`;
         let breakdownHtml = '';
         const branchStocks = {};
         const breakdown = [];
