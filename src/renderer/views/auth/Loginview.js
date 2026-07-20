@@ -130,7 +130,7 @@ class LoginView {
                 if (res.status === 'success') {
                     this.app.state.setUser(res.user);
                     this.app.renderApp(res.user);
-                    this.app.navigate('transfers');
+                    this.app.navigate('pos');
                     Toast.success('Welcome back!');
                 } else if (res.status === 'pending_approval') {
                     this.renderPendingApproval();
@@ -221,7 +221,7 @@ class LoginView {
             if (res.status === 'success') {
                 this.app.state.setUser(res.user);
                 this.app.renderApp(res.user);
-                this.app.navigate('transfers');
+                this.app.navigate('pos');
                 Toast.success('Welcome back!');
             } else if (res.status === 'pending_approval') {
                 this.renderPendingApproval();
