@@ -53,7 +53,7 @@ class POSCart {
 
     addProduct(product, qty = 1) {
         const localStock = parseInt(product.stock_quantity || 0);
-        const poolStock = parseInt(product.wc_stock_quantity || 0);
+        const poolStock = parseInt(product.transferable_pool || 0);
 
         // Items may be added to the cart regardless of stock level so they can be
         // included on a quotation. maxStock/isTransferable/isOOS are still tracked

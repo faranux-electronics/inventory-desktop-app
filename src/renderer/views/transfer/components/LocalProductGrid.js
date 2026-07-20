@@ -10,9 +10,9 @@ class LocalProductCardBuilder {
         // POS sets this to 'branch_stock' allowing local UI logic to disable the item
         // if the cashier has 0 stock locally.
         const localStock = parseInt(p.stock_quantity || 0);
-        const wcStock = parseInt(p.wc_stock_quantity || 0);
+        const transferablePool = parseInt(p.transferable_pool || 0);
         const isOOS = localStock <= 0;
-        const isTransferable = isOOS && wcStock > 0;
+        const isTransferable = isOOS && transferablePool > 0;
         const isLow = localStock > 0 && localStock <= 5;
         const isBackordered = p.stock_status === 'onbackorder';
         const onSale = !!p.on_sale;
@@ -35,8 +35,6 @@ class LocalProductCardBuilder {
                        <polyline points="21 15 16 10 5 21"/>
                    </svg>
                </div>`;
-
-        // ── Row 1: stock + WC + sale + featured ────────
         let primaryBadge;
         if (isBackordered) {
             primaryBadge = `<span class="lpg-badge lpg-badge--backorder">Backorder</span>`;
@@ -48,11 +46,9 @@ class LocalProductCardBuilder {
             primaryBadge = `<span class="lpg-badge lpg-badge--low">Low (${localStock})</span>`;
         }
 
-        const wcLabel = wcStock > 0
-            ? `<span class="lpg-wc-badge" title="WooCommerce pool stock">Available Stock: ${wcStock}</span>`
+        const wcLabel = transferablePool > 0
+            ? `<span class="lpg-wc-badge" title="Sum of stock across other branches">Available Elsewhere: ${transferablePool}</span>`
             : '';
-
-        // ── Branch breakdown badges ────────────────────────────────────────
         let breakdownHtml = '';
         const branchStocks = {};
         const breakdown = [];
@@ -76,11 +72,9 @@ class LocalProductCardBuilder {
 
         if (breakdown.length > 0) {
             const badges = breakdown.map(({ lid, qty }) => {
-                // Try both string and numeric ID for location lookup
                 const name = locationMap[lid] || locationMap[String(lid)] || locationMap[Number(lid)] || `#${esc(lid)}`;
                 const isFocus = focusBranchId && String(lid) === String(focusBranchId);
 
-                // Always show focus branch even if qty is 0 (important for transferable items)
                 if (qty === 0 && !isFocus) return '';
 
                 let cls = 'lpg-branch-badge';

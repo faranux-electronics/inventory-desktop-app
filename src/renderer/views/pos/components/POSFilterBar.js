@@ -63,6 +63,9 @@ class POSFilterBar {
     populateCategories(categories) {
         const sel = document.getElementById('posCategory');
         if (!sel) return;
+
+        while (sel.options.length > 1) sel.remove(1);
+
         if (Array.isArray(categories) && categories.length) {
             if (typeof categories[0] === 'object') {
                 categories.forEach(c => {
@@ -129,13 +132,17 @@ class POSFilterBar {
             });
         }
 
-        document.addEventListener('keydown', e => {
+        if (this._keydownHandler) {
+            document.removeEventListener('keydown', this._keydownHandler);
+        }
+        this._keydownHandler = e => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); this.focus(); }
             if ((e.metaKey || e.ctrlKey) && e.key === 'm') {
                 e.preventDefault();
                 if (this.onAddMisc) this.onAddMisc();
             }
-        });
+        };
+        document.addEventListener('keydown', this._keydownHandler);
 
         const miscBtn = container.querySelector('#posAddMiscBtn');
         if (miscBtn && this.onAddMisc) {
