@@ -3,7 +3,6 @@ const Toast = require('../../../components/Toast.js');
 const PdfGenerator = require('../../../utils/PdfGenerator.js');
 const TransferModals = require('./TransferModals.js');
 
-// FIX: Escape helper prevents XSS from server-supplied strings inserted into innerHTML.
 function esc(str) {
     return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -32,22 +31,20 @@ class TransferTable {
         const isAdmin = this.parent.state.getUser()?.role === 'admin';
 
         container.innerHTML = transfers.map(t => this._rowHTML(t, userBranch, isAdmin)).join('');
-        // FIX: Scope event attachment to the container, not document, to avoid
-        // duplicate listeners on re-render and unintended matches elsewhere.
         this._attachEvents(container);
     }
 
     // ─── Row HTML ─────────────────────────────────────────────────────────────
 
     _rowHTML(t, userBranch, isAdmin) {
+        if (t.is_request) return this._requestRowHTML(t, userBranch, isAdmin);
+
         // Direction icon
         let dirIcon = `<span class="trv-dir-neutral">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14">
                 <line x1="5" y1="12" x2="19" y2="12"/>
             </svg></span>`;
 
-        // FIX: Use String() normalisation + strict equality for branch ID comparisons
-        // to avoid type-coercion bugs (e.g. "010" == 10 is false; was previously ==).
         const uBranch = String(userBranch ?? '');
         const toLoc = String(t.to_loc_id ?? '');
         const fromLoc = String(t.from_loc_id ?? '');
@@ -147,8 +144,6 @@ class TransferTable {
 
         const timeAgo = this.timeSince(new Date(t.created_at));
         const batchId = esc(t.batch_id);
-        // FIX: Automatic transfer batch IDs (e.g. "Automatic on order #38740") contain
-        // spaces and "#", making them invalid HTML element IDs.
         const domId = batchId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         return `
@@ -181,10 +176,154 @@ class TransferTable {
         </div>`;
     }
 
+    // ─── Request row HTML ─────────────────────────────────────────────────────
+
+    _requestRowHTML(t, userBranch, isAdmin) {
+        const uBranch = String(userBranch ?? '');
+        const toLoc = String(t.to_loc_id ?? '');   // requester (me, if outgoing request)
+        const fromLoc = String(t.from_loc_id ?? ''); // who's being asked (me, if incoming request)
+
+        const iAmBeingAsked = uBranch === fromLoc; // I can fulfill/reject this
+        const iRequested = uBranch === toLoc;      // I can cancel this
+
+        const dirIcon = iAmBeingAsked
+            ? `<span class="trv-dir-incoming" title="Request received"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>`
+            : `<span class="trv-dir-outgoing" title="Request sent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>`;
+
+        const st = esc((t.status || '').toLowerCase());
+        const stLabel = 'Requested: ' + esc(t.status.charAt(0).toUpperCase() + t.status.slice(1));
+        let stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+        if (st === 'fulfilled') stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>';
+        else if (st === 'rejected' || st === 'canceled') stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        const statusHtml = `<div style="display:flex; justify-content:center; width:100%;"><span class="trv-status-icon trv-status-icon--${st === 'pending' ? 'pending' : (st === 'fulfilled' ? 'completed' : 'rejected')}" title="${stLabel}">${stIcon}</span></div>`;
+
+        let actions = '';
+        if (t.status === 'pending') {
+            if (isAdmin || iAmBeingAsked) {
+                actions += `<button class="trv-action-btn trv-action-btn--primary btn-fulfill-req" data-id="${esc(t.batch_id)}">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    Fulfill
+                </button>`;
+                actions += `<button class="trv-action-btn trv-action-btn--danger btn-reject-req" data-id="${esc(t.batch_id)}">Reject</button>`;
+            } else if (isAdmin || iRequested) {
+                actions += `<button class="trv-action-btn trv-action-btn--danger btn-cancel-req" data-id="${esc(t.batch_id)}">Cancel</button>`;
+            }
+        } else {
+            actions += `<button class="trv-action-btn trv-action-btn--ghost btn-view-req" data-id="${esc(t.batch_id)}" title="View details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>`;
+        }
+
+        const timeAgo = this.timeSince(new Date(t.created_at));
+        const batchId = esc(t.batch_id);
+        const domId = batchId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+        return `
+        <div class="trv-row trv-row--request" data-batch="${batchId}">
+            <div class="trv-row-main">
+                <button class="trv-expand-btn expand-toggle-req" data-batch="${batchId}" title="Expand details">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" id="icon-${domId}"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <span class="trv-batch-id btn-view-req" data-id="${batchId}" title="${batchId}">#${batchId} <span style="font-size:10px;color:var(--neutral-400);font-weight:600;">REQUEST</span></span>
+                <span class="trv-date" title="${esc(new Date(t.created_at).toLocaleString())}">${esc(timeAgo)}</span>
+                <span style="display:flex;justify-content:center;">${dirIcon}</span>
+                <span class="trv-branch" title="${esc(t.from_location)}">${esc(t.from_location)}</span>
+                <span class="trv-branch" title="${esc(t.to_location)}">${esc(t.to_location)}</span>
+                <span class="trv-items-cell" title="${parseInt(t.item_count) || 0} items (${parseInt(t.total_qty) || 0} qty)">
+                    ${parseInt(t.item_count) || 0} items
+                    <span class="trv-items-qty">(${parseInt(t.total_qty) || 0} qty)</span>
+                </span>
+                <span class="trv-disc-cell"><span class="trv-disc--na">—</span></span>
+                ${statusHtml}
+                <div class="trv-actions">${actions}</div>
+            </div>
+            <div class="trv-expand-panel" id="expanded-${domId}">
+                <div id="expanded-content-${domId}">
+                    <div style="color:#9ca3af;font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0;">
+                        <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg>
+                        Fetching items…
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    _expandRequestContentHTML(data) {
+        const items = data.items || [];
+        const initStr = esc(new Date(data.created_at).toLocaleString());
+
+        const rowsHTML = items.map(i => `
+            <tr>
+                <td class="trv-sub-td" style="font-size:11px;font-family:monospace;color:var(--neutral-400);">${esc(i.product_sku) || '—'}</td>
+                <td class="trv-sub-td" style="font-weight:600;color:var(--neutral-800);">${esc(i.product_name)}</td>
+                <td class="trv-sub-td" style="text-align:center;font-weight:700;color:var(--primary-600);">${parseInt(i.requested_qty) || 0}</td>
+                <td class="trv-sub-td" style="text-align:center;font-weight:700;">${i.approved_qty !== null ? parseInt(i.approved_qty) : '—'}</td>
+                <td class="trv-sub-td" style="font-style:italic;color:var(--neutral-400);">${esc(i.response_note) || '—'}</td>
+            </tr>`).join('');
+
+        return `
+            <div class="trv-expand-meta">
+                <div class="trv-expand-meta-item">
+                    <span class="trv-expand-meta-label">Requested by</span>
+                    <strong>${esc(data.requested_by)}</strong>
+                    <span class="trv-expand-meta-time">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" style="vertical-align:-1px;margin-right:2px;opacity:.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        ${initStr}
+                    </span>
+                </div>
+            </div>
+            <div class="trv-expand-header">
+                <span class="trv-expand-title">Requested Items</span>
+                <span class="trv-product-count">${items.length} product${items.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="trv-sub-table-wrap">
+                <table class="trv-sub-table">
+                    <thead>
+                        <tr>
+                            <th class="trv-sub-th" style="width:90px;">SKU</th>
+                            <th class="trv-sub-th">Product</th>
+                            <th class="trv-sub-th" style="text-align:center;width:80px;">Requested</th>
+                            <th class="trv-sub-th" style="text-align:center;width:80px;">Approved</th>
+                            <th class="trv-sub-th">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHTML}</tbody>
+                </table>
+            </div>`;
+    }
+
+    async _toggleExpandRequest(batchId) {
+        const domId = batchId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        const panel = document.getElementById(`expanded-${domId}`);
+        const btn = panel?.previousElementSibling?.querySelector('.expand-toggle-req');
+        const content = document.getElementById(`expanded-content-${domId}`);
+        if (!panel) return;
+
+        const isOpen = panel.classList.contains('trv-expand-panel--open');
+        if (!isOpen) {
+            panel.classList.add('trv-expand-panel--open');
+            btn?.classList.add('trv-expand-btn--open');
+            if (content.dataset.loaded !== 'true') {
+                try {
+                    const res = await API.getTransferRequestDetails(batchId);
+                    if (res.status === 'success') {
+                        content.innerHTML = this._expandRequestContentHTML(res.data);
+                        content.dataset.loaded = 'true';
+                    } else {
+                        content.innerHTML = `<div style="color:var(--error-500);font-size:12px;padding:8px 0;">${esc(res.message)}</div>`;
+                    }
+                } catch (e) {
+                    content.innerHTML = `<div style="color:var(--error-500);font-size:12px;padding:8px 0;">Failed to load request items.</div>`;
+                }
+            }
+        } else {
+            panel.classList.remove('trv-expand-panel--open');
+            btn?.classList.remove('trv-expand-btn--open');
+        }
+    }
+
     // ─── Event binding ────────────────────────────────────────────────────────
 
-    // FIX: Accept container param and scope all queries to it, preventing
-    // duplicate listeners on re-render and cross-component interference.
     _attachEvents(container) {
         container.querySelectorAll('.expand-toggle').forEach(btn => {
             btn.addEventListener('click', () => this._toggleExpand(btn.dataset.batch));
@@ -203,6 +342,23 @@ class TransferTable {
         });
         container.querySelectorAll('.btn-revert').forEach(btn => {
             btn.addEventListener('click', () => this.modals.handleRevert(btn.dataset.id));
+        });
+
+        // ── Request row events ──────────────────────────────────────────────
+        container.querySelectorAll('.expand-toggle-req').forEach(btn => {
+            btn.addEventListener('click', () => this._toggleExpandRequest(btn.dataset.batch));
+        });
+        container.querySelectorAll('.btn-view-req').forEach(btn => {
+            btn.addEventListener('click', () => this.modals.showRequestDetailsModal(btn.dataset.id));
+        });
+        container.querySelectorAll('.btn-fulfill-req').forEach(btn => {
+            btn.addEventListener('click', () => this.parent.startFulfillFromRequest(btn.dataset.id));
+        });
+        container.querySelectorAll('.btn-reject-req').forEach(btn => {
+            btn.addEventListener('click', () => this.modals.handleRejectRequest(btn.dataset.id));
+        });
+        container.querySelectorAll('.btn-cancel-req').forEach(btn => {
+            btn.addEventListener('click', () => this.modals.handleCancelRequest(btn.dataset.id));
         });
 
         // Handle the Resolve button click
@@ -244,7 +400,6 @@ class TransferTable {
                         content.innerHTML = this._expandContentHTML(res.data);
                         content.dataset.loaded = 'true';
                     } else {
-                        // FIX: escape server error message before injection
                         content.innerHTML = `<div style="color:var(--error-500);font-size:12px;padding:8px 0;">
                             <i class="fa-solid fa-circle-exclamation"></i> ${esc(res.message)}
                         </div>`;
@@ -306,7 +461,6 @@ class TransferTable {
         const initStr = esc(new Date(data.created_at).toLocaleString());
         const approvedStr = firstItem.approved_at ? esc(new Date(firstItem.approved_at).toLocaleString()) : '';
 
-        // FIX: escape all server-supplied strings before injection
         let metaHTML = `
             <div class="trv-expand-meta">
                 <div class="trv-expand-meta-item">
@@ -334,18 +488,18 @@ class TransferTable {
 
         const rowsHTML = items.map(i => {
             const isCanceled = i.status === 'canceled';
-            
+
             // Row background for canceled items
             const rowStyle = isCanceled ? 'background-color: rgba(0,0,0,0.02);' : '';
             // Strikethrough and opacity ONLY for the product details cells
             const canceledCellStyle = isCanceled ? 'opacity: 0.5; text-decoration: line-through;' : '';
             // Dim the notes slightly, but NO strikethrough
             const canceledNoteStyle = isCanceled ? 'opacity: 0.8;' : '';
-            
+
             const diff = (i.received_qty !== null) ? i.received_qty - i.qty : null;
             let recvClass = '';
             let recvVal = i.received_qty !== null ? esc(String(i.received_qty)) : '—';
-            
+
             if (diff !== null && !isCanceled) {
                 if (diff < 0) recvClass = 'trv-qty-low';
                 else if (diff > 0) recvClass = 'trv-qty-high';

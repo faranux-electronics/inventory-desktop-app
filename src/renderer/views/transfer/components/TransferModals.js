@@ -33,15 +33,15 @@ class TransferModals {
 
         const itemsHtml = items.map(i => {
             const isCanceled = i.status === 'canceled';
-            
+
             const rowStyle = isCanceled ? 'background-color: rgba(0,0,0,0.02);' : '';
             const canceledCellStyle = isCanceled ? 'opacity: 0.5; text-decoration: line-through;' : '';
-            
+
             // If canceled, do not render input fields so they aren't processed on submit
-            const recvHtml = isCanceled 
+            const recvHtml = isCanceled
                 ? `<span style="${canceledCellStyle}">—</span>`
                 : `<input type="number" class="form-input form-input-sm recv-qty text-center font-bold" data-id="${esc(i.id)}" value="${parseInt(i.qty) || 0}" min="0">`;
-                
+
             const noteHtml = isCanceled
                 ? `<span style="font-style:italic; color:var(--neutral-400); opacity:0.8;"><strong>(Canceled)</strong> ${esc(i.note) || ''}</span>`
                 : `<input type="text" class="form-input form-input-sm" id="note-${esc(i.id)}" placeholder="Optional note if mismatched">`;
@@ -52,6 +52,7 @@ class TransferModals {
                     <div class="font-semibold text-sm" style="${canceledCellStyle}">${esc(i.product_name)}</div>
                     <div class="text-xs text-muted font-mono" style="${canceledCellStyle}">${esc(i.product_sku || '')}</div>
                 </td>
+                ${i.requested_qty ? `<td class="text-center text-primary fw-medium" style="${canceledCellStyle}">${esc(String(i.requested_qty))}</td>` : (items.some(x => x.requested_qty) ? `<td></td>` : '')}
                 <td class="text-center font-bold" style="color: #2271b1; ${canceledCellStyle}">${parseInt(i.qty) || 0}</td>
                 <td style="width: 100px;" class="text-center">
                     ${recvHtml}
@@ -86,7 +87,8 @@ class TransferModals {
                             <thead>
                                 <tr>
                                     <th class="pb-sm">Product</th>
-                                    <th class="text-center pb-sm">Sent</th>
+                                    ${data.items.some(i => i.requested_qty) ? `<th class="text-center pb-sm" title="What you originally requested">Requested</th>` : ''}
+                                    <th class="text-center pb-sm">Qty Sent</th>
                                     <th class="text-center pb-sm">Received</th>
                                     <th class="pb-sm">Issue Note</th>
                                 </tr>
@@ -157,7 +159,7 @@ class TransferModals {
 
         const itemsHtml = items.map(i => {
             const isCanceled = i.status === 'canceled';
-            
+
             const rowStyle = isCanceled ? 'background-color: rgba(0,0,0,0.02);' : '';
             const canceledCellStyle = isCanceled ? 'opacity: 0.5; text-decoration: line-through;' : '';
             const canceledNoteStyle = isCanceled ? 'opacity: 0.8;' : '';
@@ -233,7 +235,7 @@ class TransferModals {
                 </div>
             `,
             confirmText: "Close",
-            onConfirm: () => {}
+            onConfirm: () => { }
         });
     }
 
@@ -271,6 +273,107 @@ class TransferModals {
                 } else {
                     Toast.error(res.message);
                     throw new Error(res.message);
+                }
+            }
+        });
+    }
+
+    async showRequestDetailsModal(batchId) {
+        const res = await API.getTransferRequestDetails(batchId);
+        if (res.status !== 'success') return Toast.error(res.message);
+        const data = res.data;
+        const items = data.items || [];
+
+        const itemsHtml = items.map(i => `
+            <tr class="border-b border-neutral-100">
+                <td class="py-sm">
+                    <div class="font-semibold text-sm">${esc(i.product_name)}</div>
+                    <div class="text-xs text-muted font-mono">${esc(i.product_sku || '')}</div>
+                </td>
+                <td class="text-center">${parseInt(i.requested_qty) || 0}</td>
+                <td class="text-center font-bold">${i.approved_qty !== null ? parseInt(i.approved_qty) : '—'}</td>
+                <td class="text-sm text-muted">${esc(i.response_note) || '-'}</td>
+            </tr>
+        `).join('');
+
+        Modal.open({
+            title: `Request: ${esc(batchId)}`,
+            size: 'lg',
+            body: `
+                <div class="mb-md flex justify-between p-md bg-neutral-50 rounded border border-neutral-200">
+                    <div>
+                        <p class="mb-xs"><strong>Asking:</strong> ${esc(data.from_location)}</p>
+                        <p class="mb-xs"><strong>For:</strong> ${esc(data.to_location)}</p>
+                        <p><strong>Status:</strong> <span class="badge badge-${esc(this.getBadgeColor(data.status === 'fulfilled' ? 'completed' : data.status))}">${esc(data.status.toUpperCase())}</span></p>
+                    </div>
+                    <div class="text-right text-sm text-neutral-700">
+                        <span class="text-muted">Requested by:</span> <strong>${esc(data.requested_by)}</strong>
+                        <div class="text-xs text-muted mt-xs">${esc(new Date(data.created_at).toLocaleString())}</div>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr>
+                                <th class="pb-sm text-xs text-muted uppercase">Product</th>
+                                <th class="text-center pb-sm text-xs text-muted uppercase">Requested</th>
+                                <th class="text-center pb-sm text-xs text-muted uppercase">Approved</th>
+                                <th class="pb-sm text-xs text-muted uppercase">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
+                    </table>
+                </div>
+            `,
+            confirmText: "Close",
+            onConfirm: () => { }
+        });
+    }
+
+    async handleRejectRequest(batchId) {
+        Modal.open({
+            title: "Reject Request",
+            body: `
+                <p class="mb-sm text-neutral-700">Are you sure you want to reject this transfer request? No stock will move.</p>
+                <div class="form-group">
+                    <label class="form-label">Reason (Optional)</label>
+                    <textarea id="rejectReqReason" class="form-input" rows="2"></textarea>
+                </div>
+            `,
+            confirmText: "Yes, Reject",
+            confirmClass: 'btn-danger',
+            onConfirm: async () => {
+                const reason = document.getElementById('rejectReqReason').value;
+                const res = await API.respondTransferRequest(batchId, 'reject', [], reason);
+                if (res.status === 'success') {
+                    Toast.success("Request rejected");
+                    this.parent.loadTransfers();
+                } else {
+                    Toast.error(res.message);
+                    throw new Error();
+                }
+            }
+        });
+    }
+
+    async handleCancelRequest(batchId) {
+        Modal.open({
+            title: "Cancel Request",
+            body: `<p class="mb-sm text-neutral-700">Are you sure you want to cancel this transfer request?</p>
+                   <div class="form-group">
+                       <label class="form-label">Reason (Optional)</label>
+                       <textarea id="cancelReqReason" class="form-input" rows="2"></textarea>
+                   </div>`,
+            confirmText: "Yes, Cancel",
+            onConfirm: async () => {
+                const reason = document.getElementById('cancelReqReason').value;
+                const res = await API.cancelTransferRequest(batchId, reason);
+                if (res.status === 'success') {
+                    Toast.success("Request canceled");
+                    this.parent.loadTransfers();
+                } else {
+                    Toast.error(res.message);
+                    throw new Error();
                 }
             }
         });

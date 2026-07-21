@@ -166,12 +166,15 @@ class NotsView {
         } else if (n.type === 'transfer_approved') {
             icon = '<i class="fa-solid fa-check-double"></i>';
             bgStyle = 'background: var(--success-50, #f0fdf4); color: var(--success-700, #15803d); border: 1px solid #bbf7d0';
-        } else if (n.type === 'transfer_rejected') {
+        } else if (n.type === 'transfer_rejected' || n.type === 'transfer_request_rejected') {
             icon = '<i class="fa-solid fa-xmark"></i>';
             bgStyle = 'background: var(--error-50, #fef2f2); color: var(--error-700, #b71c1c); border: 1px solid #fecaca';
-        } else if (n.type === 'transfer_reverted') {
+        } else if (n.type === 'transfer_reverted' || n.type === 'transfer_canceled' || n.type === 'transfer_request_canceled') {
             icon = '<i class="fa-solid fa-rotate-left"></i>';
-            bgStyle = 'background: var(--error-50, #fef2f2); color: var(--error-700, #b71c1c); border: 1px solid #fecaca';
+            bgStyle = 'background: var(--neutral-100, #f3f4f6); color: var(--neutral-600, #4b5563); border: 1px solid #e5e7eb';
+        } else if (n.type === 'transfer_request') {
+            icon = '<i class="fa-solid fa-hand-holding-hand"></i>';
+            bgStyle = 'background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;';
         }
 
         const circleStyle = `width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; ${bgStyle}`;

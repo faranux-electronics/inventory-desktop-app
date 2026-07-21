@@ -23,12 +23,13 @@ class TransfersView {
         this._currentPage = 1;
         this._syncSession = 0;
         this._lastProductFilterFrom = null;
+        this._currentMode = 'request';
 
         this._branchInventory = {};
         this._userBranchId = null;
 
         this.currentTab = 'new_transfer';
-        this.filters = {search: '', start: '', end: '', page: 1};
+        this.filters = { search: '', start: '', end: '', page: 1, recordType: 'all' };
 
         this.filterBar = null;
         this.productGrid = null;
@@ -36,21 +37,18 @@ class TransfersView {
         this.tableComponent = null;
         this.balancePanel = null;
 
-        // Balance tab has its own pagination/session state, separate from the
-        // New Transfer grid's, since both can have independently loaded pages.
         this._balancePage = 1;
         this._balanceAllLoaded = false;
         this._balanceLoading = false;
         this._balanceSession = 0;
 
         this._resizerAbort = null;
-        // FIX: persist staged items across re-renders (e.g. navigating away and back)
         this._savedStagingItems = [];
 
         const saved = this.state.getTabState('transfers');
         if (saved) {
             this.currentTab = saved.currentTab || 'new_transfer';
-            this.filters = saved.filters || this.filters;
+            this.filters = { ...this.filters, ...(saved.filters || {}) };
         }
     }
 
@@ -60,14 +58,9 @@ class TransfersView {
     }
 
     render() {
-        // FIX: capture any staged items before blowing away the DOM, so they
-        // survive navigation away and back to the Transfers view.
         this._savedStagingItems = this.stagingPanel?.getItems() || [];
         this.destroy();
 
-        // FIX: reset per-render loading state so a previous abandoned mid-flight
-        // fetch (e.g. user navigated away during a request) never leaves
-        // _loadingPage stuck at true or _syncSession mismatched.
         this._loadingPage = false;
         this._allLoaded = false;
         this._currentPage = 1;
@@ -83,15 +76,11 @@ class TransfersView {
     _layoutHTML() {
         const user = this.state.getUser();
         let canViewBalance = false;
-        
+
         try {
             const role = user?.role?.toLowerCase();
-            // Balance stock is an internal tab within transfers view, not a top-level nav item
             // It's controlled by role-based permissions only (admin/manager)
             canViewBalance = ['admin', 'manager'].includes(role);
-            
-            // DEBUG: Log the permission check result
-            console.log('Balance stock permission check:', { role, canViewBalance });
         } catch (e) {
             console.error("Permission check failed, reverting to default role check", e);
             canViewBalance = ['admin', 'manager'].includes(user?.role?.toLowerCase());
@@ -105,7 +94,7 @@ class TransfersView {
         const isNew = this.currentTab === 'new_transfer';
         const isBalance = this.currentTab === 'balance';
         const isTable = !isNew && !isBalance;
-        
+
         return `
         <div class="trv-root" id="trvRoot">
             <div class="trv-nav-bar" id="trvTabBar">
@@ -156,6 +145,11 @@ class TransfersView {
                     <input type="date" id="trvDateStart" class="trv-filter-input" value="${esc(this.filters.start)}">
                     <span class="trv-date-sep">—</span>
                     <input type="date" id="trvDateEnd" class="trv-filter-input" value="${esc(this.filters.end)}">
+                    <select id="trvTypeFilter" class="trv-filter-input" style="max-width:130px;" title="Filter by record type">
+                        <option value="all" ${this.filters.recordType === 'all' ? 'selected' : ''}>All</option>
+                        <option value="transfer" ${this.filters.recordType === 'transfer' ? 'selected' : ''}>Transfers only</option>
+                        <option value="request" ${this.filters.recordType === 'request' ? 'selected' : ''}>Requests only</option>
+                    </select>
                     <div class="trv-toolbar-spacer"></div>
                     <button class="trv-btn" id="trvRefreshBtn">Refresh</button>
                     <button class="trv-btn trv-btn-ghost" id="trvExportBtn">Export</button>
@@ -202,7 +196,9 @@ class TransfersView {
 
         this.stagingPanel = new TransferStagingPanel({
             onTransfer: payload => this._handleTransfer(payload),
-            onBranchChange: fromId => this._onSourceBranchChange(fromId)
+            onRequest: payload => this._handleRequest(payload),
+            onFulfillRequest: payload => this._handleFulfillRequest(payload),
+            onBranchChange: (fromId, mode) => this._onSourceBranchChange(fromId, mode)
         });
         this.stagingPanel.render(document.getElementById('trvStagingMount'));
 
@@ -241,24 +237,14 @@ class TransfersView {
         this.productGrid.setLocationMap(locationMap);
         if (this._userBranchId) this.productGrid.setFocusBranch(this._userBranchId);
 
-        // setBranches renders tspFromBranch into the DOM — must come before
-        // _fetchProductsAsync so the correct fromId is readable from the select.
         this.stagingPanel.setBranches(locations, this._userBranchId);
         this.balancePanel.setBranches(locations, this._userBranchId);
 
-        // FIX: restore any items that were staged before this re-render
         if (this._savedStagingItems.length) {
             this.stagingPanel.setItems(this._savedStagingItems);
             this._savedStagingItems = [];
         }
 
-        // FIX: fetch categories WITHOUT awaiting before the product fetch.
-        // Previously: await getCategories() → populateCategories → then
-        // _fetchProductsAsync. The problem was that any intermediate _syncSession
-        // bump (e.g. from _reloadProducts called by a change event) would cause
-        // the in-flight session check inside _fetchProductsAsync to silently bail,
-        // leaving the grid empty until the user typed something.
-        // Solution: fire categories in parallel and load products immediately.
         const catPromise = API.getCategories().then(res => {
             if (res?.status === 'success') this.filterBar.populateCategories(res.data || []);
         });
@@ -277,16 +263,12 @@ class TransfersView {
     // Promisified wrapper so _bootstrap can await the initial fetch completion.
     _fetchProductsAsync() {
         return new Promise(resolve => {
-            // FIX: do NOT increment _syncSession here — render() already reset it
-            // to a fresh value. A double-increment here means any in-flight fetch
-            // started by _reloadProducts (e.g. from a filter change event) would
-            // invalidate this session check and leave the grid blank.
             this._currentPage = 1;
             this._allLoaded = false;
             const session = this._syncSession;
 
             this.productGrid.showLoading(false);
-            const fromId = document.getElementById('tspFromBranch')?.value || this._userBranchId || '';
+            const fromId = this._getProductQueryBranchId();
 
             API.getInventory(1, this._query, fromId, 'publish', 'name', 'ASC', this._category)
                 .then(res => {
@@ -333,17 +315,13 @@ class TransfersView {
         this._loadingPage = true;
         const session = this._syncSession;
 
-        // FIX: was `showLoading(!append)` — completely inverted.
-        // First-page load (append=false) needs the full loading overlay.
-        // Scroll-triggered loads (append=true) should show the lightweight
-        // "Syncing…" badge so existing products stay visible.
         if (append) {
             this.productGrid.setSyncStatus('syncing');
         } else {
             this.productGrid.showLoading(false);
         }
 
-        const fromId = document.getElementById('tspFromBranch')?.value || this._userBranchId || '';
+        const fromId = this._getProductQueryBranchId();
 
         try {
             const res = await API.getInventory(page, this._query, fromId, 'publish', 'name', 'ASC', this._category);
@@ -370,57 +348,101 @@ class TransfersView {
         }
     }
 
-    _onSourceBranchChange(fromId) {
-        this.productGrid.setFocusBranch(fromId);
-        if (fromId !== this._lastProductFilterFrom) this._reloadProducts();
+    _onSourceBranchChange(fromId, mode = 'send') {
+        this._currentMode = mode;
         this._loadBranchInventory(fromId);
+
+        if (mode !== 'request') {
+            if (!fromId) {
+                this.productGrid.clearFocusBranch();
+                return;
+            }
+            this.productGrid.setFocusBranch(fromId);
+            if (fromId !== this._lastProductFilterFrom) this._reloadProducts();
+        }
+    }
+
+    _getProductQueryBranchId() {
+        if (this._currentMode === 'request') {
+            return this._userBranchId || '';
+        }
+        return document.getElementById('tspFromBranch')?.value || this._userBranchId || '';
     }
 
     async _loadBranchInventory(branchId) {
         if (!branchId) return;
-        const res = await API.getInventory(1, '', branchId, 'publish', 'name', 'ASC', '');
-        if (res?.status !== 'success') return;
 
-        const inv = {};
-        (res.data || []).forEach(p => {
-            if (p.stock_breakdown) {
-                p.stock_breakdown.toString().split(',').forEach(pair => {
-                    const colonIdx = pair.lastIndexOf(':');
-                    if (colonIdx === -1) return;
-                    const lid = pair.substring(0, colonIdx).trim();
-                    const qty = parseInt(pair.substring(colonIdx + 1).trim() || 0);
-                    if (!inv[lid]) inv[lid] = {};
-                    inv[lid][p.id] = qty;
-                });
-            }
+        this._loadingInventoryFor = branchId;
+
+        const res = await API.getBranchStockDictionary(branchId);
+
+        if (this._loadingInventoryFor === branchId) this._loadingInventoryFor = null;
+
+        if (res?.status !== 'success' || !res.data) return;
+
+        const branchDict = {};
+        Object.entries(res.data).forEach(([productId, qty]) => {
+            branchDict[productId] = parseInt(qty || 0);
         });
-        this._branchInventory = inv;
-        this.stagingPanel.setBranchInventory(inv);
+
+        // Merge in (don't replace) so previously-loaded branches stay cached.
+        this._branchInventory = { ...this._branchInventory, [branchId]: branchDict };
+        this.stagingPanel.setBranchInventory(this._branchInventory);
         this.productGrid.refreshCards();
+    }
+
+    /**
+     * Pull a specific branch's qty out of a product's `stock_breakdown` string
+     * (e.g. "3:78,5:0"). This is per-product data returned on every product
+     * regardless of which page it was loaded on, so — unlike `_branchInventory`
+     * (built from a single page-1 fetch) — it's never stale due to pagination.
+     */
+    _getBreakdownQty(product, branchId) {
+        if (!product?.stock_breakdown || !branchId) return null;
+        let found = null;
+        product.stock_breakdown.toString().split(',').some(pair => {
+            const colonIdx = pair.lastIndexOf(':');
+            if (colonIdx === -1) return false;
+            const lid = pair.substring(0, colonIdx).trim();
+            if (String(lid) === String(branchId)) {
+                found = parseInt(pair.substring(colonIdx + 1).trim() || 0) || 0;
+                return true;
+            }
+            return false;
+        });
+        return found;
     }
 
     _handleAddToStaging(product) {
         const fromId = document.getElementById('tspFromBranch')?.value || this._userBranchId;
+        const isRequestMode = this.stagingPanel?._mode === 'request';
 
-        // Use the stock that the grid already knows (most reliable)
-        let localQty = parseInt(product.stock_quantity || 0);
-
-        // If we have the map, double-check (extra safety)
-        if (fromId && this._branchInventory[fromId]) {
-            const mapQty = parseInt(this._branchInventory[fromId][product.id] ?? 0);
-            if (mapQty > 0) localQty = mapQty;   // trust map if higher
+        if (fromId && this._loadingInventoryFor === fromId && this._branchInventory[fromId] === undefined) {
+            return Toast.error('Still loading that branch\'s stock — try again in a moment');
         }
 
-        const enriched = {...product, stock_quantity: localQty};
+        let sourceQty = null;
+
+        if (fromId && this._branchInventory[fromId]?.[product.id] !== undefined) {
+            sourceQty = parseInt(this._branchInventory[fromId][product.id]) || 0;
+        }
+        if (sourceQty === null) {
+            sourceQty = this._getBreakdownQty(product, fromId);
+        }
+        if (sourceQty === null) {
+            sourceQty = isRequestMode ? 0 : parseInt(product.stock_quantity || 0);
+        }
+
+        const enriched = { ...product, stock_quantity: sourceQty };
         const result = this.stagingPanel.addProduct(enriched);
 
-        if (result === 'nostock') return Toast.error('No local stock in source branch');
+        if (result === 'nostock') return Toast.error(isRequestMode ? 'That branch has no stock of this item' : 'No local stock in source branch');
         if (result === 'max') return Toast.error('Maximum available quantity already staged');
 
         this.productGrid.flash(product.id);
     }
 
-    async _handleTransfer({fromBranchId, toBranchId, reason, items}) {
+    async _handleTransfer({ fromBranchId, toBranchId, reason, items }) {
         if (fromBranchId === toBranchId) return Toast.error('Source and destination must differ');
         this.stagingPanel.setLoading(true);
         const res = await API.initiateTransfer(items, fromBranchId, toBranchId, reason);
@@ -432,6 +454,77 @@ class TransfersView {
             await this._loadBranchInventory(fromBranchId);
             await this.loadTransfers();
         } else Toast.error(res.message || 'Failed');
+    }
+
+    async _handleRequest({ fromBranchId, toBranchId, reason, items }) {
+        if (fromBranchId === toBranchId) return Toast.error('Source and destination must differ');
+        this.stagingPanel.setLoading(true);
+        const res = await API.requestTransfer(items, fromBranchId, toBranchId, reason);
+        this.stagingPanel.setLoading(false);
+        if (res.status === 'success') {
+            Toast.success('Request sent!');
+            this.stagingPanel.clear();
+            await this.loadTransfers();
+        } else Toast.error(res.message || 'Failed');
+    }
+
+    async _handleFulfillRequest({ requestBatchId, itemsData, note }) {
+        this.stagingPanel.setLoading(true);
+        const res = await API.respondTransferRequest(requestBatchId, 'fulfill', itemsData, note);
+        this.stagingPanel.setLoading(false);
+        if (res.status === 'success') {
+            Toast.success(res.message || 'Request fulfilled!');
+            this.stagingPanel.clearFulfillContext();
+            this.state.invalidateInventoryCache();
+            this.currentTab = 'pending_outgoing';
+            this.saveState();
+            document.getElementById('trvPanelNew').style.display = 'none';
+            document.getElementById('trvPanelTable').style.display = '';
+            document.querySelectorAll('.trv-nav-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === this.currentTab));
+            await this.loadTransfers();
+        } else Toast.error(res.message || 'Failed');
+    }
+
+    /** Entry point for "Fulfill" clicked on a pending incoming request row. */
+    async startFulfillFromRequest(requestBatchId) {
+        const res = await API.getTransferRequestDetails(requestBatchId);
+        if (res.status !== 'success') return Toast.error(res.message);
+        const data = res.data;
+
+        // Switch to the New Transfer tab
+        this.currentTab = 'new_transfer';
+        this.saveState();
+        document.querySelectorAll('.trv-nav-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'new_transfer'));
+        document.getElementById('trvPanelNew').style.display = '';
+        document.getElementById('trvPanelTable').style.display = 'none';
+        document.getElementById('trvPanelBalance').style.display = 'none';
+
+        // Ensure we have current stock at my branch to cap quantities against
+        if (this._userBranchId) await this._loadBranchInventory(this._userBranchId);
+
+        const items = (data.items || [])
+            .filter(i => i.status === 'pending')
+            .map(i => {
+                // We rely on i.current_stock returned directly by get_transfer_request_details.
+                // This guarantees accurate live stock regardless of pagination.
+                const localStock = parseInt(i.current_stock) || 0;
+                return {
+                    product_id: i.product_id,
+                    request_line_id: i.id,
+                    name: i.product_name,
+                    sku: i.product_sku,
+                    imageUrl: i.product_image || '',
+                    qty: Math.min(parseInt(i.requested_qty) || 0, localStock),
+                    maxStock: localStock,
+                };
+            });
+
+        this.stagingPanel.setFulfillContext(requestBatchId, data.items[0]?.to_loc_id, data.to_location, items);
+
+        const zeroStock = items.filter(i => i.maxStock <= 0);
+        if (zeroStock.length) {
+            Toast.error(`${zeroStock.length} item(s) have no stock at your branch — adjust or remove before sending`);
+        }
     }
 
     // ─── Balance Stock tab ──────────────────────────────────────────────────
@@ -473,25 +566,25 @@ class TransfersView {
 
     async _loadAllBalanceProducts() {
         if (this._balanceLoading || this._balanceAllLoaded) return;
-        
+
         const session = this._balanceSession;
         this._balanceLoading = true;
         let accumulatedData = []; // Store pages to render them all at once (better performance)
-        
+
         try {
             while (!this._balanceAllLoaded && session === this._balanceSession) {
                 this._balancePage++;
                 const res = await API.getInventory(this._balancePage, this._query, '', 'publish', 'name', 'ASC', this._category);
-                
+
                 if (session !== this._balanceSession) return; // User changed filters or left tab
-                
+
                 accumulatedData = accumulatedData.concat(res?.data || []);
-                
+
                 if (this._balancePage >= (res?.pagination?.pages || 1)) {
                     this._balanceAllLoaded = true;
                 }
             }
-            
+
             if (session === this._balanceSession) {
                 if (accumulatedData.length > 0) {
                     this.balancePanel?.setProducts(accumulatedData, false);
@@ -511,7 +604,6 @@ class TransfersView {
 
     async loadTransfers() {
         const tbody = document.getElementById('transfersTableBody');
-        // FIX: was `<svg ...>` (literal "...") — not valid markup; replaced with full spinner SVG.
         tbody.innerHTML = `<div class="trv-empty-row">
             <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
                 <circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/>
@@ -530,25 +622,45 @@ class TransfersView {
             type = 'history';
         }
 
-        const res = await API.getTransfers(type, dir, this.filters.page, this.filters.search, '', this.filters.start, this.filters.end, '');
-        if (res.status === 'success') {
-            let transfers = res.data || [];
+        const recordType = this.filters.recordType || 'all';
+        const wantTransfers = recordType !== 'request';
+        const wantRequests = recordType !== 'transfer';
 
-            // FIX: enforce directional filtering client-side so a user never sees
-            // their own outgoing transfer in Incoming (or vice versa), regardless
-            // of what the server returns.  Admins have no branch and skip the filter.
+        const [res, reqRes] = await Promise.all([
+            wantTransfers
+                ? API.getTransfers(type, dir, this.filters.page, this.filters.search, '', this.filters.start, this.filters.end, '')
+                : Promise.resolve({ status: 'success', data: [], pagination: { total: 0, page: 1, pages: 1 } }),
+            (wantRequests && this.filters.page === 1)
+                ? API.getTransferRequests(type, dir, 1, this.filters.search, '', this.filters.start, this.filters.end)
+                : Promise.resolve({ status: 'success', data: [] })
+        ]);
+
+        if (res.status === 'success') {
+            let transfers = wantTransfers ? (res.data || []) : [];
+            let requests = wantRequests ? (reqRes.status === 'success' ? reqRes.data : []).map(r => ({ ...r, is_request: true })) : [];
+
             if (this._userBranchId) {
                 if (this.currentTab === 'pending_incoming') {
                     // Only transfers arriving AT the user's branch
                     transfers = transfers.filter(t => String(t.to_loc_id) === this._userBranchId);
+                    // Requests I made (I am asking for stock to come IN to my branch)
+                    requests = requests.filter(r => String(r.to_loc_id) === this._userBranchId);
                 } else if (this.currentTab === 'pending_outgoing') {
                     // Only transfers sent FROM the user's branch
                     transfers = transfers.filter(t => String(t.from_loc_id) === this._userBranchId);
+                    // Requests asking ME to send (I am expected to send stock OUT of my branch)
+                    requests = requests.filter(r => String(r.from_loc_id) === this._userBranchId);
                 }
             }
 
-            this.tableComponent.render(transfers);
-            this._renderPagination(res.pagination || {total: 0, page: 1, pages: 1});
+            const merged = [...requests, ...transfers].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            this.tableComponent.render(merged);
+
+            const paginationSource = recordType === 'request'
+                ? (reqRes.pagination || { total: requests.length, page: 1, pages: 1 })
+                : (res.pagination || { total: 0, page: 1, pages: 1 });
+            this._renderPagination(paginationSource);
         } else {
             tbody.innerHTML = `<div class="trv-empty-row" style="color:var(--error-500);">${esc(res.message)}</div>`;
         }
@@ -604,12 +716,17 @@ class TransfersView {
             this.filters.search = document.getElementById('trvSearch').value.trim();
             this.filters.start = document.getElementById('trvDateStart').value;
             this.filters.end = document.getElementById('trvDateEnd').value;
+            this.filters.recordType = document.getElementById('trvTypeFilter')?.value || 'all';
             this.filters.page = 1;
+            this.saveState();
+            this._syncExportAvailability();
             this.loadTransfers();
         };
         document.getElementById('trvSearch').addEventListener('input', apply);
         document.getElementById('trvDateStart').addEventListener('change', apply);
         document.getElementById('trvDateEnd').addEventListener('change', apply);
+        document.getElementById('trvTypeFilter')?.addEventListener('change', apply);
+        this._syncExportAvailability();
         document.getElementById('trvRefreshBtn').addEventListener('click', () => this.loadTransfers());
         document.getElementById('trvExportBtn').addEventListener('click', () => {
             let type = 'all', dir = 'all';
@@ -624,8 +741,16 @@ class TransfersView {
         });
     }
 
+    _syncExportAvailability() {
+        const btn = document.getElementById('trvExportBtn');
+        if (!btn) return;
+        const isRequestsOnly = (this.filters.recordType || 'all') === 'request';
+        btn.disabled = isRequestsOnly;
+        btn.title = isRequestsOnly ? 'CSV export isn\'t available for requests yet — switch to "All" or "Transfers only"' : '';
+    }
+
     saveState() {
-        this.state.saveTabState('transfers', {currentTab: this.currentTab, filters: this.filters});
+        this.state.saveTabState('transfers', { currentTab: this.currentTab, filters: this.filters });
     }
 
     _initResizer() {
@@ -634,15 +759,12 @@ class TransfersView {
         const split = document.getElementById('trvSplit');
         if (!divider || !right || !split) return;
 
-        // FIX: default to 50% so the staging queue gets enough room; CSS max-width raised to 700px.
         const splitW = split.getBoundingClientRect().width;
         const halfW = Math.max(360, Math.min(700, Math.round(splitW * 0.50)));
         right.style.flex = `0 0 ${halfW}px`;
 
         let dragging = false, startX, startW;
 
-        // FIX: Use AbortController so document-level listeners are properly removed
-        // when destroy() is called, preventing accumulation across re-renders.
         this._resizerAbort = new AbortController();
         const signal = this._resizerAbort.signal;
 
@@ -660,7 +782,7 @@ class TransfersView {
             const delta = startX - e.clientX;
             const newW = Math.max(360, Math.min(700, startW + delta));
             right.style.flex = `0 0 ${newW}px`;
-        }, {signal});
+        }, { signal });
 
         document.addEventListener('mouseup', () => {
             if (!dragging) return;
@@ -668,7 +790,7 @@ class TransfersView {
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
             divider.classList.remove('trv-divider--active');
-        }, {signal});
+        }, { signal });
     }
 }
 

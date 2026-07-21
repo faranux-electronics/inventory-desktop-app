@@ -36,12 +36,16 @@ async function request(action, method = 'GET', body = null) {
         const text = await res.text();
         if (!text) throw new Error("Empty response from server");
         try {
-            return JSON.parse(text);
+            const data = JSON.parse(text);
+            if (data && data.status === 'error') {
+                console.error('Backend Validation Error:', data.message);
+            }
+            return data;
         } catch (e) {
             throw new Error('Server Error: ' + text.substring(0, 100));
         }
     } catch (e) {
-        console.error('API Error:', e);
+        console.error('API Request Failed:', e);
         return {status: 'error', message: e.message};
     }
 }
@@ -209,6 +213,12 @@ module.exports = {
         total: 0,
         currency: 'RWF'
     }),
+
+    requestTransfer: (items, fromBranchId, toBranchId, note) => request('request_transfer', 'POST', { items, from_branch_id: fromBranchId, to_branch_id: toBranchId, note }),
+    getTransferRequests: (type, direction, page, search, branchId, startDate, endDate) => request(`get_transfer_requests&type=${type}&direction=${direction}&page=${page}&search=${encodeURIComponent(search)}&branch_id=${branchId}&start_date=${startDate}&end_date=${endDate}`),
+    getTransferRequestDetails: (batchId) => request(`get_transfer_request_details&batch_id=${batchId}`),
+    respondTransferRequest: (batchId, action, itemsData, responseNote) => request('respond_transfer_request', 'POST', { batch_id: batchId, action, items_data: itemsData, response_note: responseNote }),
+    cancelTransferRequest: (batchId, reason) => request('cancel_transfer_request', 'POST', { batch_id: batchId, reason }),
 
     getTransfers: (type = 'all', direction = 'all', page = 1, search = '', branch_id = '', start = '', end = '', user_id = '') =>
         request(`get_transfers&type=${type}&direction=${direction}&page=${page}&search=${encodeURIComponent(search)}&start_date=${start}&end_date=${end}&branch_id=${branch_id}&user_id=${user_id}`),
