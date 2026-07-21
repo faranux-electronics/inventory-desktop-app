@@ -55,9 +55,6 @@ class POSCart {
         const localStock = parseInt(product.stock_quantity || 0);
         const poolStock = parseInt(product.transferable_pool || 0);
 
-        // Items may be added to the cart regardless of stock level so they can be
-        // included on a quotation. maxStock/isTransferable/isOOS are still tracked
-        // and are enforced only when the cashier actually charges the sale.
         const isTransferable = localStock <= 0 && poolStock > 0; // local is 0, but pool has stock — sellable pending transfer
         const isOOS = localStock <= 0 && poolStock <= 0; // nothing available anywhere
         const cap = isTransferable ? poolStock : localStock;
@@ -297,7 +294,7 @@ class POSCart {
                 <div class="pos-transfer-banner-text">
                     <strong>${pendingTransferItems.length}</strong> item${pendingTransferItems.length > 1 ? 's' : ''} awaiting transfer to your branch
                 </div>
-                <button class="pos-transfer-banner-btn" id="posRequestTransferBtn">Request Transfer</button>
+                <button class="pos-transfer-banner-btn" id="posRequestTransferBtn">Request Stock</button>
             </div>` : '';
 
         el.innerHTML = transferBanner + this._items.map(item => {
@@ -379,8 +376,7 @@ class POSCart {
             });
         });
 
-        // FIX: Quantity input now only updates on blur or Enter; no on‑input re‑render
-        el.querySelectorAll('.pos-qty-input').forEach(input => {
+       el.querySelectorAll('.pos-qty-input').forEach(input => {
             // Enter key triggers blur to finalize
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {

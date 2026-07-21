@@ -232,7 +232,7 @@ class POSView {
     _setDefaultCustomerToCashier() {
         try {
             const cashierSel = document.querySelector('#posCashier');
-            
+
             if (cashierSel && cashierSel.value) {
                 const opt = cashierSel.options[cashierSel.selectedIndex];
                 const customerSearch = document.querySelector('#posCustomerSearch');
@@ -653,32 +653,32 @@ class POSView {
 
     /**
      * Opens ONE consolidated transfer-request modal covering every item in
-     * the active cart that's still pending an incoming transfer. TODO: wire
-     * the confirm handler to the actual transfer-creation endpoint/component
-     * (see TransferManager) once confirmed — this currently drafts the
-     * request and surfaces intent via a toast.
+     * the active cart that's still pending an incoming transfer.
      */
-    _handleRequestTransfer(items) {
+    async _handleRequestTransfer(items) {
         if (!items || items.length === 0) return;
 
-        const branchMap = {};
-        (this._branches || []).forEach(b => { branchMap[String(b.id)] = b.name; });
+        const userBranchId = String(this.state.getUser()?.branch_id || '');
+        const otherBranches = (this._branches || []).filter(b => String(b.id) !== userBranchId);
 
-        const parseBreakdown = (breakdown) => (breakdown || '').toString().split(',')
-            .map(pair => {
-                const idx = pair.lastIndexOf(':');
-                if (idx === -1) return null;
-                const locId = pair.substring(0, idx).trim();
-                const qty = parseInt(pair.substring(idx + 1).trim() || 0);
-                return { locId, qty };
-            })
-            .filter(b => b && b.qty > 0);
+        const branchStockMaps = {};
+        await Promise.all(otherBranches.map(async b => {
+            try {
+                const res = await API.getBranchStockDictionary(b.id);
+                branchStockMaps[String(b.id)] = (res?.status === 'success') ? (res.data || {}) : {};
+            } catch (e) {
+                branchStockMaps[String(b.id)] = {};
+            }
+        }));
 
         const rowsHtml = items.map((item, i) => {
-            const branches = parseBreakdown(item.stockBreakdown);
-            const optionsHtml = branches.map(b =>
-                `<option value="${b.locId}">${branchMap[String(b.locId)] || ('Branch #' + b.locId)} (${b.qty} available)</option>`
-            ).join('');
+            const linkId = item.wc_product_id || item.id;
+
+            const optionsHtml = otherBranches.map(b => {
+                const dict = branchStockMaps[String(b.id)] || {};
+                const qty = parseInt(dict[linkId] || 0);
+                return `<option value="${b.id}" data-available="${qty}">${b.name} (${qty} available)</option>`;
+            }).join('');
 
             return `
                 <div class="pos-transfer-request-row" data-idx="${i}">
@@ -687,25 +687,117 @@ class POSView {
                         <select class="pos-transfer-source" data-idx="${i}">${optionsHtml}</select>
                         <input class="pos-transfer-qty" data-idx="${i}" type="number" min="1" value="${item.qty}" style="width:70px;">
                     </div>
+                    <div class="pos-transfer-request-error" data-idx="${i}" style="color: #dc2626; font-size: 12px; margin-top: 4px; display: none;"></div>
                 </div>`;
         }).join('');
 
         Modal.open({
-            title: `Request Transfer (${items.length} item${items.length > 1 ? 's' : ''})`,
+            title: `Request Stock (${items.length} item${items.length > 1 ? 's' : ''})`,
             body: `<div class="pos-transfer-request-list">${rowsHtml}</div>`,
-            confirmText: 'Request Transfer',
+            confirmText: 'Request Stock',
             cancelText: 'Cancel',
-            onConfirm: () => {
-                const requests = items.map((item, i) => {
-                    const sourceBranch = document.querySelector(`.pos-transfer-source[data-idx="${i}"]`)?.value;
-                    const qty = parseInt(document.querySelector(`.pos-transfer-qty[data-idx="${i}"]`)?.value || item.qty);
-                    return { product_id: item.id, name: item.name, from_branch: sourceBranch, qty };
+            onConfirm: async () => {
+                const modalList = document.querySelector('.pos-transfer-request-list');
+                if (!modalList) return;
+
+                const groupedByBranch = {};
+
+                items.forEach((item, i) => {
+                    const select = modalList.querySelector(`.pos-transfer-source[data-idx="${i}"]`);
+                    const qtyInput = modalList.querySelector(`.pos-transfer-qty[data-idx="${i}"]`);
+                    if (!select || !qtyInput) return;
+
+                    const sourceBranch = select.value;
+                    const qty = parseInt(qtyInput.value) || 0;
+
+                    if (!sourceBranch || qty <= 0) return;
+
+                    if (!groupedByBranch[sourceBranch]) {
+                        groupedByBranch[sourceBranch] = [];
+                    }
+                    groupedByBranch[sourceBranch].push({ product_id: item.id, qty: qty });
                 });
-                // TODO: replace with the real batched transfer-creation call, e.g.:
-                // API.createTransferRequest({ to_branch: this.state.getUser()?.branch_id, items: requests })
-                Toast.info(`Transfer request drafted for ${requests.length} item(s)`);
+
+                const toBranchId = this.state.getUser()?.branch_id;
+                if (!toBranchId) return Toast.error('No branch assigned to your account.');
+
+                const branchIds = Object.keys(groupedByBranch);
+                if (branchIds.length === 0) return;
+
+                try {
+                    let hasError = false;
+                    for (const fromBranch of branchIds) {
+                        const groupItems = groupedByBranch[fromBranch];
+                        const res = await API.requestTransfer(groupItems, fromBranch, toBranchId, 'Requested from POS');
+                        if (res.status !== 'success') {
+                            Toast.error(`Failed to request from branch #${fromBranch}: ${res.message}`);
+                            hasError = true;
+                        }
+                    }
+                    if (!hasError) {
+                        Toast.success('Stock requested successfully!');
+                        const cart = this._activeCart;
+                        if (cart) {
+                            cart._renderItems();
+                            this._onCartChange(cart._items);
+                        }
+                    }
+                } catch (e) {
+                    Toast.error('An error occurred while creating requests.');
+                }
             }
         });
+
+        // FIX: The cart itself allows any quantity (it can be adjusted once the
+        // transfer lands), but this modal is the point where a request actually
+        // gets sent, so it needs to block requesting more than a branch really
+        // has. Modal.open() renders synchronously, so #modal-confirm and the row
+        // inputs already exist in the DOM at this point.
+        const confirmBtn = document.getElementById('modal-confirm');
+        const modalList = document.querySelector('.pos-transfer-request-list');
+        if (!confirmBtn || !modalList) return;
+
+        const validateRows = () => {
+            let allValid = true;
+            items.forEach((item, i) => {
+                const select = modalList.querySelector(`.pos-transfer-source[data-idx="${i}"]`);
+                const qtyInput = modalList.querySelector(`.pos-transfer-qty[data-idx="${i}"]`);
+                const row = modalList.querySelector(`.pos-transfer-request-row[data-idx="${i}"]`);
+                const errorLabel = modalList.querySelector(`.pos-transfer-request-error[data-idx="${i}"]`);
+                if (!select || !qtyInput) return;
+
+                const selectedOption = select.options[select.selectedIndex];
+                const available = selectedOption ? parseInt(selectedOption.dataset.available || 0) : 0;
+                const qty = parseInt(qtyInput.value) || 0;
+                const isRowValid = !!select.value && qty > 0 && qty <= available;
+
+                if (!isRowValid) allValid = false;
+                select.style.borderColor = isRowValid ? '' : '#dc2626';
+                qtyInput.style.borderColor = isRowValid ? '' : '#dc2626';
+                
+                if (errorLabel) {
+                    if (qty > available) {
+                        errorLabel.textContent = `Quantity exceeds available stock (${available})`;
+                        errorLabel.style.display = 'block';
+                    } else if (qty <= 0) {
+                        errorLabel.textContent = 'Quantity must be greater than 0';
+                        errorLabel.style.display = 'block';
+                    } else if (!select.value) {
+                        errorLabel.textContent = 'Please select a branch';
+                        errorLabel.style.display = 'block';
+                    } else {
+                        errorLabel.style.display = 'none';
+                    }
+                }
+
+                if (row) row.title = isRowValid ? '' : `Only ${available} available at the selected branch`;
+            });
+            confirmBtn.disabled = !allValid;
+        };
+
+        modalList.addEventListener('input', validateRows);
+        modalList.addEventListener('change', validateRows);
+        validateRows();
     }
 
     _onCartChange(items) {
