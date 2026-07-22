@@ -3,6 +3,7 @@
  * print or download the PDF receipt.
  */
 const PdfGenerator = require('../../../utils/PdfGenerator');
+const ThermalPdfGenerator = require('../../../utils/ThermalPdfGenerator');
 
 class POSReceipt {
     constructor({ onNewSale }) {
@@ -42,7 +43,16 @@ class POSReceipt {
                             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
                             <rect x="6" y="14" width="12" height="8"/>
                         </svg>
-                        <span class="rpt-btn-label">Print Receipt</span>
+                        <span class="rpt-btn-label">Print Receipt (A4)</span>
+                    </button>
+
+                    <button class="rpt-btn" id="rptThermalPrintBtn" style="background: #1f2937; color: white; border: none; padding: 12px; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" style="margin-right: 8px;">
+                            <polyline points="6 9 6 2 18 2 18 9"/>
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                            <rect x="6" y="14" width="12" height="8"/>
+                        </svg>
+                        <span class="rpt-btn-label">Print Receipt (Thermal)</span>
                     </button>
 
                     <button class="rpt-btn" id="rptDownloadBtn" style="background: white; color: #374151; border: 1px solid #d1d5db; padding: 10px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
@@ -82,6 +92,7 @@ class POSReceipt {
         };
 
         const printBtn = overlay.querySelector('#rptPrintBtn');
+        const thermalPrintBtn = overlay.querySelector('#rptThermalPrintBtn');
         const downloadBtn = overlay.querySelector('#rptDownloadBtn');
         const newSaleBtn = overlay.querySelector('#rptNewSaleBtn');
 
@@ -100,6 +111,24 @@ class POSReceipt {
                 setTimeout(() => { label.textContent = originalText; }, 2000);
             } finally {
                 printBtn.disabled = false;
+                if (label.textContent === 'Preparing…') label.textContent = originalText;
+            }
+        });
+
+        // Thermal Print
+        thermalPrintBtn.addEventListener('click', async () => {
+            const label = thermalPrintBtn.querySelector('.rpt-btn-label');
+            const originalText = label.textContent;
+            thermalPrintBtn.disabled = true;
+            label.textContent = 'Preparing…';
+            try {
+                await ThermalPdfGenerator.printThermalReceiptPDF(data);
+            } catch (err) {
+                console.error('Thermal Print failed:', err);
+                label.textContent = 'Print failed — try again';
+                setTimeout(() => { label.textContent = originalText; }, 2000);
+            } finally {
+                thermalPrintBtn.disabled = false;
                 if (label.textContent === 'Preparing…') label.textContent = originalText;
             }
         });
