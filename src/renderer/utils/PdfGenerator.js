@@ -296,7 +296,7 @@ class PdfGenerator {
         // --- 3. Table Data ---
         const tableBody = data.items.map(i => {
             const priceDisplay = i.originalPrice && i.originalPrice !== i.price && !i.isMisc
-                ? `${i.originalPrice.toLocaleString()} → ${i.price.toLocaleString()}`
+                ? `${i.price.toLocaleString()}\n `
                 : i.price.toLocaleString();
             return [
                 i.sku || '-',
@@ -337,7 +337,22 @@ class PdfGenerator {
                 3: { halign: 'right', cellWidth: 35 },
                 4: { halign: 'right', fontStyle: 'bold', cellWidth: 35 }
             },
-            margin: { bottom: 35 } // Give space for footer
+            margin: { bottom: 35 },
+            didDrawCell: function(dataHook) {
+                if (dataHook.section === 'body' && dataHook.column.index === 3) {
+                    const item = data.items[dataHook.row.index];
+                    if (item && item.originalPrice && item.originalPrice !== item.price && !item.isMisc) {
+                        const cell = dataHook.cell;
+                        if (!cell) return;
+                        const rightEdge = (cell.x || 0) + (cell.width || 0) - 4; 
+                        const textY = (cell.y || 0) + (cell.height || 0) - 3; 
+                        doc.setFontSize(8);
+                        doc.setTextColor(220, 38, 38); 
+                        doc.text(`(was ${item.originalPrice.toLocaleString()})`, rightEdge, textY, { align: 'right' });
+                        doc.setFontSize(10);
+                    }
+                }
+            }
         });
 
         // --- 4. Totals ---
@@ -541,7 +556,7 @@ class PdfGenerator {
         // --- 3. Table Data ---
         const tableBody = data.items.map(i => {
             const priceDisplay = i.originalPrice && i.originalPrice !== i.price && !i.isMisc
-                ? `${i.originalPrice.toLocaleString()} → ${i.price.toLocaleString()}`
+                ? `${i.price.toLocaleString()}\n `
                 : i.price.toLocaleString();
             return [
                 i.sku || '-',
@@ -582,7 +597,22 @@ class PdfGenerator {
                 3: { halign: 'right', cellWidth: 35 },
                 4: { halign: 'right', fontStyle: 'bold', cellWidth: 35 }
             },
-            margin: { bottom: 35 } // Give space for footer
+            margin: { bottom: 35 }, 
+            didDrawCell: function(dataHook) {
+                if (dataHook.section === 'body' && dataHook.column.index === 3) {
+                    const item = data.items[dataHook.row.index];
+                    if (item && item.originalPrice && item.originalPrice !== item.price && !item.isMisc) {
+                        const cell = dataHook.cell;
+                        if (!cell) return;
+                        const rightEdge = (cell.x || 0) + (cell.width || 0) - 4; 
+                        const textY = (cell.y || 0) + (cell.height || 0) - 3; 
+                        doc.setFontSize(8);
+                        doc.setTextColor(220, 38, 38); 
+                        doc.text(`(was ${item.originalPrice.toLocaleString()})`, rightEdge, textY, { align: 'right' });
+                        doc.setFontSize(10);
+                    }
+                }
+            }
         });
 
         // --- 4. Totals ---
@@ -710,4 +740,5 @@ class PdfGenerator {
     }
 }
 
+PdfGenerator.FARANUX_LOGO_BASE64 = FARANUX_LOGO_BASE64;
 module.exports = PdfGenerator;
