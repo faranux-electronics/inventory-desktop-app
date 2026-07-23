@@ -86,7 +86,7 @@
     padding: 10px 10px 12px;
 }
 .pos-right-payment {
-    flex-shrink: 0; overflow-y: auto; overflow-x: hidden; min-height: 200px; max-height: 35vh;
+    flex-shrink: 0; overflow: hidden; min-height: 200px; max-height: 35vh;
     border-top: 3px solid #243B53; background: #FFFFFF;
     position: relative;
     display: flex;
@@ -686,7 +686,7 @@
 @keyframes pos-spin { to { transform: rotate(360deg); } }
 
 /* ── Payment panel — compact ── */
-.pos-payment-panel { display: flex; flex-direction: column; flex: 1; }
+.pos-payment-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .pos-pp-section    { padding: 6px 10px; border-bottom: 1px solid #E2E8F0; }
 .pos-pp-section:last-child { border-bottom: none; }
 
@@ -695,6 +695,9 @@
     padding: 5px 10px;
     background: #F8FAFC;
     border-bottom: 1px solid #E2E8F0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 /* Payment methods row - horizontal instead of grid */

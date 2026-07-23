@@ -166,6 +166,9 @@ class POSView {
             onLiveCartRegisterChange: (registerId) => {
                 this._liveCartRegisterId = registerId;
                 this._updateLiveCart();
+            },
+            onSettingsChange: () => {
+                this._scheduleLiveCartUpdate();
             }
         });
         this.paymentPanel.render(document.getElementById('posPaymentMount'));
@@ -904,6 +907,9 @@ class POSView {
                 amount: parseFloat(f.amount) || 0
             })),
             tax: Math.round(taxAmt),
+            taxName: taxOn && taxRate > 0 
+                ? `${modalData.taxName || 'Tax'} (${taxRate}%) ${taxOnItems ? 'on items' : 'on total'}, ${taxInclusive ? 'incl.' : 'excl.'}`
+                : (modalData.taxName || 'Tax'),
             total: total,
             currency: 'RWF'
         };

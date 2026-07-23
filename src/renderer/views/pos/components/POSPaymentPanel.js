@@ -528,6 +528,16 @@ class OrderSettingsModal {
             this.container.querySelector(sel)?.addEventListener('change', () => this.onChange());
         });
 
+        this.container.querySelectorAll('.pos-quick-ship').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const shipInput = this.container.querySelector('#posShipping');
+                if (shipInput) {
+                    shipInput.value = btn.dataset.val;
+                    this.onChange();
+                }
+            });
+        });
+
         const applyCouponBtn = this.container.querySelector('#posApplyCouponBtn');
         if (applyCouponBtn) {
             applyCouponBtn.addEventListener('click', async () => {
@@ -716,12 +726,12 @@ class OrderSettingsModal {
     _html() {
         return `
         <div id="posSettingsModalOverlay" class="pcm-overlay" style="display:none; z-index: 2000;">
-            <div class="pcm-modal" style="width: min(440px, 92vw); overflow: visible;">
-                <div class="pcm-header pcm-header--pos-settings" style="background:#932013; padding: 12px 16px;">
+            <div class="pcm-modal" style="width: min(540px, 92vw); max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="pcm-header pcm-header--pos-settings" style="background:#932013; padding: 12px 16px; flex-shrink: 0;">
                     Order Settings
                     <button id="posSettingsCloseBtn" class="pcm-close" style="width:24px;height:24px;">&times;</button>
                 </div>
-                <div class="pcm-body" style="padding: 14px 16px; display:flex; flex-direction:column; gap:12px; overflow: visible;">
+                <div class="pcm-body" style="padding: 14px 16px; display:flex; flex-direction:column; gap:12px; overflow-y: auto; overflow-x: hidden; flex: 1;">
 
                     <div class="pos-people-row">
                         <div class="pos-field-group">
@@ -744,6 +754,21 @@ class OrderSettingsModal {
                         </div>
                     </div>
 
+                    <div style="display:grid; grid-template-columns:1fr; gap:8px;">
+                        <div class="pos-field-group">
+                            <label class="pos-field-label">Shipping</label>
+                            <div style="display:flex; gap:8px;">
+                                <input id="posShipping" type="number" class="pos-input" value="0" min="0" style="flex: 1;">
+                                <div style="display:flex; gap:4px; align-items:center;">
+                                    <button type="button" class="pos-same-btn pos-quick-ship" style="padding:4px 8px;" data-val="500">500</button>
+                                    <button type="button" class="pos-same-btn pos-quick-ship" style="padding:4px 8px;" data-val="2000">2000</button>
+                                    <button type="button" class="pos-same-btn pos-quick-ship" style="padding:4px 8px;" data-val="3000">3000</button>
+                                    <button type="button" class="pos-same-btn pos-quick-ship" style="padding:4px 8px;" data-val="4000">4000</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                         <div class="pos-field-group">
                             <label class="pos-field-label">Coupon</label>
@@ -758,13 +783,6 @@ class OrderSettingsModal {
                                 <select id="posDiscountType" class="pos-select" style="width:auto; padding:4px;"><option value="value">Frw</option><option value="percent">%</option></select>
                                 <input id="posDiscountVal" type="number" class="pos-input" value="0" min="0">
                             </div>
-                        </div>
-                    </div>
-                    
-                    <div style="display:grid; grid-template-columns:1fr; gap:8px;">
-                        <div class="pos-field-group">
-                            <label class="pos-field-label">Shipping</label>
-                            <input id="posShipping" type="number" class="pos-input" value="0" min="0">
                         </div>
                     </div>
 
@@ -797,6 +815,7 @@ class OrderSettingsModal {
                                 <button class="pos-add-link" id="posAddFeeBtn" type="button">+ Add fee</button>
                             </label>
                             <div id="posFeesContainer" class="pos-fees-container"></div>
+                    </div>
 
                     <div class="pos-field-group">
                         <label class="pos-field-label">Notes</label>
@@ -815,7 +834,7 @@ class OrderSettingsModal {
                         </div>
                     </div>
                 </div>
-                <div class="pcm-footer" style="padding: 12px 16px;">
+                <div class="pcm-footer" style="padding: 12px 16px; flex-shrink: 0;">
                     <button id="posSettingsApplyBtn" class="pcm-btn pcm-btn--confirm" style="padding:10px;">Done</button>
                 </div>
             </div>
@@ -828,11 +847,8 @@ class OrderSettingsModal {
    4. POSPaymentPanel (Main Orchestrator)
    ======================================================================= */
 class POSPaymentPanel {
-    constructor({ onRequestCheckout, onTaxModeChange, onVoidCart, onPrintQuote }) {
-        this.onRequestCheckout = onRequestCheckout;
-        this.onTaxModeChange = onTaxModeChange;
-        this.onVoidCart = onVoidCart;
-        this.onPrintQuote = onPrintQuote;
+    constructor(options) {
+        Object.assign(this, options);
         this._subtotal = 0;
         this._blockingItems = [];
         this.currentCartId = null;
@@ -1062,6 +1078,15 @@ class POSPaymentPanel {
         } else {
             custLabel.style.display = 'none';
         }
+
+        const checkoutBtnText = this.container.querySelector('#posCheckoutBtnText');
+        if (checkoutBtnText) {
+            checkoutBtnText.textContent = `Charge ${calc.total.toLocaleString()}`;
+        }
+
+        if (this.onSettingsChange) {
+            this.onSettingsChange();
+        }
     }
 
     _handleCheckout() {
@@ -1195,7 +1220,7 @@ class POSPaymentPanel {
                 </button>
                 <button id="posCheckoutBtn" class="pos-checkout-btn" disabled>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"><polyline points="20 6 9 17 4 12"/></svg>
-                    Charge
+                    <span id="posCheckoutBtnText">Charge</span>
                 </button>
             </div>
         </div>`;
