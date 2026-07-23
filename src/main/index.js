@@ -4,7 +4,7 @@ const path = require('path');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
 
-app.setAppUserModelId('Faranux MIS');
+app.setAppUserModelId('Faranux ERP');
 require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -89,7 +89,7 @@ function createWindow() {
         }
     });
 
-    mainWindow.setTitle(`Faranux MIS v${app.getVersion()}`);
+    mainWindow.setTitle(`Faranux ERP v${app.getVersion()}`);
 
     mainWindow.loadFile('index.html');
 

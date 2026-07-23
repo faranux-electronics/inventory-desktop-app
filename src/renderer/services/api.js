@@ -194,6 +194,8 @@ module.exports = {
     posGetInventory: (page = 1, search = '', locationId = '', category = '', stockFilter = 'all', featured = false) =>
         request(`pos_get_inventory&page=${page}&search=${encodeURIComponent(search)}&location_id=${locationId}&category=${encodeURIComponent(category)}&stock_filter=${stockFilter}&featured=${featured ? 1 : 0}`),
 
+    posValidateCoupon: (code) => request(`pos_validate_coupon&code=${encodeURIComponent(code)}`),
+
     // --> Added the missing dictionary endpoint here:
     getBranchStockDictionary: (locationId) => request(`pos_get_stock_dictionary&location_id=${locationId}`),
 

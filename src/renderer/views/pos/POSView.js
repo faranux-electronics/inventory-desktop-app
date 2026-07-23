@@ -964,7 +964,7 @@ class POSView {
 
     async _handleConfirmedCheckout(data) {
         const {
-            paymentMethod, discount, discountType, notes, subtotal, total,
+            paymentMethod, discount, discountType, coupon_code, notes, subtotal, total,
             cashierId, cashierName, cashierEmail, customerId, customerName, customerEmail,
             taxRate, taxName, taxInclusive, taxOnItems, taxAmount, fees, shipping
         } = data;
@@ -976,7 +976,7 @@ class POSView {
         const saleItems = cart.getItems();
         const payload = {
             branch_id: user.branch_id, payment_method: paymentMethod, discount,
-            discount_type: discountType, notes, total,
+            discount_type: discountType, coupon_code, notes, total,
             tax_rate: taxAmount > 0 ? taxRate : 0,
             tax_name: taxName, tax_inclusive: taxInclusive, tax_on_items: !!taxOnItems,
             tax_amount: taxAmount || 0,

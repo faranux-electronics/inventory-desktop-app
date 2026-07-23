@@ -172,6 +172,7 @@ class OrderSettingsModal {
 
         this.container.querySelector('#posDiscountType').value = 'value';
         this.container.querySelector('#posDiscountVal').value = '0';
+        this.container.querySelector('#posCouponCode').value = '';
         this.container.querySelector('#posShipping').value = '0';
         this.container.querySelector('#posNotes').value = '';
 
@@ -199,6 +200,7 @@ class OrderSettingsModal {
                 fees: data.fees,
                 discountType: data.discountType,
                 discountRaw: data.discountRaw,
+                couponCode: data.couponCode,
                 shipping: data.shipping,
                 notes: data.notes,
                 taxOn: data.taxOn,
@@ -227,6 +229,7 @@ class OrderSettingsModal {
                 // Discount type & raw value
                 if (saved.discountType) this.container.querySelector('#posDiscountType').value = saved.discountType;
                 this.container.querySelector('#posDiscountVal').value = (saved.discountRaw !== undefined) ? saved.discountRaw : '0';
+                this.container.querySelector('#posCouponCode').value = saved.couponCode || '';
 
                 // Shipping – explicit default 0
                 this.container.querySelector('#posShipping').value = (saved.shipping !== undefined) ? saved.shipping : '0';
@@ -280,6 +283,7 @@ class OrderSettingsModal {
 
                 this.container.querySelector('#posDiscountType').value = 'value';
                 this.container.querySelector('#posDiscountVal').value = '0';
+                this.container.querySelector('#posCouponCode').value = '';
                 this.container.querySelector('#posShipping').value = '0';
                 this.container.querySelector('#posNotes').value = '';
 
@@ -444,9 +448,9 @@ class OrderSettingsModal {
 
     reset() {
         // Reset all per-cart settings
-        ['posDiscountVal', 'posNotes', 'posShipping', 'posCustomerSearch', 'posCustomerId', 'posCustomerEmail'].forEach(id => {
+        ['posDiscountVal', 'posCouponCode', 'posNotes', 'posShipping', 'posCustomerSearch', 'posCustomerId', 'posCustomerEmail'].forEach(id => {
             const el = this.container.querySelector(`#${id}`);
-            if (el) el.value = id === 'posDiscountVal' ? '0' : '';
+            if (el) el.value = (id === 'posDiscountVal' || id === 'posShipping') ? '0' : '';
         });
 
         // Reset customer back to the current cashier instead of leaving it blank
@@ -491,6 +495,7 @@ class OrderSettingsModal {
         return {
             discountType: this.container.querySelector('#posDiscountType')?.value || 'value',
             discountRaw: parseFloat(this.container.querySelector('#posDiscountVal')?.value || '0') || 0,
+            couponCode: this.container.querySelector('#posCouponCode')?.value?.trim() || '',
             shipping: parseFloat(this.container.querySelector('#posShipping')?.value || '0') || 0,
             fees: [...this.state.fees],
             taxOn: this.state.taxOn,
@@ -518,10 +523,36 @@ class OrderSettingsModal {
         this.container.querySelector('#posSettingsCloseBtn').addEventListener('click', () => this.hide());
         this.container.querySelector('#posSettingsApplyBtn').addEventListener('click', () => this.hide());
 
-        ['#posDiscountVal', '#posDiscountType', '#posShipping', '#posCashier', '#posNotes'].forEach(sel => {
+        ['#posDiscountVal', '#posDiscountType', '#posCouponCode', '#posShipping', '#posCashier', '#posNotes'].forEach(sel => {
             this.container.querySelector(sel)?.addEventListener('input', () => this.onChange());
             this.container.querySelector(sel)?.addEventListener('change', () => this.onChange());
         });
+
+        const applyCouponBtn = this.container.querySelector('#posApplyCouponBtn');
+        if (applyCouponBtn) {
+            applyCouponBtn.addEventListener('click', async () => {
+                const code = this.container.querySelector('#posCouponCode').value.trim();
+                if (!code) return Toast.error('Please enter a coupon code.');
+                applyCouponBtn.disabled = true;
+                applyCouponBtn.textContent = '...';
+                try {
+                    const res = await API.posValidateCoupon(code);
+                    if (res.status === 'success' && res.coupon) {
+                        this.container.querySelector('#posDiscountType').value = res.coupon.type === 'percent' ? 'percent' : 'value';
+                        this.container.querySelector('#posDiscountVal').value = res.coupon.amount || 0;
+                        Toast.success(`Coupon ${res.coupon.code} applied!`);
+                        this.onChange();
+                    } else {
+                        Toast.error(res.message || 'Invalid coupon code');
+                    }
+                } catch (e) {
+                    Toast.error('Error validating coupon');
+                } finally {
+                    applyCouponBtn.disabled = false;
+                    applyCouponBtn.textContent = 'Apply';
+                }
+            });
+        }
 
         this.container.querySelector('#posTaxToggle').addEventListener('click', () => {
             this.state.taxOn = !this.state.taxOn;
@@ -715,12 +746,22 @@ class OrderSettingsModal {
 
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                         <div class="pos-field-group">
+                            <label class="pos-field-label">Coupon</label>
+                            <div class="pos-addon-row">
+                                <input id="posCouponCode" type="text" class="pos-input" placeholder="Code">
+                                <button id="posApplyCouponBtn" type="button" class="pos-same-btn" style="padding:4px 8px;">Apply</button>
+                            </div>
+                        </div>
+                        <div class="pos-field-group">
                             <label class="pos-field-label">Discount</label>
                             <div class="pos-addon-row">
                                 <select id="posDiscountType" class="pos-select" style="width:auto; padding:4px;"><option value="value">Frw</option><option value="percent">%</option></select>
                                 <input id="posDiscountVal" type="number" class="pos-input" value="0" min="0">
                             </div>
                         </div>
+                    </div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr; gap:8px;">
                         <div class="pos-field-group">
                             <label class="pos-field-label">Shipping</label>
                             <input id="posShipping" type="number" class="pos-input" value="0" min="0">
@@ -1065,6 +1106,7 @@ class POSPaymentPanel {
             discount: calc.discount,
             discountType: modalData.discountType,
             discountRaw: modalData.discountRaw,
+            coupon_code: modalData.couponCode,
             notes: modalData.notes,
             subtotal: this._subtotal,
             total: calc.total,

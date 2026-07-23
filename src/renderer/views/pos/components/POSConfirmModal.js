@@ -9,7 +9,7 @@ class POSConfirmModal {
 
     show(data) {
         document.getElementById('posConfirmOverlay')?.remove();
-        const { items=[], paymentMethod='cash', discount=0, discountType='value', discountRaw=0,
+        const { items=[], paymentMethod='cash', discount=0, discountType='value', discountRaw=0, coupon_code='',
             notes='', subtotal=0, total=0, cashierName='', cashierEmail='',
             customerName='', customerEmail='', taxRate=0, taxName='Tax', taxInclusive=false,
             taxOnItems=false, taxAmount=0, fees=[], shipping=0, taxOn=false } = data;
@@ -37,7 +37,8 @@ class POSConfirmModal {
     </tr>`;
         }).join('');
 
-        const discLabel = discountType === 'percent' ? `Discount (${discountRaw}%)` : 'Discount';
+        let discLabel = discountType === 'percent' ? `Discount (${discountRaw}%)` : 'Discount';
+        if (coupon_code) discLabel += ` [Coupon: ${coupon_code}]`;
         const feeRows   = fees.filter(f=>+f.amount!==0).map(f=>`
             <div class="pcm-sum-row pcm-sum-row--fee"><span>${f.label||'Fee'}</span><span>+ ${(+f.amount).toLocaleString()} Frw</span></div>`).join('');
 
