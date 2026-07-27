@@ -40,7 +40,17 @@ class TransferModals {
             // If canceled, do not render input fields so they aren't processed on submit
             const recvHtml = isCanceled
                 ? `<span style="${canceledCellStyle}">—</span>`
-                : `<input type="number" class="form-input form-input-sm recv-qty text-center font-bold" data-id="${esc(i.id)}" value="${parseInt(i.qty) || 0}" min="0">`;
+                : `<div style="display:flex; align-items:center; justify-content:center; gap: 4px;">
+                     <input type="number" class="form-input form-input-sm recv-qty text-center font-bold" style="width: 70px;" data-id="${esc(i.id)}" value="${parseInt(i.qty) || 0}" min="0" data-sent="${parseInt(i.qty) || 0}" oninput="
+                        const surplus = this.value - this.dataset.sent;
+                        const disp = document.getElementById('surplus-${esc(i.id)}');
+                        if (disp) {
+                            if (surplus > 0) { disp.textContent = '+' + surplus; disp.style.display = 'inline'; } 
+                            else { disp.style.display = 'none'; }
+                        }
+                     ">
+                     <span id="surplus-${esc(i.id)}" style="color: #a855f7; font-weight: bold; font-size: 12px; display: none;"></span>
+                   </div>`;
 
             const noteHtml = isCanceled
                 ? `<span style="font-style:italic; color:var(--neutral-400); opacity:0.8;"><strong>(Canceled)</strong> ${esc(i.note) || ''}</span>`
@@ -169,7 +179,7 @@ class TransferModals {
             let recvVal = i.received_qty !== null ? parseInt(i.received_qty) : '-';
 
             if (diff !== null && !isCanceled) {
-                qtyClass = diff < 0 ? 'text-error' : (diff > 0 ? 'text-warning' : 'text-success');
+                qtyClass = diff < 0 ? 'text-error' : (parseInt(i.surplus_qty) > 0 ? 'text-purple-600' : 'text-success');
             }
 
             let noteStr = esc(i.note) || '-';
@@ -185,7 +195,7 @@ class TransferModals {
                     </td>
                     <td class="text-center" style="${canceledCellStyle}">${parseInt(i.qty) || 0}</td>
                     <td class="text-center font-bold ${qtyClass}" style="${canceledCellStyle}">
-                        ${recvVal}
+                        ${recvVal} ${parseInt(i.surplus_qty) > 0 ? `<span style="color:#a855f7;font-size:11px;margin-left:4px;">(+${i.surplus_qty})</span>` : ''}
                     </td>
                     <td class="text-sm text-muted" style="${canceledNoteStyle}">${noteStr}</td>
                 </tr>
@@ -197,10 +207,19 @@ class TransferModals {
         if (data.status === 'rejected') actionVerb = 'Rejected';
         if (data.status === 'canceled') actionVerb = 'Canceled';
 
+        const totalSurplus = items.reduce((sum, i) => sum + (parseInt(i.surplus_qty) || 0), 0);
+        const surplusAlert = totalSurplus > 0 ? `
+            <div class="alert mb-md text-sm border p-sm rounded" style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border-color: #d8b4fe; color: #7c3aed; display: flex; align-items: center; gap: 8px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <strong>Surplus Detected:</strong> This transfer included ${totalSurplus} surplus item(s) beyond what was sent.
+            </div>
+        ` : '';
+
         Modal.open({
             title: `Details: ${esc(batchId)}`,
             size: 'lg',
             body: `
+                ${surplusAlert}
                 <div class="mb-md flex justify-between p-md bg-neutral-50 rounded border border-neutral-200">
                     <div>
                         <p class="mb-xs"><strong>From:</strong> ${esc(data.from_location)}</p>

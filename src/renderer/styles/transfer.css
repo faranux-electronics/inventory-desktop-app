@@ -1587,3 +1587,25 @@
 .trv-row--request:hover .trv-row-main {
     background: rgba(38, 137, 196, 0.06);
 }
+
+/* Surplus Row Treatment */
+.trv-row--surplus .trv-row-main {
+    box-shadow: inset 3px 0 0 #a855f7;
+    background: linear-gradient(90deg, rgba(250, 245, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+.trv-row--surplus:hover .trv-row-main {
+    background: linear-gradient(90deg, rgba(243, 232, 255, 1) 0%, rgba(250, 245, 255, 0.5) 100%);
+}
+
+.trv-surplus-banner {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    border: 1px solid #d8b4fe;
+    color: #7c3aed;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.trv-surplus-banner:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.1);
+}

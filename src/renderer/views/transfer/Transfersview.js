@@ -29,7 +29,7 @@ class TransfersView {
         this._userBranchId = null;
 
         this.currentTab = 'new_transfer';
-        this.filters = { search: '', start: '', end: '', page: 1, recordType: 'all' };
+        this.filters = { search: '', start: '', end: '', page: 1, recordType: 'all', discrepancyFilter: 'all' };
 
         this.filterBar = null;
         this.productGrid = null;
@@ -150,9 +150,22 @@ class TransfersView {
                         <option value="transfer" ${this.filters.recordType === 'transfer' ? 'selected' : ''}>Transfers only</option>
                         <option value="request" ${this.filters.recordType === 'request' ? 'selected' : ''}>Requests only</option>
                     </select>
+                    <select id="trvDiscrepancyFilter" class="trv-filter-input" style="max-width:130px;" title="Filter by discrepancy">
+                        <option value="all" ${this.filters.discrepancyFilter === 'all' ? 'selected' : ''}>All Status</option>
+                        <option value="any" ${this.filters.discrepancyFilter === 'any' ? 'selected' : ''}>Any Discrepancy</option>
+                        <option value="surplus" ${this.filters.discrepancyFilter === 'surplus' ? 'selected' : ''}>Surplus Only</option>
+                        <option value="shortage" ${this.filters.discrepancyFilter === 'shortage' ? 'selected' : ''}>Shortage Only</option>
+                    </select>
                     <div class="trv-toolbar-spacer"></div>
                     <button class="trv-btn" id="trvRefreshBtn">Refresh</button>
                     <button class="trv-btn trv-btn-ghost" id="trvExportBtn">Export</button>
+                </div>
+                <div id="trvSurplusBanner" class="trv-surplus-banner" style="display:none; padding: 0 0 0 12px; margin: 10px 20px 0 20px; align-items: stretch; justify-content: space-between; border-radius: 6px; overflow: hidden;">
+                    <div style="display: flex; align-items: center; gap: 6px; padding: 6px 0;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span style="font-size: 13px;"><strong id="trvSurplusBannerCount">0</strong> transfers with discrepancies detected.</span>
+                    </div>
+                    <button class="trv-btn trv-btn-primary" id="trvCheckDiscrepanciesBtn" style="white-space: nowrap; padding: 6px 16px; font-size: 12px; border-radius: 0; border: none; height: auto; display: flex; align-items: center; justify-content: center; margin: 0;">Check Discrepancies</button>
                 </div>
                 <div class="trv-table-card">
                     <div class="trv-col-header">
@@ -653,7 +666,54 @@ class TransfersView {
                 }
             }
 
-            const merged = [...requests, ...transfers].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            let merged = [...requests, ...transfers].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            const discrepancyCount = merged.filter(t => {
+                if (t.is_request) return false;
+                if (t.status !== 'completed' && t.status !== 'rejected') return false;
+                if (parseInt(t.discrepancy_resolved) === 1) return false;
+                const surplus = parseInt(t.total_surplus_qty) || 0;
+                const diff = (parseInt(t.total_received_qty) || 0) - (parseInt(t.total_qty) || 0);
+                const shortage = diff < 0 ? Math.abs(diff) : 0;
+                return surplus > 0 || shortage > 0;
+            }).length;
+
+            const banner = document.getElementById('trvSurplusBanner');
+            const countEl = document.getElementById('trvSurplusBannerCount');
+            if (banner && countEl) {
+                countEl.textContent = discrepancyCount;
+                banner.style.display = discrepancyCount > 0 ? 'flex' : 'none';
+
+                // Clone to replace listeners
+                const newBanner = banner.cloneNode(true);
+                banner.parentNode.replaceChild(newBanner, banner);
+                
+                const btn = newBanner.querySelector('#trvCheckDiscrepanciesBtn');
+                if (btn) {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const sel = document.getElementById('trvDiscrepancyFilter');
+                        if (sel) {
+                            sel.value = 'any';
+                            sel.dispatchEvent(new Event('change'));
+                        }
+                    });
+                }
+            }
+
+            if (this.filters.discrepancyFilter === 'surplus') {
+                merged = merged.filter(t => !t.is_request && (t.status === 'completed' || t.status === 'rejected') && parseInt(t.total_surplus_qty) > 0);
+            } else if (this.filters.discrepancyFilter === 'shortage') {
+                merged = merged.filter(t => !t.is_request && (t.status === 'completed' || t.status === 'rejected') && parseInt(t.total_received_qty) < parseInt(t.total_qty));
+            } else if (this.filters.discrepancyFilter === 'any') {
+                merged = merged.filter(t => {
+                    if (t.is_request) return false;
+                    if (t.status !== 'completed' && t.status !== 'rejected') return false;
+                    const surplus = parseInt(t.total_surplus_qty) || 0;
+                    const diff = (parseInt(t.total_received_qty) || 0) - (parseInt(t.total_qty) || 0);
+                    return surplus > 0 || diff < 0;
+                });
+            }
 
             this.tableComponent.render(merged);
 
@@ -717,6 +777,7 @@ class TransfersView {
             this.filters.start = document.getElementById('trvDateStart').value;
             this.filters.end = document.getElementById('trvDateEnd').value;
             this.filters.recordType = document.getElementById('trvTypeFilter')?.value || 'all';
+            this.filters.discrepancyFilter = document.getElementById('trvDiscrepancyFilter')?.value || 'all';
             this.filters.page = 1;
             this.saveState();
             this._syncExportAvailability();
@@ -726,6 +787,7 @@ class TransfersView {
         document.getElementById('trvDateStart').addEventListener('change', apply);
         document.getElementById('trvDateEnd').addEventListener('change', apply);
         document.getElementById('trvTypeFilter')?.addEventListener('change', apply);
+        document.getElementById('trvDiscrepancyFilter')?.addEventListener('change', apply);
         this._syncExportAvailability();
         document.getElementById('trvRefreshBtn').addEventListener('click', () => this.loadTransfers());
         document.getElementById('trvExportBtn').addEventListener('click', () => {

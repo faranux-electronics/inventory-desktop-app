@@ -45,6 +45,8 @@ class TransferStagingPanel {
             this._toId = this._userBranchId || '';
         }
 
+        this._enforceDefaultBranch();
+
         this._renderModeToggle();
         this._renderBranchSelectors();
         this._renderItems();
@@ -90,9 +92,28 @@ class TransferStagingPanel {
             if (this._mode === 'send') this._fromId = String(userBranchId);
             else this._toId = String(userBranchId);
         }
+        
+        this._enforceDefaultBranch();
+        
         this._renderModeToggle();
         this._renderBranchSelectors();
         this._renderItems();
+        // Fire initial event so the rest of the UI knows what we defaulted to
+        if (!this._fulfillContext) {
+            this.onBranchChange?.(this._fromId, this._mode);
+        }
+    }
+
+    _enforceDefaultBranch() {
+        if (!this._branches || !this._branches.length || !this._userBranchId) return;
+        const otherBranches = this._branches.filter(b => String(b.id) !== this._userBranchId);
+        if (!otherBranches.length) return;
+
+        if (this._mode === 'send' && (!this._toId || this._toId === this._userBranchId)) {
+            this._toId = String(otherBranches[0].id);
+        } else if (this._mode === 'request' && (!this._fromId || this._fromId === this._userBranchId)) {
+            this._fromId = String(otherBranches[0].id);
+        }
     }
 
     setBranchInventory(inventory) {
@@ -287,7 +308,7 @@ class TransferStagingPanel {
                 ? `<option value="${esc(myBranch.id)}" selected>${esc(myBranch.name)}</option>`
                 : `<option value="">— No branch assigned —</option>`;
         } else {
-            fromOpts = `<option value="">— Select branch —</option>` + this._branches
+            fromOpts = this._branches
                 .filter(b => String(b.id) !== this._userBranchId)
                 .map(b => `<option value="${esc(b.id)}" ${String(b.id) === this._fromId ? 'selected' : ''}>${esc(b.name)}</option>`)
                 .join('');
@@ -301,7 +322,7 @@ class TransferStagingPanel {
                 ? `<option value="${esc(myBranch.id)}" selected>${esc(myBranch.name)}</option>`
                 : `<option value="">— No branch assigned —</option>`;
         } else {
-            toOpts = `<option value="">— Select branch —</option>` + this._branches
+            toOpts = this._branches
                 .filter(b => String(b.id) !== this._userBranchId)
                 .map(b => `<option value="${esc(b.id)}" ${String(b.id) === this._toId ? 'selected' : ''}>${esc(b.name)}</option>`)
                 .join('');

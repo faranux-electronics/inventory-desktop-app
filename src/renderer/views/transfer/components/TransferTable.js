@@ -1,5 +1,6 @@
 const API = require('../../../services/api.js');
 const Toast = require('../../../components/Toast.js');
+const Modal = require('../../../components/Modal.js');
 const PdfGenerator = require('../../../utils/PdfGenerator.js');
 const TransferModals = require('./TransferModals.js');
 
@@ -73,24 +74,45 @@ class TransferTable {
         let discHtml = '<span class="trv-disc--na">—</span>';
         let hasUnresolvedDiscrepancy = false; // Add a flag
 
+        let hasSurplus = false;
         if (t.status === 'completed' || t.status === 'rejected') {
+            const surplusQty = parseInt(t.total_surplus_qty) || 0;
             const diff = (parseInt(t.total_received_qty) || 0) - (parseInt(t.total_qty) || 0);
-            if (diff < 0) {
-                // Check if it's resolved!
-                if (parseInt(t.discrepancy_resolved) === 1) {
-                    discHtml = `<div style="display:flex; align-items:center; justify-content:center; gap:4px;">
-                        <span class="trv-disc--low" style="opacity: 0.5; text-decoration: line-through;" title="Resolved">${diff}</span> 
-                        <span style="font-size: 10px; font-weight: 600; color: var(--success-500);">Resolved</span>
-                    </div>`;
+            const shortageQty = diff < 0 ? Math.abs(diff) : 0;
+            
+            let discParts = [];
+            const isResolved = parseInt(t.discrepancy_resolved) === 1;
+
+            if (surplusQty > 0) {
+                if (!isResolved) hasSurplus = true;
+                
+                if (isResolved) {
+                    discParts.push(`<span class="trv-disc--surplus" style="opacity: 0.5; text-decoration: line-through; color: #7c3aed; font-weight: 700;" title="Resolved">+${surplusQty}</span>`);
                 } else {
-                    discHtml = `<span class="trv-disc--low">${diff}</span>`;
+                    discParts.push(`<span class="trv-disc--surplus" style="color: #7c3aed; font-weight: 700;" title="Surplus">+${surplusQty}</span>`);
                     hasUnresolvedDiscrepancy = true;
                 }
             }
-            else if (diff > 0) discHtml = `<span class="trv-disc--high">+${diff}</span>`;
-            else discHtml = `<span class="trv-disc--ok">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>
-            </span>`;
+
+            if (shortageQty > 0) {
+                if (isResolved) {
+                    discParts.push(`<span class="trv-disc--low" style="opacity: 0.5; text-decoration: line-through;" title="Resolved">-${shortageQty}</span>`);
+                } else {
+                    discParts.push(`<span class="trv-disc--low" title="Shortage">-${shortageQty}</span>`);
+                    hasUnresolvedDiscrepancy = true;
+                }
+            }
+
+            if (discParts.length > 0) {
+                if (isResolved) {
+                    discParts.push(`<span style="font-size: 10px; font-weight: 600; color: var(--success-500);">Resolved</span>`);
+                }
+                discHtml = `<div style="display:flex; align-items:center; justify-content:center; gap:6px;">${discParts.join('')}</div>`;
+            } else {
+                discHtml = `<span class="trv-disc--ok">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>`;
+            }
         }
 
         // Status badge (Converted to compact icon)
@@ -135,7 +157,9 @@ class TransferTable {
                 </button>`;
             }
             // the Resolve button if needed (compact SVG style)
-            if (hasUnresolvedDiscrepancy && (isAdmin || uBranch === fromLoc)) {
+            const userRole = this.parent.state.getUser()?.role?.toLowerCase();
+            const canResolve = userRole === 'admin' || userRole === 'manager';
+            if (hasUnresolvedDiscrepancy && canResolve && (isAdmin || uBranch === fromLoc)) {
                 actions += `<button class="trv-action-btn trv-action-btn--primary btn-resolve" data-id="${esc(t.batch_id)}" title="Mark Discrepancy as Resolved" style="padding: 0 8px;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><polyline points="20 6 9 17 4 12"/></svg>
                 </button>`;
@@ -146,8 +170,9 @@ class TransferTable {
         const batchId = esc(t.batch_id);
         const domId = batchId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
+        const rowClass = hasSurplus ? 'trv-row--surplus' : '';
         return `
-        <div class="trv-row" data-batch="${batchId}">
+        <div class="trv-row ${rowClass}" data-batch="${batchId}">
             <div class="trv-row-main">
                 <button class="trv-expand-btn expand-toggle" data-batch="${batchId}" title="Expand details">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" id="icon-${domId}"><polyline points="9 18 15 12 9 6"/></svg>
@@ -363,16 +388,29 @@ class TransferTable {
 
         // Handle the Resolve button click
         container.querySelectorAll('.btn-resolve').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                if (confirm('Are you sure you want to mark this discrepancy as resolved? Make sure you have adjusted the stock manually if the item was found.')) {
-                    const res = await API.resolveDiscrepancy(btn.dataset.id);
-                    if (res.status === 'success') {
-                        Toast.success(res.message);
-                        await this.parent.loadTransfers(); // Reload the table
-                    } else {
-                        Toast.error(res.message);
+            btn.addEventListener('click', () => {
+                const batchId = btn.dataset.id;
+                Modal.open({
+                    title: 'Resolve Discrepancy',
+                    body: `
+                        <p style="margin-bottom: 12px; font-size: 14px;">Are you sure you want to mark the discrepancy for <strong>${esc(batchId)}</strong> as resolved?</p>
+                        <div style="color: #9a3412; background: #fff7ed; padding: 12px; border-radius: 6px; border: 1px solid #fed7aa; font-size: 13px;">
+                            <i class="fa-solid fa-triangle-exclamation" style="margin-right: 4px;"></i>
+                            Make sure you have adjusted the stock manually if any items were physically found.
+                        </div>
+                    `,
+                    confirmText: 'Mark as Resolved',
+                    confirmClass: 'btn-primary',
+                    onConfirm: async () => {
+                        const res = await API.resolveDiscrepancy(batchId);
+                        if (res.status === 'success') {
+                            Toast.success(res.message);
+                            await this.parent.loadTransfers(); // Reload the table
+                        } else {
+                            Toast.error(res.message);
+                        }
                     }
-                }
+                });
             });
         });
     }
