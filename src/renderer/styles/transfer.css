@@ -80,43 +80,7 @@
     overflow-y: auto;
 }
 
-/* Drag handle */
-.trv-divider {
-    width: 6px;
-    flex-shrink: 0;
-    background: #E2E8F0;
-    cursor: col-resize;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background .1s;
-    z-index: 10;
-}
 
-.trv-divider:hover,
-.trv-divider--active {
-    background: rgba(38, 137, 196, 0.2);
-}
-
-.trv-divider-grip {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    pointer-events: none;
-}
-
-.trv-divider-grip span {
-    width: 2px;
-    height: 12px;
-    background: rgba(36, 59, 83, 0.4);
-    border-radius: 2px;
-    display: block;
-    transition: background .1s;
-}
-
-.trv-divider--active .trv-divider-grip span {
-    background: #2689C4;
-}
 
 /* Right: staging panel */
 .trv-right {

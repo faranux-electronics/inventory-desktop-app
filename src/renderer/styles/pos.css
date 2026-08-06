@@ -56,16 +56,6 @@
 }
 .pos-left-body   { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
-/* ── Divider ── */
-.pos-divider {
-    width: 6px; background: #E2E8F0; flex-shrink: 0;
-    cursor: col-resize; display: flex; align-items: center;
-    justify-content: center; transition: background .15s;
-}
-.pos-divider:hover, .pos-divider--active { background: rgba(147, 32, 19, 0.2); }
-.pos-divider-grip { display: flex; flex-direction: column; gap: 3px; pointer-events: none; }
-.pos-divider-grip span { width: 2px; height: 12px; background: rgba(36, 59, 83, 0.4); border-radius: 2px; display: block; }
-.pos-divider--active .pos-divider-grip span { background: #932013; }
 
 /* ── Right pane ── */
 .pos-right {
@@ -86,30 +76,13 @@
     padding: 10px 10px 12px;
 }
 .pos-right-payment {
-    flex-shrink: 0; overflow: hidden; min-height: 200px; max-height: 35vh;
+    flex-shrink: 0; overflow: hidden; min-height: 140px;
     border-top: 3px solid #243B53; background: #FFFFFF;
     position: relative;
     display: flex;
     flex-direction: column;
 }
 
-/* Resize handle for payment panel */
-.pos-payment-resize-handle {
-    position: absolute;
-    top: -6px; left: 0; right: 0;
-    height: 18px;
-    cursor: ns-resize;
-    background: transparent;
-    transition: background .15s ease;
-    z-index: 10000;
-    pointer-events: auto;
-}
-.pos-payment-resize-handle:hover {
-    background: rgba(36, 59, 83, 0.1);
-}
-.pos-payment-resize-handle:active {
-    background: rgba(36, 59, 83, 0.2);
-}
 
 /* ── Multi-cart tabs ── */
 .pos-cart-tabs {

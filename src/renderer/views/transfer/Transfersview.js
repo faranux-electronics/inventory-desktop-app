@@ -6,6 +6,7 @@ const LocalProductGrid = require('./components/LocalProductGrid.js');
 const TransferStagingPanel = require('./components/TransferStagingPanel.js');
 const TransferTable = require('./components/TransferTable.js');
 const BranchBalancePanel = require('./components/BranchBalancePanel.js');
+const Resizer = require('../../components/Resizer.js');
 
 function esc(str) {
     return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -129,7 +130,7 @@ class TransfersView {
                         </div>
                         <div class="trv-left-body" id="trvGridMount"></div>
                     </div>
-                    <div class="trv-divider" id="trvDivider"><div class="trv-divider-grip"><span></span><span></span><span></span></div></div>
+                    ${Resizer.render({ id: 'trvDivider' })}
                     <div class="trv-right" id="trvRight">
                         <div id="trvStagingMount" style="height:100%;overflow:hidden;"></div>
                     </div>
@@ -825,34 +826,14 @@ class TransfersView {
         const halfW = Math.max(360, Math.min(700, Math.round(splitW * 0.50)));
         right.style.flex = `0 0 ${halfW}px`;
 
-        let dragging = false, startX, startW;
-
-        this._resizerAbort = new AbortController();
-        const signal = this._resizerAbort.signal;
-
-        divider.addEventListener('mousedown', e => {
-            dragging = true;
-            startX = e.clientX;
-            startW = right.getBoundingClientRect().width;
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-            divider.classList.add('trv-divider--active');
+        Resizer.init({
+            resizer: divider,
+            target: right,
+            container: split,
+            minSize: 360,
+            maxSize: 700,
+            reverse: true
         });
-
-        document.addEventListener('mousemove', e => {
-            if (!dragging) return;
-            const delta = startX - e.clientX;
-            const newW = Math.max(360, Math.min(700, startW + delta));
-            right.style.flex = `0 0 ${newW}px`;
-        }, { signal });
-
-        document.addEventListener('mouseup', () => {
-            if (!dragging) return;
-            dragging = false;
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            divider.classList.remove('trv-divider--active');
-        }, { signal });
     }
 }
 

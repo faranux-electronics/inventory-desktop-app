@@ -1206,3 +1206,27 @@ input[type="checkbox"] {
 .logout-btn:hover {
     background: rgba(239, 68, 68, 0.1);
 }
+
+/* ── Resizer Component ── */
+.ui-resizer {
+    background: #ffffff;
+    display: flex; align-items: center;
+    justify-content: center; z-index: 10;
+    transition: background 0.2s;
+}
+.ui-resizer-vertical {
+    width: 14px;
+    cursor: col-resize;
+    border-left: 1px solid #E2E8F0; border-right: 1px solid #E2E8F0;
+}
+.ui-resizer-horizontal {
+    height: 14px;
+    cursor: row-resize;
+    border-top: 1px solid #E2E8F0; border-bottom: 1px solid #E2E8F0;
+}
+.ui-resizer:hover, .ui-resizer--active { background: rgba(147, 32, 19, 0.2); }
+.ui-resizer-vertical .ui-resizer-grip { display: flex; flex-direction: column; gap: 3px; pointer-events: none; }
+.ui-resizer-horizontal .ui-resizer-grip { display: flex; flex-direction: row; gap: 3px; pointer-events: none; }
+.ui-resizer-vertical .ui-resizer-grip span { width: 2px; height: 12px; background: rgba(36, 59, 83, 0.4); border-radius: 2px; display: block; }
+.ui-resizer-horizontal .ui-resizer-grip span { width: 12px; height: 2px; background: rgba(36, 59, 83, 0.4); border-radius: 2px; display: block; }
+.ui-resizer--active .ui-resizer-grip span { background: #932013; }

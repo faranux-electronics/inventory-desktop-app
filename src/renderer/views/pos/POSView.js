@@ -9,6 +9,7 @@ const POSConfirmModal = require('./components/POSConfirmModal.js');
 const POSReceipt = require('./components/POSReceipt.js');
 const POSMiscModal = require('./components/POSMiscModal.js');
 const Modal = require('../../components/Modal.js');
+const Resizer = require('../../components/Resizer.js');
 const PdfGenerator = require('../../utils/PdfGenerator.js');
 
 const DEFAULT_LEFT_PCT = 50;
@@ -98,9 +99,7 @@ class POSView {
                 <div id="posFilterBarMount" class="pos-left-header"></div>
                 <div id="posGridMount" class="pos-left-body"></div>
             </div>
-            <div class="pos-divider" id="posDivider" title="Drag to resize">
-                <div class="pos-divider-grip"><span></span><span></span><span></span></div>
-            </div>
+            ${Resizer.render({ id: 'posDivider' })}
             <aside class="pos-right" id="posRight">
                 <div class="pos-cart-tabs" id="posCartTabs">
                     <div class="pos-tab-list" id="posTabList"></div>
@@ -110,8 +109,8 @@ class POSView {
                     </button>
                 </div>
                 <div id="posCartMount" class="pos-right-cart"></div>
+                ${Resizer.render({ id: 'posPaymentResizeHandle', orientation: 'horizontal' })}
                 <div id="posPaymentMount" class="pos-right-payment">
-                    <div class="pos-payment-resize-handle" id="posPaymentResizeHandle"></div>
                 </div>
             </aside>
         </div>`;
@@ -186,10 +185,6 @@ class POSView {
 
         this._initCartTabs();
         document.getElementById('posTabAdd').addEventListener('click', () => this._addCart());
-        const paymentResizeHandle = document.getElementById('posPaymentResizeHandle');
-        if (paymentResizeHandle) {
-            paymentResizeHandle.addEventListener('pointerdown', (e) => this._startResize(e));
-        }
 
         const user = this.state.getUser();
         if (user) {
@@ -203,6 +198,8 @@ class POSView {
         setTimeout(() => {
             this.paymentPanel.setLiveCartStatus(this._liveCartEnabled && this._liveCartIndex >= 0);
         }, 100);
+
+        this._initPaymentResizer();
     }
 
     _initCartTabs() {
@@ -250,41 +247,21 @@ class POSView {
         }
     }
 
-    _startResize(e) {
-        if (e.pointerType === 'mouse' && e.button !== 0) return;
-        e.preventDefault();
+    _initPaymentResizer() {
+        const handle = document.getElementById('posPaymentResizeHandle');
         const paymentMount = document.getElementById('posPaymentMount');
-        if (!paymentMount) return;
+        const rightContainer = document.getElementById('posRight');
+        if (!handle || !paymentMount || !rightContainer) return;
 
-        const handle = e.currentTarget;
-        const pointerId = e.pointerId;
-        const startY = e.clientY;
-        const startHeight = paymentMount.offsetHeight;
-
-        const onPointerMove = (moveEvent) => {
-            const delta = startY - moveEvent.clientY;
-            const newHeight = Math.max(150, Math.min(window.innerHeight * 0.5, startHeight + delta));
-            paymentMount.style.height = newHeight + 'px';
-        };
-
-        const onPointerUp = () => {
-            document.removeEventListener('pointermove', onPointerMove);
-            document.removeEventListener('pointerup', onPointerUp);
-            if (handle && handle.releasePointerCapture) {
-                handle.releasePointerCapture(pointerId);
-            }
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-        };
-
-        if (handle && handle.setPointerCapture) {
-            handle.setPointerCapture(pointerId);
-        }
-
-        document.body.style.cursor = 'ns-resize';
-        document.body.style.userSelect = 'none';
-        document.addEventListener('pointermove', onPointerMove);
-        document.addEventListener('pointerup', onPointerUp);
+        Resizer.init({
+            resizer: handle,
+            target: paymentMount,
+            container: rightContainer,
+            minSize: 100,
+            maxSize: () => window.innerHeight * 0.6,
+            orientation: 'horizontal',
+            reverse: true
+        });
     }
 
     _createCartEntry(name, id = null) {
@@ -1025,55 +1002,24 @@ class POSView {
 
     _initResizer() {
         const divider = document.getElementById('posDivider');
-        const left = document.getElementById('posLeft');
-        const root = document.getElementById('posRoot');
-        if (!divider || !left || !root) return;
+        if (!divider) return;
         if (this._resizerInitialized && this._dividerNode === divider) return;
 
         this._resizerInitialized = true;
         this._dividerNode = divider;
 
-        let dragging = false, startX = 0, startW = 0, rootW = 0, activePointerId = null;
-
-        const onPointerMove = (moveEvent) => {
-            if (!dragging) return;
-            const newW = Math.min(Math.max(startW + moveEvent.clientX - startX, MIN_LEFT_PX), rootW - divider.offsetWidth - MIN_RIGHT_PX);
-            left.style.flex = `0 0 ${newW}px`;
-        };
-
-        const onPointerUp = () => {
-            if (!dragging) return;
-            dragging = false;
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-            divider.classList.remove('pos-divider--active');
-            document.removeEventListener('pointermove', onPointerMove);
-            document.removeEventListener('pointerup', onPointerUp);
-            if (activePointerId !== null && divider.releasePointerCapture) {
-                divider.releasePointerCapture(activePointerId);
-            }
-            activePointerId = null;
-        };
-
-        divider.addEventListener('pointerdown', (e) => {
-            if (e.pointerType === 'mouse' && e.button !== 0) return;
-            dragging = true;
-            activePointerId = e.pointerId;
-            startX = e.clientX;
-            startW = left.getBoundingClientRect().width;
-            rootW = root.getBoundingClientRect().width;
-            document.body.style.cursor = 'col-resize';
-            document.body.style.userSelect = 'none';
-            divider.classList.add('pos-divider--active');
-            if (divider.setPointerCapture) {
-                divider.setPointerCapture(activePointerId);
-            }
-            document.addEventListener('pointermove', onPointerMove);
-            document.addEventListener('pointerup', onPointerUp);
-        }, { passive: false });
-
-        divider.addEventListener('dblclick', () => {
-            left.style.flex = `1 1 ${DEFAULT_LEFT_PCT}%`;
+        Resizer.init({
+            resizer: divider,
+            target: 'posLeft',
+            container: 'posRoot',
+            minSize: MIN_LEFT_PX,
+            maxSize: () => {
+                const root = document.getElementById('posRoot');
+                if (!root) return undefined;
+                return root.getBoundingClientRect().width - divider.offsetWidth - MIN_RIGHT_PX;
+            },
+            defaultFlex: `${DEFAULT_LEFT_PCT}%`,
+            orientation: 'vertical'
         });
     }
 }
