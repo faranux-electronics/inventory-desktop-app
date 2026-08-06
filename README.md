@@ -1,4 +1,4 @@
-# Faranux Inventory Desktop App
+# Faranux ERP Desktop App
 
 ### Roles
 - Admin: Can do everything (Manage users, settings, inventory).
@@ -7,6 +7,12 @@
 - Accountant: Can only view reports/history.
 
 ## Features
+
+- **Point of Sale (POS)**: Streamlined interface for processing customer orders and handling multiple carts.
+- **Inventory & Stock Transfers**: Manage local stock, track incoming transfers, and reorder fulfillment priority by branching.
+- **Product Management**: View, import, and organize product catalogs.
+- **User & Profile Management**: Add staff, assign roles, and handle authentication securely.
+- **System Logs & Notifications**: Integrated logging and native OS notifications for system events.
 
 ### Real-Time Live Cart Display
 The application includes a real-time Live Cart Display feature that shows cart contents on a separate web-enabled display:
@@ -50,7 +56,7 @@ The application includes several reusable vanilla JS UI components (located in `
 
 ### Installation Steps
 
-1. Download the latest installer (`FaranuxInventory-Setup.exe`) from the releases page.
+1. Download the latest installer (`Faranux MIS Setup.exe`) from the releases page.
 
 2. When you run the installer, Windows SmartScreen might show a warning message. To proceed with the installation:
    - Click on "More info" or "..." (three dots)
@@ -65,7 +71,7 @@ The application includes several reusable vanilla JS UI components (located in `
 
 4. Once installation is complete, launch the application from:
    - Desktop shortcut (if created)
-   - Start menu under "Faranux Inventory"
+   - Start menu under "Faranux MIS"
    - Installation directory
 
 ### First Time Setup

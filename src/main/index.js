@@ -163,6 +163,115 @@ if (!gotTheLock) {
     app.whenReady().then(() => {
         createWindow();
 
+        // ─── Custom Application Menu ────────────────────────────────
+        const isMac = process.platform === 'darwin';
+        const template = [
+            ...(isMac ? [{
+                label: app.name,
+                submenu: [
+                    { role: 'about' },
+                    { type: 'separator' },
+                    { role: 'services' },
+                    { type: 'separator' },
+                    { role: 'hide' },
+                    { role: 'hideOthers' },
+                    { role: 'unhide' },
+                    { type: 'separator' },
+                    { role: 'quit' }
+                ]
+            }] : []),
+            {
+                label: 'File',
+                submenu: [
+                    { role: 'close', label: 'Close to System Tray' },
+                    { type: 'separator' },
+                    { 
+                        label: 'Quit Faranux ERP',
+                        click: () => {
+                            isQuitting = true;
+                            app.quit();
+                        }
+                    }
+                ]
+            },
+            {
+                label: 'Edit',
+                submenu: [
+                    { role: 'undo' },
+                    { role: 'redo' },
+                    { type: 'separator' },
+                    { role: 'cut' },
+                    { role: 'copy' },
+                    { role: 'paste' },
+                    { role: 'delete' },
+                    { type: 'separator' },
+                    { role: 'selectAll' }
+                ]
+            },
+            {
+                label: 'View',
+                submenu: [
+                    { role: 'reload' },
+                    { role: 'forceReload' },
+                    { role: 'toggleDevTools' },
+                    { type: 'separator' },
+                    { role: 'resetZoom' },
+                    { role: 'zoomIn' },
+                    { role: 'zoomOut' },
+                    { type: 'separator' },
+                    { role: 'togglefullscreen' }
+                ]
+            },
+            {
+                label: 'Window',
+                submenu: [
+                    { role: 'minimize' },
+                    { role: 'zoom' },
+                    ...(isMac ? [
+                        { type: 'separator' },
+                        { role: 'front' },
+                        { type: 'separator' },
+                        { role: 'window' }
+                    ] : [
+                        { role: 'close' }
+                    ])
+                ]
+            },
+            {
+                role: 'help',
+                submenu: [
+                    {
+                        label: 'About Faranux ERP',
+                        click: async () => {
+                            const { dialog } = require('electron');
+                            dialog.showMessageBox({
+                                title: 'About Faranux ERP',
+                                message: 'Faranux ERP Desktop App',
+                                detail: 'Version ' + app.getVersion() + '\\nCopyright © Faranux'
+                            });
+                        }
+                    },
+                    { type: 'separator' },
+                    {
+                        label: 'View Documentation (GitHub)',
+                        click: async () => {
+                            const { shell } = require('electron');
+                            await shell.openExternal('https://github.com/faranux-electronics/inventory-desktop-app#readme');
+                        }
+                    },
+                    {
+                        label: 'View Past Releases',
+                        click: async () => {
+                            const { shell } = require('electron');
+                            await shell.openExternal('https://github.com/faranux-electronics/inventory-desktop-app/releases');
+                        }
+                    }
+                ]
+            }
+        ];
+        const menu = Menu.buildFromTemplate(template);
+        Menu.setApplicationMenu(menu);
+
         // ─── Auto-start on Windows login ──────────────────────────────
         app.setLoginItemSettings({
             openAtLogin: true,
