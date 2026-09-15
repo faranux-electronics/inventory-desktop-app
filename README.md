@@ -36,7 +36,7 @@ The application includes a real-time Live Cart Display feature that shows cart c
 4. Use the eye icon (👁️) on cart tabs to select which cart is shown on the display
 
 #### Configuration Parameters
-- `api`: API base URL (e.g., `https://api.faranux.com` or `http://localhost:8000`)
+- `api`: API base URL (e.g., `https://api.example.com` or `http://localhost:8000`)
 - `register`: Unique register identifier for the POS terminal (must match the Register ID in POS settings)
 
 ### Reusable UI Components
