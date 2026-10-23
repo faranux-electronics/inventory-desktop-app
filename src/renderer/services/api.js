@@ -228,4 +228,6 @@ module.exports = {
     getNotifications: () => request('get_notifications'),
     markNotificationRead: (notificationId) => request('mark_notification_read', 'POST', {notification_id: notificationId}),
     markAllNotificationsRead: () => request('mark_all_notifications_read', 'POST'),
+
+    getWCWebhookStatus: () => request('wc_webhook_status'),
 };

@@ -81,6 +81,26 @@ class ProductsView {
                             background:rgba(34,113,177,0.08); border:1px solid rgba(34,113,177,0.2);
                             border-radius:12px; padding:3px 10px; white-space:nowrap;
                         "></span>
+                        <!-- WooCommerce webhook status indicator -->
+                        <div id="wcWebhookStatus" style="
+                            display:none; align-items:center; gap:6px;
+                            font-size:11px; font-weight:600;
+                            border-radius:12px; padding:4px 10px; white-space:nowrap;
+                            cursor:help; position:relative;
+                        ">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span id="wcWebhookText"></span>
+                        </div>
+                        <!-- Popover for webhook status details -->
+                        <div id="wcWebhookPopover" style="
+                            display:none; position:absolute; top:60px; right:15px;
+                            background:white; border:1px solid #c3c4c7; border-radius:8px;
+                            padding:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15);
+                            z-index:1000; min-width:200px; font-size:12px;
+                        ">
+                            <div style="font-weight:600; margin-bottom:8px; color:#2c3338;">WooCommerce Webhooks</div>
+                            <div id="wcWebhookPopoverContent"></div>
+                        </div>
                 </div>
                  <div style="background: #f0f0f1; padding: 10px; border-bottom: 1px solid #c3c4c7;">
                     <div id="statusFilterContainer"></div>
@@ -118,6 +138,9 @@ class ProductsView {
         if (this._bgSyncUnsub) this._bgSyncUnsub();
         this._bgSyncUnsub = this._bgSync.onStatusChange(s => this._updateSyncBadge(s));
 
+        // Load WooCommerce webhook status
+        this._loadWCWebhookStatus();
+
         // Show last-sync time immediately on mount — prefer server-side state
         // so the badge is accurate even if this is a fresh browser session.
         API.getSyncState?.().then(res => {
@@ -146,6 +169,7 @@ class ProductsView {
         const badge = document.getElementById('bgSyncBadge');
         if (!badge) return;
 
+        // Hide badge only for idle status, but show for paused, running, done, error
         if (status === 'idle' || !message) {
             badge.style.display = 'none';
             return;
@@ -189,6 +213,78 @@ class ProductsView {
         return `${Math.floor(s / 86400)}d ago`;
     }
 
+    async _loadWCWebhookStatus() {
+        try {
+            const res = await API.getWCWebhookStatus();
+            const badge = document.getElementById('wcWebhookStatus');
+            const text = document.getElementById('wcWebhookText');
+            const popover = document.getElementById('wcWebhookPopover');
+            const popoverContent = document.getElementById('wcWebhookPopoverContent');
+
+            if (!badge || !text || !popover || !popoverContent) return;
+
+            if (res.status === 'success') {
+                // Always show all three numbers with icons
+                badge.style.display = 'inline-flex';
+                badge.style.background = 'rgba(34, 113, 177, 0.08)';
+                badge.style.color = '#2271b1';
+                badge.style.border = '1px solid rgba(34, 113, 177, 0.2)';
+
+                text.innerHTML = `
+                    <span style="color:#16a34a;"><i class="fa-solid fa-circle-check"></i> ${res.active}</span>
+                    <span style="margin:0 6px; color:#6b7280;">|</span>
+                    <span style="color:#d97706;"><i class="fa-solid fa-pause"></i> ${res.paused}</span>
+                    <span style="margin:0 6px; color:#6b7280;">|</span>
+                    <span style="color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> ${res.disabled}</span>
+                `;
+
+                popoverContent.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="color:#16a34a;"><i class="fa-solid fa-circle-check"></i> Active:</span>
+                        <span style="font-weight:600;">${res.active}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="color:#d97706;"><i class="fa-solid fa-pause"></i> Paused:</span>
+                        <span style="font-weight:600;">${res.paused}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                        <span style="color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> Disabled:</span>
+                        <span style="font-weight:600;">${res.disabled}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; padding-top:6px; border-top:1px solid #e5e7eb;">
+                        <span>Total:</span>
+                        <span style="font-weight:600;">${res.total}</span>
+                    </div>
+                    <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb; font-size:11px; color:#6b7280;">
+                        <div style="margin-bottom:4px;"><strong>Active:</strong> Webhooks are delivering events</div>
+                        <div style="margin-bottom:4px;"><strong>Paused:</strong> Temporarily suspended, can be resumed</div>
+                        <div><strong>Disabled:</strong> Permanently disabled</div>
+                    </div>
+                `;
+            } else {
+                // Display error/not configured state
+                badge.style.display = 'inline-flex';
+                badge.style.background = 'rgba(220, 38, 38, 0.08)';
+                badge.style.color = '#dc2626';
+                badge.style.border = '1px solid rgba(220, 38, 38, 0.2)';
+                text.textContent = 'Not Configured';
+
+                popoverContent.innerHTML = `
+                    <div style="color:#dc2626; margin-bottom:8px;">${res.message || 'WooCommerce not configured'}</div>
+                    <div style="color:#6b7280; font-size:11px;">
+                        Configure WooCommerce credentials in settings to enable webhook integration.
+                    </div>
+                `;
+            }
+        } catch (e) {
+            console.error('Failed to load WooCommerce webhook status:', e);
+            const badge = document.getElementById('wcWebhookStatus');
+            if (badge) {
+                badge.style.display = 'none';
+            }
+        }
+    }
+
     attachEvents() {
         document.getElementById('refreshBtn')?.addEventListener('click', () => {
             this._invalidateCache();
@@ -197,6 +293,19 @@ class ProductsView {
 
         document.getElementById('syncBtn')?.addEventListener('click', () => this.startManualSync());
         document.getElementById('exportBtn')?.addEventListener('click', () => this.exportData());
+
+        // WooCommerce webhook status popover interactions
+        const wcStatus = document.getElementById('wcWebhookStatus');
+        const wcPopover = document.getElementById('wcWebhookPopover');
+
+        if (wcStatus && wcPopover) {
+            wcStatus.addEventListener('mouseenter', () => {
+                wcPopover.style.display = 'block';
+            });
+            wcStatus.addEventListener('mouseleave', () => {
+                wcPopover.style.display = 'none';
+            });
+        }
     }
 
     async startManualSync() {
