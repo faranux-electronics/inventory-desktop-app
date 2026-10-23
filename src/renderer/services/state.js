@@ -11,7 +11,7 @@ class StateManager {
         this.selectedIds = new Set();
 
         this.filters = {
-            page: 1, search: '', status: 'publish', sortBy: 'name', sortOrder: 'ASC', location_id: '', category: ''
+            page: 1, search: '', status: 'publish', sortBy: 'created_at', sortOrder: 'DESC', location_id: '', category: ''
         };
 
         this.inventoryCacheTime = null;
@@ -212,8 +212,12 @@ class StateManager {
     setCategory(category) { this.filters.category = category; this.filters.page = 1; }
 
     toggleSort(field) {
-        if (this.filters.sortBy === field) this.filters.sortOrder = this.filters.sortOrder === 'ASC' ? 'DESC' : 'ASC';
-        else { this.filters.sortBy = field; this.filters.sortOrder = 'ASC'; }
+        if (this.filters.sortBy === field) {
+            this.filters.sortOrder = this.filters.sortOrder === 'ASC' ? 'DESC' : 'ASC';
+        } else {
+            this.filters.sortBy = field;
+            this.filters.sortOrder = (field === 'created_at' || field === 'date_created') ? 'DESC' : 'ASC';
+        }
         this.invalidateInventoryCache();
     }
 

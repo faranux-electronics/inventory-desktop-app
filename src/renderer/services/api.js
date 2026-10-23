@@ -164,6 +164,7 @@ module.exports = {
     },
 
     getTransferDetails: (batchId) => request(`get_transfer_details&batch_id=${encodeURIComponent(batchId)}`),
+    getProductPendingTransfers: (productId) => request(`get_product_pending_transfers&product_id=${productId}`),
 
     initiateTransfer: (items, fromBranchId, toBranchId, reason = '') => request('initiate_transfer', 'POST', {
         items,

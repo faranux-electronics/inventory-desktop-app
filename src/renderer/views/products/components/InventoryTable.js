@@ -36,8 +36,10 @@ class InventoryTable {
         locations.forEach(l => locationMap[l.id] = l.name);
 
         const f = this.state.getFilters();
+        const isSingleBranch = !!(f.location_id && f.location_id !== '' && f.location_id !== 'all');
         const sortIcon = (field) => {
-            if (f.sortBy !== field) return '';
+            const isMatch = f.sortBy === field || (field === 'created_at' && f.sortBy === 'date_created');
+            if (!isMatch) return '';
             return f.sortOrder === 'ASC'
                 ? '<i class="fa-solid fa-sort-up" style="color: #2271b1; margin-left: 4px;"></i>'
                 : '<i class="fa-solid fa-sort-down" style="color: #2271b1; margin-left: 4px;"></i>';
@@ -57,25 +59,28 @@ class InventoryTable {
                             <th class="sortable" data-field="name" style="padding: 8px 10px; font-weight: 600; color: #2c3338;">
                                 Name ${sortIcon('name')}
                             </th>
-                            <th class="sortable" data-field="sku" style="width: 13%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th class="sortable" data-field="sku" style="width: 11%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
                                 SKU ${sortIcon('sku')}
                             </th>
-                            <th class="sortable" data-field="stock_quantity" style="width: 20%; padding: 8px 10px; font-weight: 600; color: #2c3338; cursor: pointer;" title="Sort by Stock">
+                            <th class="sortable" data-field="stock_quantity" style="width: 18%; padding: 8px 10px; font-weight: 600; color: #2c3338; cursor: pointer;" title="Sort by Stock">
                                 Stock Details ${sortIcon('stock_quantity')}
                             </th>
-                            <th class="sortable" data-field="mismatch" style="width: 10%; padding: 8px 10px; font-weight: 600; color: #2c3338; text-align: center;" title="Difference between WC and Local">
-                                Mismatch ${sortIcon('mismatch')}
+                            <th class="sortable" data-field="mismatch" style="width: 14%; padding: 8px 10px; font-weight: 600; color: #2c3338; text-align: center;" title="Shows pending transfers or WC/Local stock difference">
+                                Status ${sortIcon('mismatch')}
                             </th>
-                            <th class="sortable" data-field="category" style="width: 13%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th class="sortable" data-field="category" style="width: 11%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
                                 Category ${sortIcon('category')}
                             </th>
-                            <th class="sortable" data-field="price" style="width: 12%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th class="sortable" data-field="price" style="width: 10%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
                                 Price ${sortIcon('price')}
+                            </th>
+                            <th class="sortable" data-field="created_at" style="width: 10%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                                Created ${sortIcon('created_at')}
                             </th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${products.map(p => this.renderProductRow(p, locationMap)).join('')}
+                        ${products.map(p => this.renderProductRow(p, locationMap, isSingleBranch)).join('')}
                     </tbody>
                 </table>
             </div>
@@ -99,24 +104,94 @@ class InventoryTable {
         this.attachTableEvents();
     }
 
-    renderProductRow(product, locationMap) {
+    renderProductRow(product, locationMap, isSingleBranch = false) {
         const key = String(product.id);
         const isSelected = this.products.selectedProducts.has(key);
-        const branchStock = product.stock_quantity || 0;
-        const wcStock = product.wc_stock_quantity || 0;
+        const branchStock = parseInt(product.stock_quantity || 0);
+        const wcStock = parseInt(product.wc_stock_quantity || 0);
+        const pendingTransferCount = parseInt(product.pending_transfer_count || 0);
+        const pendingTransferQty = parseInt(product.pending_transfer_qty || 0);
 
-        // --- MISMATCH CALCULATION & STYLING ---
-        const mismatch = wcStock - branchStock;
+
+        // --- STATUS COLUMN: PERCENTAGE (SINGLE BRANCH) OR MISMATCH (ALL LOCATIONS) ---
         let mismatchHtml = '';
-        if (mismatch === 0) {
-            // Perfect match: Subdued green check
-            mismatchHtml = `<span style="color: #00a32a; font-weight: 600; font-size: 12px;"><i class="fa-solid fa-check"></i></span>`;
+
+        if (isSingleBranch) {
+            // When a single branch is selected, show branch stock percentage of total stock
+            const totalStock = parseInt(product.transferable_pool || 0) || wcStock;
+            let formattedPct = '0%';
+            if (totalStock > 0 && branchStock > 0) {
+                const rawPct = (branchStock / totalStock) * 100;
+                if (rawPct < 0.1) {
+                    formattedPct = '<0.1%';
+                } else if (rawPct < 1) {
+                    formattedPct = rawPct.toFixed(1) + '%';
+                } else if (rawPct % 1 === 0) {
+                    formattedPct = rawPct.toFixed(0) + '%';
+                } else {
+                    formattedPct = rawPct.toFixed(1) + '%';
+                }
+            }
+
+            const pctBadgeHtml = `
+                <span class="stock-percentage-badge" style="
+                    background: ${branchStock > 0 ? '#f0f6fc' : '#f6f7f7'};
+                    color: ${branchStock > 0 ? '#2271b1' : '#646970'};
+                    border: 1px solid ${branchStock > 0 ? '#c8e1ff' : '#dcdcde'};
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    display: inline-block;
+                " title="${branchStock.toLocaleString()} of ${totalStock.toLocaleString()} total units in this branch (${formattedPct})">
+                    ${formattedPct}
+                </span>
+            `;
+
+            if (pendingTransferCount > 0 || pendingTransferQty > 0) {
+                mismatchHtml = `
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
+                        <span class="btn-in-transit" data-product-id="${product.id}" style="background: #e7f3ff; color: #2271b1; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; border: 1px solid #b8daff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" title="Click to view unapproved transfers">
+                            <i class="fa-solid fa-truck-fast"></i> (${pendingTransferQty} in transit)
+                        </span>
+                        ${pctBadgeHtml}
+                    </div>
+                `;
+            } else {
+                mismatchHtml = pctBadgeHtml;
+            }
         } else {
-            // Mismatch: Bright red badge showing the difference
-            const sign = mismatch > 0 ? '+' : '';
-            mismatchHtml = `<span style="background: #fcf0f1; color: #d63638; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; border: 1px solid #f1acaa;">
-                ${sign}${mismatch}
-            </span>`;
+            // ALL LOCATIONS: Calculate effective stock (local + in-transit) and show mismatch
+            const effectiveStock = branchStock + pendingTransferQty;
+            const mismatch = wcStock - branchStock;
+            const effectiveMismatch = wcStock - effectiveStock;
+
+            if (pendingTransferCount > 0 || pendingTransferQty > 0) {
+                const hasEffectiveMismatch = effectiveMismatch !== 0;
+                const sign = effectiveMismatch > 0 ? '+' : '';
+
+                mismatchHtml = `
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
+                        <span class="btn-in-transit" data-product-id="${product.id}" style="background: #e7f3ff; color: #2271b1; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; border: 1px solid #b8daff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" title="Click to view unapproved transfers">
+                            <i class="fa-solid fa-truck-fast"></i> (${pendingTransferQty} in transit)
+                        </span>
+                        ${hasEffectiveMismatch ? `
+                            <span style="background: #fcf0f1; color: #d63638; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; border: 1px solid #f1acaa;" title="Effective mismatch after in-transit stock">
+                                ${sign}${effectiveMismatch}
+                            </span>
+                        ` : ''}
+                    </div>
+                `;
+            } else if (mismatch === 0) {
+                // Perfect match: Subdued green check
+                mismatchHtml = `<span style="color: #00a32a; font-weight: 600; font-size: 12px;"><i class="fa-solid fa-check"></i></span>`;
+            } else {
+                // Mismatch: Bright red badge showing the difference
+                const sign = mismatch > 0 ? '+' : '';
+                mismatchHtml = `<span style="background: #fcf0f1; color: #d63638; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; border: 1px solid #f1acaa;">
+                    ${sign}${mismatch}
+                </span>`;
+            }
         }
 
         const imageHtml = product.image_url
@@ -172,13 +247,21 @@ class InventoryTable {
             </td>
             <td style="padding: 10px; vertical-align: top;">
                 <div style="font-size: 12px; color: #50575e; margin-bottom: 2px;">
-                    <span style="display: inline-block; width: 65px;">WC Pool:</span>
-                    <strong style="color: #1d2327;">${wcStock}</strong>
+                    <span style="display: inline-block; width: 75px;">WC Pool:</span>
+                    <strong style="color: #1d2327;">${parseInt(product.wc_stock_quantity || 0).toLocaleString()}</strong>
                 </div>
+                <div style="font-size: 12px; color: #50575e; margin-bottom: 2px;">
+                    <span style="display: inline-block; width: 75px;">Total Local:</span>
+                    <strong style="color: #1d2327;">${parseInt((isSingleBranch ? product.transferable_pool : branchStock) || 0).toLocaleString()}</strong>
+                </div>
+                ${isSingleBranch ? `
                 <div style="font-size: 12px; color: #50575e; margin-bottom: 6px;">
-                    <span style="display: inline-block; width: 65px;">Total Local:</span>
-                    <strong style="color: #1d2327;">${branchStock}</strong>
+                    <span style="display: inline-block; width: 75px;">This Branch:</span>
+                    <strong style="color: #2271b1;">${branchStock.toLocaleString()}</strong>
                 </div>
+                ` : `
+                <div style="margin-bottom: 4px;"></div>
+                `}
                 ${distributionHtml}
             </td>
             <td style="padding: 10px; vertical-align: middle; text-align: center;">
@@ -189,6 +272,9 @@ class InventoryTable {
             </td>
             <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
                 ${parseInt(product.price || 0).toLocaleString()} Frw
+            </td>
+            <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
+                ${product.date_created ? new Date(product.date_created).toLocaleDateString() : '-'}
             </td>
         </tr>
     `;
@@ -260,6 +346,16 @@ class InventoryTable {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.showHistoryModal(parseInt(btn.dataset.id), btn.dataset.name);
+            });
+        });
+
+        // In-transit buttons - show transfer details popover
+        document.querySelectorAll('.btn-in-transit').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const productId = parseInt(btn.dataset.productId);
+                this.showTransferDetailsPopover(productId, btn);
             });
         });
     }
@@ -545,6 +641,126 @@ class InventoryTable {
             const body = document.getElementById('historyModalBody');
             if (body) body.innerHTML = '<p style="color: #d63638; text-align: center; padding: 20px;">Failed to load history.</p>';
         }
+    }
+
+    async showTransferDetailsPopover(productId, triggerElement) {
+        // Remove any open transfer popovers first
+        document.querySelectorAll('.transfer-popover-box').forEach(p => p.remove());
+
+        const res = await API.getProductPendingTransfers(productId);
+        
+        if (res.status !== 'success' || !res.data || res.data.length === 0) {
+            Toast.error('No pending transfers found');
+            return;
+        }
+
+        const transfers = res.data;
+        const totalQty = transfers.reduce((sum, t) => sum + (parseInt(t.qty) || 0), 0);
+
+        const popoverId = 'transfer-popover-' + Date.now();
+        const popoverHtml = `
+            <div id="${popoverId}" class="transfer-popover-box" style="
+                position: fixed;
+                background: white;
+                border: 1px solid #c3c4c7;
+                border-radius: 8px;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+                z-index: 10000;
+                width: 360px;
+                max-height: 420px;
+                overflow-y: auto;
+                padding: 14px;
+                font-size: 13px;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-truck-fast" style="color: #2271b1;"></i>
+                        <strong style="color: #2c3338; font-size: 13px;">Unapproved Transfers (${transfers.length})</strong>
+                    </div>
+                    <button class="close-popover" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #6b7280; padding: 0 4px; line-height: 1;">&times;</button>
+                </div>
+                <div style="margin-bottom: 10px; padding: 8px 10px; background: #f0f6fc; border-radius: 6px; border: 1px solid #c8e1ff; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: #555; font-size: 12px;">Total in Transit:</span>
+                    <strong style="font-size: 14px; color: #2271b1;">${totalQty} units</strong>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    ${transfers.map(t => `
+                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e5e7eb;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <strong style="color: #2271b1; font-family: monospace; font-size: 12px;">${t.batch_id}</strong>
+                                    <button class="btn-copy-single-batch" data-batch="${t.batch_id}" title="Copy Batch ID" style="background: #ffffff; border: 1px solid #c3c4c7; border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer; color: #2271b1; display: inline-flex; align-items: center; gap: 3px;">
+                                        <i class="fa-regular fa-copy"></i>
+                                    </button>
+                                </div>
+                                <span style="font-size: 11px; color: #6b7280;">${new Date(t.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <div style="color: #50575e; font-size: 12px; margin-bottom: 4px;">
+                                <span>${t.from_location}</span>
+                                <i class="fa-solid fa-arrow-right" style="color: #8c8f94; margin: 0 4px; font-size: 10px;"></i>
+                                <span>${t.to_location}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #646970;">
+                                <span style="font-weight: 600; color: #2c3338;">Qty: ${t.qty}</span>
+                                <span>By: ${t.initiated_by || 'System'}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        // Insert popover into DOM
+        document.body.insertAdjacentHTML('beforeend', popoverHtml);
+        const popover = document.getElementById(popoverId);
+
+        // Position popover safely within viewport
+        const rect = triggerElement.getBoundingClientRect();
+        let top = rect.bottom + 6;
+        let left = rect.left - 160;
+
+        // Prevent overflow outside viewport
+        if (left < 10) left = 10;
+        if (left + 360 > window.innerWidth) left = window.innerWidth - 370;
+        if (top + 400 > window.innerHeight) top = Math.max(10, rect.top - 410);
+
+        popover.style.top = `${top}px`;
+        popover.style.left = `${left}px`;
+
+        // Close button handler
+        popover.querySelector('.close-popover').addEventListener('click', () => {
+            popover.remove();
+        });
+
+        // Copy batch ID for each transfer card
+        popover.querySelectorAll('.btn-copy-single-batch').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const batchId = btn.dataset.batch;
+                navigator.clipboard.writeText(batchId).then(() => {
+                    const icon = btn.querySelector('i');
+                    if (icon) {
+                        icon.className = 'fa-solid fa-check';
+                        setTimeout(() => { icon.className = 'fa-regular fa-copy'; }, 1500);
+                    }
+                    Toast.success(`Batch ID copied: ${batchId}`);
+                }).catch(() => {
+                    Toast.error('Failed to copy batch ID');
+                });
+            });
+        });
+
+        // Close on outside click
+        const closeOnOutsideClick = (e) => {
+            if (!popover.contains(e.target) && e.target !== triggerElement) {
+                popover.remove();
+                document.removeEventListener('click', closeOnOutsideClick);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closeOnOutsideClick);
+        }, 100);
     }
 }
 

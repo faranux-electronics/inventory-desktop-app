@@ -118,48 +118,74 @@ class ProductsView {
     }
 
     async init() {
-        // Default location filter to the user's active branch (branch-aware view)
+        // Default location filter: Admins and managers with access to >1 branch default to "All Locations"
         const f = this.state.getFilters();
         if (!f.location_id) {
             const user = this.state.getUser();
-            if (user && user.branch_id) {
-                if (user.role !== 'admin') {
+            if (user) {
+                let allowedBranches = [];
+                if (Array.isArray(user.allowed_branches)) {
+                    allowedBranches = user.allowed_branches;
+                } else if (typeof user.allowed_branches === 'string') {
+                    try {
+                        allowedBranches = JSON.parse(user.allowed_branches) || [];
+                    } catch {
+                        allowedBranches = [];
+                    }
+                }
+
+                const hasMultipleBranches = allowedBranches.length > 1;
+                const shouldDefaultToAll = user.role === 'admin' || (user.role === 'manager' && hasMultipleBranches);
+
+                if (!shouldDefaultToAll && user.branch_id) {
                     this.state.setLocationFilter(String(user.branch_id));
                 }
             }
         }
 
-        this.filters.render();
+        await this.filters.render();
         this.bulkActions.render();
         this.attachEvents();
 
         // Subscribe to background sync status updates for this render cycle.
-        // Unsubscribe stored so re-render doesn't accumulate stale listeners.
         if (this._bgSyncUnsub) this._bgSyncUnsub();
         this._bgSyncUnsub = this._bgSync.onStatusChange(s => this._updateSyncBadge(s));
 
-        // Load WooCommerce webhook status
-        this._loadWCWebhookStatus();
+        // Load WooCommerce webhook status (cached for 5 min to avoid redundant requests on tab switch)
+        const now = Date.now();
+        if (!this._lastWebhookCheck || now - this._lastWebhookCheck > 5 * 60 * 1000) {
+            this._lastWebhookCheck = now;
+            this._loadWCWebhookStatus();
+        }
 
-        // Show last-sync time immediately on mount — prefer server-side state
-        // so the badge is accurate even if this is a fresh browser session.
-        API.getSyncState?.().then(res => {
-            const t = res?.data?.last_sync_at || this._bgSync.lastSyncTime;
-            if (t) {
-                this._updateSyncBadge({
-                    status: 'idle',
-                    message: `Last sync: ${this._timeAgo(new Date(t))}`
-                });
-            }
-        }).catch(() => {
-            const t = this._bgSync.lastSyncTime;
-            if (t) {
-                this._updateSyncBadge({
-                    status: 'idle',
-                    message: `Last sync: ${this._timeAgo(new Date(t))}`
-                });
-            }
-        });
+        // Show last-sync time (cached for 5 min to avoid redundant server round-trips)
+        if (!this._lastSyncStateCheck || now - this._lastSyncStateCheck > 5 * 60 * 1000) {
+            this._lastSyncStateCheck = now;
+            API.getSyncState?.().then(res => {
+                const t = res?.data?.last_sync_at || this._bgSync.lastSyncTime;
+                if (t) {
+                    this._updateSyncBadge({
+                        status: 'idle',
+                        message: `Last sync: ${this._timeAgo(new Date(t))}`
+                    });
+                }
+            }).catch(() => {
+                const t = this._bgSync.lastSyncTime;
+                if (t) {
+                    this._updateSyncBadge({
+                        status: 'idle',
+                        message: `Last sync: ${this._timeAgo(new Date(t))}`
+                    });
+                }
+            });
+        }
+
+        // Fast tab restore: If data was already loaded and state cache is still valid, restore directly
+        if (this._dataLoaded && this._cachedData && this.state.hasInventoryData()) {
+            await this.inventoryTable.render(this._cachedData);
+            this.pagination.render(this._cachedPagination);
+            return;
+        }
 
         await this.loadData();
     }
@@ -350,45 +376,55 @@ class ProductsView {
         const mainContent = document.getElementById('mainContent');
         if (!mainContent) return;
 
+        // Deduplicate in-flight requests
+        if (this._inFlightLoad) return this._inFlightLoad;
+
         mainContent.innerHTML = '<div class="text-center p-xl"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
 
-        // Pause background sync while the inventory query runs — both hit the
-        // same server and competing requests slow down both.
+        // Pause background sync while the inventory query runs
         this._bgSync.pause('loading');
 
         const f = this.state.getFilters();
 
-        try {
-            const res = await API.getInventory(
-                f.page, f.search, f.location_id, f.status,
-                f.sortBy, f.sortOrder, f.category, f.stockFilter || 'all'
-            );
+        this._inFlightLoad = (async () => {
+            try {
+                const res = await API.getInventory(
+                    f.page, f.search, f.location_id, f.status,
+                    f.sortBy, f.sortOrder, f.category, f.stockFilter || 'all'
+                );
 
-            if (res.status === 'success') {
-                this.state.setInventoryData(res.data || [], res.pagination?.pages || 1, res.pagination?.total || 0);
+                if (res.status === 'success') {
+                    this.state.setInventoryData(res.data || [], res.pagination?.pages || 1, res.pagination?.total || 0);
 
-                // Cache the data locally so we can restore it instantly on tab switch
-                this._cachedData = res.data || [];
-                this._cachedPagination = res.pagination || {};
+                    // Cache the data locally so we can restore it instantly on tab switch
+                    this._cachedData = res.data || [];
+                    this._cachedPagination = res.pagination || {};
 
-                await this.inventoryTable.render(this._cachedData);
-                this.pagination.render(this._cachedPagination);
-                this._dataLoaded = true;
-            } else {
-                mainContent.innerHTML = `<div class="card p-lg text-center text-error">${res.message}</div>`;
+                    await this.inventoryTable.render(this._cachedData);
+                    this.pagination.render(this._cachedPagination);
+                    this._dataLoaded = true;
+                } else {
+                    mainContent.innerHTML = `<div class="card p-lg text-center text-error">${res.message}</div>`;
+                }
+            } catch (e) {
+                console.error(e);
+                mainContent.innerHTML = '<div class="card p-lg text-center text-error">Failed to load inventory</div>';
+            } finally {
+                this._bgSync.resume('loading');
+                this._inFlightLoad = null;
             }
-        } catch (e) {
-            console.error(e);
-            mainContent.innerHTML = '<div class="card p-lg text-center text-error">Failed to load inventory</div>';
-        } finally {
-            // Always resume — sync will pick up on the next poll cycle
-            this._bgSync.resume('loading');
-        }
+        })();
+
+        return this._inFlightLoad;
     }
 
     /** Invalidate the cache and force a fresh loadData() on the next visit. */
     _invalidateCache() {
         this._dataLoaded = false;
+        this._cachedData = null;
+        this._cachedPagination = null;
+        this._lastWebhookCheck = 0;
+        this._lastSyncStateCheck = 0;
         this.state.invalidateInventoryCache();
     }
 
