@@ -1230,3 +1230,60 @@ input[type="checkbox"] {
 .ui-resizer-vertical .ui-resizer-grip span { width: 2px; height: 12px; background: rgba(36, 59, 83, 0.4); border-radius: 2px; display: block; }
 .ui-resizer-horizontal .ui-resizer-grip span { width: 12px; height: 2px; background: rgba(36, 59, 83, 0.4); border-radius: 2px; display: block; }
 .ui-resizer--active .ui-resizer-grip span { background: #932013; }
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--primary-500);
+}
+
+input:focus + .toggle-slider {
+    box-shadow: 0 0 1px var(--primary-500);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+/* Form help text */
+.form-help {
+    font-size: 12px;
+    color: var(--neutral-500);
+    margin-top: 4px;
+}

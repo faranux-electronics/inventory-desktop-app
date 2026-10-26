@@ -231,4 +231,9 @@ module.exports = {
     markAllNotificationsRead: () => request('mark_all_notifications_read', 'POST'),
 
     getWCWebhookStatus: () => request('wc_webhook_status'),
+
+    // Alert Settings
+    getAlertSettings: () => request('get_alert_settings'),
+    updateAlertSettings: (data) => request('update_alert_settings', 'POST', data),
+    testAlertMessage: (data) => request('test_alert_message', 'POST', data),
 };
