@@ -8,19 +8,25 @@ const NAV_ITEMS = [
         key: 'pos',
         label: 'Point of Sale',
         icon: 'fa-cash-register',
-        defaultRoles: ['admin', 'manager', 'cashier'],
+        defaultRoles: ['admin', 'manager', 'supply_chain_manager', 'cashier'],
     },
     {
         key: 'transfers',
         label: 'Transfers',
         icon: 'fa-truck-arrow-right',
-        defaultRoles: ['admin', 'manager', 'cashier'],
+        defaultRoles: ['admin', 'manager', 'supply_chain_manager', 'cashier'],
     },
     {
         key: 'products',
         label: 'Products',
         icon: 'fa-chart-line',
-        defaultRoles: ['admin', 'manager'],
+        defaultRoles: ['admin', 'manager', 'supply_chain_manager'],
+    },
+    {
+        key: 'mps',
+        label: 'Master Planner',
+        icon: 'fa-boxes-stacked',
+        defaultRoles: ['admin', 'supply_chain_manager'],
     },
     {
         key: 'import',
@@ -35,7 +41,7 @@ const NAV_ITEMS = [
         defaultRoles: ['admin'],
     },
     {
-        key: 'access',             // renamed from 'users'
+        key: 'access',             
         label: 'Access Management',
         icon: 'fa-users-gear',
         defaultRoles: ['admin'],

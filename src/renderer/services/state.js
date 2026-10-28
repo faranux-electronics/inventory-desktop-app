@@ -28,6 +28,11 @@ class StateManager {
         // --- NEW: Master Product Catalog (Offline Search DB) ---
         const savedCatalog = this.loadFromStorage('faranux_catalog') || [];
         this.productCatalog = new Map(savedCatalog.map(p => [p.id, p]));
+
+        // MPS cache
+        this.mpsCache = new Map();
+        this.mpsOverviewCache = new Map();
+        this.mpsInFlight = new Map();
     }
 
     getCatalogCount() {
@@ -267,6 +272,44 @@ class StateManager {
     clearAllTabStates() {
         this.tabStates.clear();
         this.saveToStorage('faranux_tab_states', {});
+    }
+
+    // MPS cache helpers
+    mpsCacheKey(type, filters = {}) {
+        const normalized = {};
+        Object.keys(filters).sort().forEach(key => {
+            if (filters[key] === undefined || filters[key] === null || filters[key] === '') return;
+            normalized[key] = filters[key];
+        });
+        return `${type}::${JSON.stringify(normalized)}`;
+    }
+
+    getMpsCached(type, filters, maxAge = 120000) {
+        const key = this.mpsCacheKey(type, filters);
+        const store = type === 'overview' ? this.mpsOverviewCache : this.mpsCache;
+        const cached = store.get(key);
+        if (!cached) return null;
+        if (Date.now() - cached.timestamp > maxAge) {
+            store.delete(key);
+            return null;
+        }
+        return cached.data;
+    }
+
+    setMpsCached(type, filters, data) {
+        const key = this.mpsCacheKey(type, filters);
+        const store = type === 'overview' ? this.mpsOverviewCache : this.mpsCache;
+        store.set(key, { data, timestamp: Date.now() });
+
+        const limit = type === 'summary' ? 6 : 20;
+        if (store.size > limit) {
+            store.delete(store.keys().next().value);
+        }
+    }
+
+    invalidateMpsCache() {
+        this.mpsCache.clear();
+        this.mpsOverviewCache.clear();
     }
 
     getNavPermissions() {

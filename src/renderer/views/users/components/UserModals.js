@@ -50,6 +50,7 @@ class UserModals {
                     <select id="addRole" class="form-select">
                         <option value="cashier">Cashier</option>
                         <option value="manager">Manager</option>
+                        <option value="supply_chain_manager">Supply Chain Manager</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>
@@ -132,6 +133,7 @@ class UserModals {
                     <select id="editUserRole" class="form-select">
                         <option value="cashier" ${currentRole === 'cashier' ? 'selected' : ''}>Cashier</option>
                         <option value="manager" ${currentRole === 'manager' ? 'selected' : ''}>Manager</option>
+                        <option value="supply_chain_manager" ${currentRole === 'supply_chain_manager' ? 'selected' : ''}>Supply Chain Manager</option>
                         <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin</option>
                     </select>
                 </div>

@@ -27,7 +27,7 @@ class UserTable {
             const isDeleted = !!u.deleted_at;
 
             // Role color logic
-            let roleColor = u.role === 'admin' ? '#2271b1' : (u.role === 'manager' ? '#00a32a' : '#50575e');
+            let roleColor = u.role === 'admin' ? '#2271b1' : (u.role === 'supply_chain_manager' ? '#7c3aed' : (u.role === 'manager' ? '#00a32a' : '#50575e'));
 
             // Status Badge Styling (Added a specific badge for "Trashed")
             let statusStyle = '';
@@ -51,7 +51,7 @@ class UserTable {
                 </td>
                 <td style="padding: 12px; color: #50575e; opacity: ${isDeleted ? '0.6' : '1'};">${u.email}</td>
                 <td style="padding: 12px;">
-                    <span style="color: ${roleColor}; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.02em;">${u.role}</span>
+                    <span style="color: ${roleColor}; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.02em;">${u.role === 'supply_chain_manager' ? 'Supply Chain Manager' : u.role}</span>
                 </td>
                 <td style="padding: 12px;">
                     <span style="${statusStyle} padding: 4px 10px; border-radius: 4px; font-weight: 500; font-size: 12px;">

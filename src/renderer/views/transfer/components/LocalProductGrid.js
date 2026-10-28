@@ -1,3 +1,5 @@
+const Toast = require('../../../components/Toast.js');
+
 function esc(str) {
     return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -422,7 +424,7 @@ class LocalProductGrid {
                 btn.innerHTML = orig;
                 btn.style.opacity = '';
             }, 1400);
-        }).catch(() => alert(`Failed to copy ${label}`));
+        }).catch(() => Toast.error(`Failed to copy ${label}`));
     }
 }
 

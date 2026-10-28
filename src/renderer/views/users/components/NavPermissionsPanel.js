@@ -2,12 +2,12 @@ const Toast = require('../../../components/Toast.js');
 const API = require('../../../services/api.js');
 const NAV_ITEMS = require('../../../config/navRegistry.js');
 
-const ROLES = ['admin', 'manager', 'cashier'];
+const ROLES = ['admin', 'supply_chain_manager', 'manager', 'cashier'];
 
 class NavPermissionsPanel {
     constructor(stateManager) {
         this.state = stateManager;
-        // permissions shape: { admin: { transfers: true, pos: false, ... }, manager: {...}, cashier: {...} }
+        // Permissions are stored by role and navigation key, including supply_chain_manager.
         this.permissions = {};
     }
 

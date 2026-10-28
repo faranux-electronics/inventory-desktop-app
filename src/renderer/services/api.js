@@ -12,12 +12,15 @@ let API_URL = 'http://localhost:8000/index.php';
     }
 })();
 
-async function request(action, method = 'GET', body = null) {
+async function request(action, method = 'GET', body = null, signal = null) {
     try {
         const options = {
             method,
             headers: {'Content-Type': 'application/json'}
         };
+        if (signal) {
+            options.signal = signal;
+        }
         const storedUser = localStorage.getItem('faranux_user');
         if (storedUser) {
             try {
@@ -45,17 +48,23 @@ async function request(action, method = 'GET', body = null) {
             throw new Error('Server Error: ' + text.substring(0, 100));
         }
     } catch (e) {
+        if (e.name === 'AbortError') {
+            throw e;
+        }
         console.error('API Request Failed:', e);
         return {status: 'error', message: e.message};
     }
 }
 
-async function downloadFile(action, filename) {
+async function downloadFile(action, filename, signal = null) {
     try {
         const options = {
             method: 'GET',
             headers: {}
         };
+        if (signal) {
+            options.signal = signal;
+        }
         const storedUser = localStorage.getItem('faranux_user');
         if (storedUser) {
             try {
@@ -70,7 +79,8 @@ async function downloadFile(action, filename) {
         const url = `${API_URL}${separator}action=${action}`;
         const res = await fetch(url, options);
         if (!res.ok) {
-            throw new Error(`Server rejected: ${res.status}`);
+            const text = await res.text();
+            throw new Error(text || `Server rejected: ${res.status}`);
         }
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
@@ -83,6 +93,9 @@ async function downloadFile(action, filename) {
         URL.revokeObjectURL(blobUrl);
         return {status: 'success'};
     } catch (e) {
+        if (e.name === 'AbortError') {
+            throw e;
+        }
         return {status: 'error', message: e.message};
     }
 }
@@ -236,4 +249,73 @@ module.exports = {
     getAlertSettings: () => request('get_alert_settings'),
     updateAlertSettings: (data) => request('update_alert_settings', 'POST', data),
     testAlertMessage: (data) => request('test_alert_message', 'POST', data),
+
+    // Master Planner Sheet (MPS)
+    mpsGetSettings: () => request('mps_get_settings'),
+    mpsSaveSettings: (data) => request('mps_save_settings', 'POST', data),
+    mpsGetOverview: (filters = {}, signal = null) => {
+        const qs = new URLSearchParams(filters).toString();
+        return request(`mps_overview${qs ? `&${qs}` : ''}`, 'GET', null, signal);
+    },
+    mpsGetResults: (filters = {}, signal = null) => request(`mps_results&${new URLSearchParams(filters).toString()}`, 'GET', null, signal),
+    mpsExportResults: (filters = {}, filename = 'mps-results.csv', signal = null) => downloadFile(`mps_export_results&${new URLSearchParams(filters).toString()}`, filename, signal),
+    mpsGetPricingCatalog: (filters = {}) => request(`mps_pricing_catalog&${new URLSearchParams(filters).toString()}`),
+    mpsSavePartPricing: (data) => request('mps_save_part_pricing', 'POST', data),
+    mpsDeletePartPricing: (productId) => request('mps_delete_part_pricing', 'POST', {product_id: productId}),
+    mpsExportPricing: (filename = 'mps-pricing.csv') => downloadFile('mps_export_pricing', filename),
+    mpsExportPurchaseOrders: (filename = 'mps-purchase-orders.csv') => downloadFile('mps_export_purchase_orders', filename),
+    mpsExportPurchaseOrder: (id, filename) => downloadFile(`mps_export_purchase_orders&id=${encodeURIComponent(id)}`, filename),
+    mpsRollbackCostImport: (batchId) => request('mps_rollback_cost_import', 'POST', {batch_id: batchId}),
+    mpsGetProductAnalysis: (productId, from = '', to = '', bucket = 'month') => {
+        const filters = {product_id: productId, bucket};
+        if (from) filters.from = from;
+        if (to) filters.to = to;
+        return request(`mps_product_analysis&${new URLSearchParams(filters).toString()}`);
+    },
+    mpsSaveProductParams: (productId, data) => request('mps_save_product_params', 'POST', {product_id: productId, ...data}),
+    mpsGetSuppliers: () => request('mps_get_suppliers'),
+    mpsSaveSupplier: (data) => request('mps_save_supplier', 'POST', data),
+    mpsRefreshSales: (from, to) => request('mps_refresh_sales', 'POST', {from, to}),
+    mpsRefreshSalesStatus: () => request('mps_refresh_sales_status'),
+    mpsReconcileSales: (from, to) => request('mps_reconcile_sales', 'POST', {from, to}),
+    mpsImportSalesHistory: (rows, fileName, until, replace = false) =>
+        request('mps_import_sales_history', 'POST', {rows, file_name: fileName, until, replace}),
+    mpsRun: (asOfDate = null) => request('mps_run', 'POST', asOfDate ? {as_of_date: asOfDate} : {}),
+    mpsGetPurchaseOrders: (filters = {}) => request(`mps_get_purchase_orders&${new URLSearchParams(filters).toString()}`),
+    mpsGetPurchaseOrder: (id) => request(`mps_get_purchase_order&id=${encodeURIComponent(id)}`),
+    mpsGetCalendarEvents: (from, to) => request(`mps_get_calendar_events&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+    mpsCalendarHasEvents: () => request('mps_calendar_has_events'),
+    mpsSavePurchaseOrder: (data) => request('mps_save_purchase_order', 'POST', data),
+    mpsDeletePurchaseOrder: (id) => request('mps_delete_purchase_order', 'POST', {id}),
+    mpsRestorePurchaseOrder: (id) => request('mps_restore_purchase_order', 'POST', {id}),
+    mpsPermanentlyDeletePurchaseOrder: (id) => request('mps_permanently_delete_purchase_order', 'POST', {id}),
+    mpsImportPurchaseOrder: (data) => request('mps_import_purchase_order', 'POST', data),
+    mpsWorkbook: async (action, file, kind, options = {}) => {
+        try {
+            const form = new FormData();
+            form.append('workbook', file);
+            form.append('kind', kind);
+            form.append('options', JSON.stringify(options));
+            const headers = {};
+            const storedUser = localStorage.getItem('faranux_user');
+            if (storedUser) {
+                try {
+                    const user = JSON.parse(storedUser);
+                    if (user?.api_token) headers.Authorization = `Bearer ${user.api_token}`;
+                } catch (e) {}
+            }
+            const separator = action.includes('?') ? '&' : '?';
+            const response = await fetch(`${API_URL}${separator}action=${action}`, {method: 'POST', headers, body: form});
+            const text = await response.text();
+            return JSON.parse(text);
+        } catch (e) {
+            return {status: 'error', message: e.message || 'Workbook request failed.'};
+        }
+    },
+    mpsPreviewWorkbook: (file, kind, options = {}) => API.mpsWorkbook('mps_preview_workbook', file, kind, options),
+    mpsImportWorkbook: (file, kind, options = {}) => API.mpsWorkbook('mps_import_workbook', file, kind, options),
+    mpsSetPurchaseOrderStatus: (id, status) => request('mps_set_purchase_order_status', 'POST', {id, status}),
+    mpsReceivePurchaseOrder: (id, received = {}, locationId = null) =>
+        request('mps_receive_purchase_order', 'POST', {id, received, location_id: locationId}),
+    mpsCreatePurchaseOrders: (data = {}) => request('mps_create_purchase_orders', 'POST', data),
 };

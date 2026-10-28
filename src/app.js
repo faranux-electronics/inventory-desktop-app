@@ -19,6 +19,8 @@ const PosView = require('./src/renderer/views/pos/POSView.js');
 const LogsView = require("./src/renderer/views/logger/LogsView.js");
 const NotsView = require('./src/renderer/views/notifications/NotsView.js');
 const AccessView = require('./src/renderer/views/users/AccessView');
+const MpsView = require('./src/renderer/views/mps/MpsView.js');
+const NAV_ITEMS = require('./src/renderer/config/navRegistry.js');
 
 class App {
     constructor() {
@@ -40,7 +42,8 @@ class App {
             profile: new ProfileView(this),
             access: new AccessView(this),
             logs: new LogsView(this),
-            nots: new NotsView(this)
+            nots: new NotsView(this),
+            mps: new MpsView(this)
         };
 
         this.currentView = null;
@@ -105,6 +108,19 @@ class App {
             if (!user) {
                 this.navigate('login');
                 return;
+            }
+            if (viewName === 'mps') {
+                await this.ensureNavPermissionsLoaded();
+                const role = user.role;
+                const permissions = this.state.getNavPermissions();
+                const navItem = NAV_ITEMS.find(item => item.key === 'mps');
+                const allowed = permissions?.[role] && Object.prototype.hasOwnProperty.call(permissions[role], 'mps')
+                    ? permissions[role].mps === true
+                    : navItem.defaultRoles.includes(role);
+                if (!allowed) {
+                    Toast.error('You do not have access to the Master Planner tab.');
+                    return;
+                }
             }
             if (!document.querySelector('.sidebar')) await this.renderApp(user);
             this.sidebar.setActive(viewName);
