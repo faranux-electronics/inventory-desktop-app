@@ -1,7 +1,7 @@
 {
   "name": "faranuxinventory",
   "productName": "Faranux ERP",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Faranux Enterprise Resource Planning",
   "appId": "com.faranux.inventorymis",
   "main": "src/main/index.js",
