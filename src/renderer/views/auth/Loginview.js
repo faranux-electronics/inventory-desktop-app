@@ -21,7 +21,7 @@ class LoginView {
             <div class="login-icon">
               <i class="fa-solid fa-box-open"></i>
             </div>
-            <h2 class="login-title">Faranux MIS</h2>
+            <h2 class="login-title">Faranux ERP</h2>
             <p class="text-muted text-sm">Sign in to continue</p>
           </div>
 
@@ -64,7 +64,7 @@ class LoginView {
           <!-- App Version (added here) -->
           <div class="text-center mt-lg pt-md border-t border-neutral-200">
             <span class="text-xs text-neutral-400">
-              Faranux MIS <strong id="version-display">v1.1.17</strong>
+              Faranux ERP <strong id="version-display">v1.1.17</strong>
             </span>
           </div>
         </div>

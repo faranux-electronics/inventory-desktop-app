@@ -229,7 +229,11 @@ module.exports = {
         const po = detail?.purchase_order || {};
         const lines = detail?.lines || [];
         const supplierOptions = suppliers.map(s => `<option value="${Number(s.id)}" ${String(s.id) === String(po.supplier_id || '') ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
-        const lineRows = (lines.length ? lines : [{}]).map(line => `<tr><td><input data-po-sku value="${esc(line.sku || '')}" placeholder="SKU" ${Number(line.qty_received || 0) > 0 ? 'readonly' : ''} required></td><td data-po-product>${esc(line.name || '—')}</td><td><input data-po-qty type="number" min="${Number(line.qty_received || 0) || 1}" step="1" value="${esc(line.qty_ordered || '')}" placeholder="Qty" required></td><td><input data-po-cost type="number" min="0" step="0.01" value="${esc(line.unit_cost ?? '')}" placeholder="Unit cost"></td><td>${Number(line.qty_received || 0) ? `${Number(line.qty_received)} received` : '<button type="button" class="btn btn-ghost btn-sm" data-po-remove>Remove</button>'}</td></tr>`).join('');
+        const lineRows = (lines.length ? lines : [{}]).map(line => {
+            const unitCost = line.unit_cost == null || line.unit_cost === '' ? null : Number(line.unit_cost);
+            const totalPrice = unitCost == null ? '�' : (Number(line.qty_ordered || 0) * unitCost).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            return `<tr><td><input data-po-sku value="${esc(line.sku || '')}" placeholder="SKU" ${Number(line.qty_received || 0) > 0 ? 'readonly' : ''} required></td><td data-po-product>${esc(line.name || '-')}</td><td><input data-po-qty type="number" min="${Number(line.qty_received || 0) || 1}" step="1" value="${esc(line.qty_ordered || '')}" placeholder="Qty" required></td><td><input data-po-cost type="number" min="0" step="0.01" value="${esc(line.unit_cost ?? '')}" placeholder="Unit price"></td><td data-po-total>${totalPrice}</td><td>${Number(line.qty_received || 0) ? `${Number(line.qty_received)} received` : '<button type="button" class="btn btn-ghost btn-sm" data-po-remove>Remove</button>'}</td></tr>`;
+        }).join('');
         const overlay = this.openDialog({
             title: id ? `Edit purchase order ${esc(po.reference)}` : 'New purchase order',
             confirmText: id ? 'Save purchase order' : 'Create purchase order',
@@ -239,7 +243,7 @@ module.exports = {
                 <label>Purchase route<select id="mpsPoFreight">${['local','sea','air'].map(v => `<option value="${v}" ${(po.freight_mode || 'air') === v ? 'selected' : ''}>${v === 'local' ? 'Local' : v === 'sea' ? 'Imported · Sea' : 'Imported · Air'}</option>`).join('')}</select></label>
                 <label>ETA<input id="mpsPoEta" type="date" value="${esc(po.eta_date || '')}"></label><label>Currency<select id="mpsPoCurrency"><option value="RWF" ${(po.currency || 'RWF') === 'RWF' ? 'selected' : ''}>RWF</option><option value="USD" ${po.currency === 'USD' ? 'selected' : ''}>USD</option></select></label></div>
                 <button type="button" class="btn btn-sm mps-btn-outline" id="mpsPoAddLine">Add line</button>
-                <div class="mps-table-wrap mps-po-lines-wrap"><table class="mps-table mps-po-lines-table"><thead><tr><th>SKU</th><th>Product name</th><th>Quantity</th><th id="mpsPoCostHeading">Unit cost ${esc(po.currency || 'RWF')}</th><th></th></tr></thead><tbody id="mpsPoLineRows">${lineRows}</tbody></table></div><p id="mpsPoCurrencyStatus" class="mps-modal-note" role="status" aria-live="polite"></p>
+                <div class="mps-table-wrap mps-po-lines-wrap"><table class="mps-table mps-po-lines-table"><thead><tr><th>SKU</th><th>Product name</th><th data-po-line-sort="qty" role="button" tabindex="0" aria-sort="none">Qty</th><th data-po-line-sort="unit" role="button" tabindex="0" aria-sort="none" id="mpsPoCostHeading">U.P ${esc(po.currency || 'RWF')}</th><th data-po-line-sort="total" role="button" tabindex="0" aria-sort="none" id="mpsPoTotalHeading">T. Price ${esc(po.currency || 'RWF')}</th><th></th></tr></thead><tbody id="mpsPoLineRows">${lineRows}</tbody></table></div><p id="mpsPoCurrencyStatus" class="mps-modal-note" role="status" aria-live="polite"></p>
                 <label>Notes<textarea id="mpsPoNote" rows="2">${esc(po.note || '')}</textarea></label>`,
             onConfirm: async overlay => {
                 const parsed = [...overlay.querySelectorAll('#mpsPoLineRows tr')].map(row => {
@@ -279,6 +283,43 @@ module.exports = {
         const currencySelect = overlay.querySelector('#mpsPoCurrency');
         const saveButton = overlay.querySelector('button[type="submit"]');
         const currencyStatus = overlay.querySelector('#mpsPoCurrencyStatus');
+        const updatePoRowTotal = row => {
+            const qty = Number(row.querySelector('[data-po-qty]')?.value || 0);
+            const costText = row.querySelector('[data-po-cost]')?.value.trim() ?? '';
+            const totalCell = row.querySelector('[data-po-total]');
+            const total = costText === '' ? null : qty * Number(costText);
+            totalCell.textContent = total == null || !Number.isFinite(total)
+                ? '-' : total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            return total;
+        };
+        let lineSortKey = null;
+        let lineSortDirection = 1;
+        const sortPoLines = () => {
+            if (!lineSortKey) return;
+            const valueFor = row => {
+                const qty = Number(row.querySelector('[data-po-qty]')?.value || 0);
+                const costText = row.querySelector('[data-po-cost]')?.value.trim() ?? '';
+                const unit = costText === '' ? Number.NEGATIVE_INFINITY : Number(costText);
+                return lineSortKey === 'qty' ? qty : lineSortKey === 'unit' ? unit : costText === '' ? Number.NEGATIVE_INFINITY : qty * unit;
+            };
+            [...lineBody.querySelectorAll('tr')]
+                .sort((a, b) => (valueFor(a) - valueFor(b)) * lineSortDirection || String(a.querySelector('[data-po-sku]')?.value || '').localeCompare(String(b.querySelector('[data-po-sku]')?.value || '')))
+                .forEach(row => lineBody.appendChild(row));
+        };
+        overlay.querySelectorAll('[data-po-line-sort]').forEach(heading => {
+            const sort = () => {
+                const key = heading.dataset.poLineSort;
+                lineSortDirection = lineSortKey === key ? -lineSortDirection : 1;
+                lineSortKey = key;
+                overlay.querySelectorAll('[data-po-line-sort]').forEach(item => item.setAttribute('aria-sort', item === heading ? (lineSortDirection === 1 ? 'ascending' : 'descending') : 'none'));
+                sortPoLines();
+            };
+            heading.addEventListener('click', sort);
+            heading.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); sort(); }
+            });
+        });
+        lineBody.querySelectorAll('tr').forEach(updatePoRowTotal);
         let currencyUpdateToken = 0;
         const applyCatalogCost = row => {
             const costInput = row.querySelector('[data-po-cost]');
@@ -286,6 +327,7 @@ module.exports = {
             const selectedCost = currencySelect.value === 'USD' ? row.dataset.costUsd : row.dataset.costRwf;
             if (selectedCost === '' || selectedCost == null || !Number.isFinite(Number(selectedCost))) return false;
             costInput.value = selectedCost;
+            updatePoRowTotal(row);
             row.dataset.poCostCurrency = currencySelect.value;
             row.dataset.currencyPending = '0';
             row.classList.remove('mps-po-currency-attention');
@@ -302,7 +344,8 @@ module.exports = {
         currencySelect?.addEventListener('change', async event => {
             const currency = event.target.value;
             const token = ++currencyUpdateToken;
-            overlay.querySelector('#mpsPoCostHeading').textContent = 'Unit cost ' + currency;
+            overlay.querySelector('#mpsPoCostHeading').textContent = 'U.P ' + currency;
+            overlay.querySelector('#mpsPoTotalHeading').textContent = 'T. Price ' + currency;
             const rows = [...lineBody.querySelectorAll('tr')];
             const needsLookup = [];
             for (const row of rows) {
@@ -338,6 +381,8 @@ module.exports = {
         });
         const bindPoCostInput = input => input.addEventListener('input', () => {
             const row = input.closest('tr');
+            updatePoRowTotal(row);
+            sortPoLines();
             row.dataset.poCostAuto = '0';
             if (row.dataset.currencyPending === '1' && input.value.trim() !== '' && Number.isFinite(Number(input.value)) && Number(input.value) >= 0) {
                 row.dataset.currencyPending = '0';
@@ -348,6 +393,11 @@ module.exports = {
             }
         });
         lineBody.querySelectorAll('[data-po-cost]').forEach(bindPoCostInput);
+        const bindPoQtyInput = input => input.addEventListener('input', () => {
+            updatePoRowTotal(input.closest('tr'));
+            sortPoLines();
+        });
+        lineBody.querySelectorAll('[data-po-qty]').forEach(bindPoQtyInput);
         const bindPoSkuLookup = input => input.addEventListener('change', async () => {
             const sku = input.value.trim();
             const row = input.closest('tr');
@@ -371,12 +421,18 @@ module.exports = {
         });
         lineBody.querySelectorAll('[data-po-sku]').forEach(bindPoSkuLookup);
         overlay.querySelector('#mpsPoAddLine')?.addEventListener('click', () => {
-            lineBody.insertAdjacentHTML('beforeend', '<tr><td><input data-po-sku placeholder="SKU" required></td><td data-po-product>—</td><td><input data-po-qty type="number" min="1" step="1" placeholder="Qty" required></td><td><input data-po-cost type="number" min="0" step="0.01" placeholder="Unit cost"></td><td><button type="button" class="btn btn-ghost btn-sm" data-po-remove>Remove</button></td></tr>');
+            lineBody.insertAdjacentHTML('beforeend', '<tr><td><input data-po-sku placeholder="SKU" required></td><td data-po-product>-</td><td><input data-po-qty type="number" min="1" step="1" placeholder="Qty" required></td><td><input data-po-cost type="number" min="0" step="0.01" placeholder="Unit price"></td><td data-po-total>-</td><td><button type="button" class="btn btn-ghost btn-sm" data-po-remove>Remove</button></td></tr>');
             bindPoCostInput(lineBody.lastElementChild.querySelector('[data-po-cost]'));
+            bindPoQtyInput(lineBody.lastElementChild.querySelector('[data-po-qty]'));
+            updatePoRowTotal(lineBody.lastElementChild);
             bindPoSkuLookup(lineBody.lastElementChild.querySelector('[data-po-sku]'));
         });
         overlay.addEventListener('click', event => {
-            if (event.target.closest('[data-po-remove]')) event.target.closest('tr')?.remove();
+            if (event.target.closest('[data-po-remove]')) {
+                event.target.closest('tr')?.remove();
+                updateCurrencyStatus();
+                sortPoLines();
+            }
         });
     },
 

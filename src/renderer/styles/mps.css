@@ -500,16 +500,19 @@
 /* Keep PO editor controls on one wider modal and constrain line input columns. */
 .mps-overlay .mps-po-lines-wrap{overflow-x:hidden;overflow-y:visible;border:0;background:transparent}
 .mps-overlay .mps-po-lines-table{display:table;width:100%;min-width:0;max-width:100%;table-layout:fixed;white-space:normal}
-.mps-overlay .mps-po-lines-table th:nth-child(1){width:17%}
-.mps-overlay .mps-po-lines-table th:nth-child(2){width:39%}
-.mps-overlay .mps-po-lines-table th:nth-child(3){width:13%}
-.mps-overlay .mps-po-lines-table th:nth-child(4){width:18%}
-.mps-overlay .mps-po-lines-table th:nth-child(5){width:13%}
+.mps-overlay .mps-po-lines-table th:nth-child(1){width:15%}
+.mps-overlay .mps-po-lines-table th:nth-child(2){width:31%}
+.mps-overlay .mps-po-lines-table th:nth-child(3){width:10%}
+.mps-overlay .mps-po-lines-table th:nth-child(4){width:16%}
+.mps-overlay .mps-po-lines-table th:nth-child(5){width:17%}
+.mps-overlay .mps-po-lines-table th:nth-child(6){width:11%}
+.mps-overlay .mps-po-lines-table th[data-po-line-sort]{cursor:pointer;user-select:none;text-decoration:underline dotted;text-underline-offset:3px}
 .mps-overlay .mps-po-lines-table td:first-child{min-width:0}
 .mps-overlay .mps-po-lines-table [data-po-product]{min-width:0;white-space:normal;overflow-wrap:anywhere}
 .mps-overlay .mps-po-lines-table input:not([type="checkbox"]){width:100%;min-width:0;max-width:160px;box-sizing:border-box}
 .mps-overlay .mps-po-lines-table td:nth-child(3) input{max-width:90px}
 .mps-overlay .mps-po-lines-table td:nth-child(4) input{max-width:130px}
+.mps-overlay .mps-po-lines-table td:nth-child(5){text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:900px){
     .mps-overlay .mps-po-editor-dialog{width:min(760px,calc(100vw - 16px));padding:66px 16px 84px}
     .mps-overlay .mps-po-editor-dialog>header{padding:16px 16px 10px}
@@ -524,8 +527,9 @@
     .mps-overlay .mps-po-lines-table tbody td:nth-child(1)::before{content:'SKU'}
     .mps-overlay .mps-po-lines-table tbody td:nth-child(2)::before{content:'Product'}
     .mps-overlay .mps-po-lines-table tbody td:nth-child(3)::before{content:'Quantity'}
-    .mps-overlay .mps-po-lines-table tbody td:nth-child(4)::before{content:'Unit cost'}
-    .mps-overlay .mps-po-lines-table tbody td:nth-child(5)::before{content:'Line'}
+    .mps-overlay .mps-po-lines-table tbody td:nth-child(4)::before{content:'U.P'}
+    .mps-overlay .mps-po-lines-table tbody td:nth-child(5)::before{content:'T. Price'}
+    .mps-overlay .mps-po-lines-table tbody td:nth-child(6)::before{content:'Actions'}
     .mps-overlay .mps-po-lines-table tbody td:last-child{border-bottom:0}
     .mps-overlay .mps-po-lines-table input:not([type="checkbox"]){width:100%;min-width:0;max-width:none}
     .mps-overlay .mps-po-lines-table tbody td:last-child .btn{justify-self:end}

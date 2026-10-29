@@ -25,7 +25,7 @@
   },
   "build": {
     "appId": "com.faranux.inventorymis",
-    "productName": "Faranux MIS",
+    "productName": "Faranux ERP",
     "files": [
       "**/*",
       ".env"
@@ -48,7 +48,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Faranux MIS",
+      "shortcutName": "Faranux ERP",
       "deleteAppDataOnUninstall": false,
       "installerSidebar": "buildResources/installerSidebar.bmp",
       "uninstallerSidebar": "buildResources/installerSidebar.bmp"
