@@ -178,7 +178,7 @@ module.exports = {
             event.currentTarget.disabled = false;
             if (result.status === 'success') Toast.success('Pricing calculation CSV exported.'); else Toast.error(result.message || 'Pricing export failed.');
         });
-        panel.querySelector('#mpsImportCosts')?.addEventListener('click', () => this.openWorkbookImport(settingsResult.settings || {}));
+        panel.querySelector('#mpsImportCosts')?.addEventListener('click', () => this.openWorkbookImport());
         panel.querySelector('#mpsRollbackCosts')?.addEventListener('click', () => {
             this.confirmDialog({
                 title: 'Rollback purchase cost import',

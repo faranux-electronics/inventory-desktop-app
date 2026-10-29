@@ -275,11 +275,10 @@ module.exports = {
     mpsSaveProductParams: (productId, data) => request('mps_save_product_params', 'POST', {product_id: productId, ...data}),
     mpsGetSuppliers: () => request('mps_get_suppliers'),
     mpsSaveSupplier: (data) => request('mps_save_supplier', 'POST', data),
+    mpsDeleteSupplier: (id) => request('mps_delete_supplier', 'POST', {id}),
     mpsRefreshSales: (from, to) => request('mps_refresh_sales', 'POST', {from, to}),
     mpsRefreshSalesStatus: () => request('mps_refresh_sales_status'),
     mpsReconcileSales: (from, to) => request('mps_reconcile_sales', 'POST', {from, to}),
-    mpsImportSalesHistory: (rows, fileName, until, replace = false) =>
-        request('mps_import_sales_history', 'POST', {rows, file_name: fileName, until, replace}),
     mpsRun: (asOfDate = null) => request('mps_run', 'POST', asOfDate ? {as_of_date: asOfDate} : {}),
     mpsGetPurchaseOrders: (filters = {}) => request(`mps_get_purchase_orders&${new URLSearchParams(filters).toString()}`),
     mpsGetPurchaseOrder: (id) => request(`mps_get_purchase_order&id=${encodeURIComponent(id)}`),

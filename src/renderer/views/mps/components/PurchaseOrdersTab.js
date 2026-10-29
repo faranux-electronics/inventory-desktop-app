@@ -1,25 +1,85 @@
 const { API, Toast, esc, isoDate, today, daysAgo, money, statusLabel, num, qty, monthLabel, shortNum, CHART_COLORS, STATUS_COLORS, STATUS_ORDER, FILTER_DEBOUNCE_MS, donutChart, legendHtml, hBars, columnChart } = require('../helpers.js');
 
 module.exports = {
-    addSupplier() {
+    addSupplier(supplier = null) {
+        const editing = Boolean(supplier?.id);
         this.openDialog({
-            title: 'Add supplier',
-            confirmText: 'Add supplier',
+            title: editing ? 'Edit supplier' : 'Add supplier',
+            confirmText: editing ? 'Save supplier' : 'Add supplier',
             busyText: 'Saving supplier...',
             body: `<div class="mps-form-grid">
-                <label>Supplier name<input id="mpsSupplierName" type="text" maxlength="190" autocomplete="off" required></label>
-                <label>Lead time (days)<input id="mpsSupplierLead" type="number" min="0" placeholder="Optional"></label>
+                <label>Supplier name<input id="mpsSupplierName" type="text" maxlength="150" autocomplete="off" value="${esc(supplier?.name || '')}" required></label>
+                <label>Lead time (days)<input id="mpsSupplierLead" type="number" min="0" value="${esc(supplier?.lead_time_days ?? '')}" placeholder="Optional"></label>
+                <label>Minimum order value<input id="mpsSupplierMinOrder" type="number" min="0" step="0.01" value="${esc(supplier?.min_order_value ?? '')}" placeholder="Optional"></label>
+                <label>Currency<input id="mpsSupplierCurrency" type="text" maxlength="3" value="${esc(supplier?.currency || 'USD')}" placeholder="USD"></label>
+                <label>Contact<input id="mpsSupplierContact" type="text" maxlength="255" value="${esc(supplier?.contact || '')}" placeholder="Optional"></label>
+                <label>Note<input id="mpsSupplierNote" type="text" value="${esc(supplier?.note || '')}" placeholder="Optional"></label>
+                <label class="mps-check"><input id="mpsSupplierActive" type="checkbox" ${supplier === null || Number(supplier.active) ? 'checked' : ''}> Active supplier</label>
             </div>`,
             onConfirm: async overlay => {
                 const name = overlay.querySelector('#mpsSupplierName').value.trim();
                 if (!name) { Toast.error('Supplier name is required.'); return false; }
                 const leadTime = overlay.querySelector('#mpsSupplierLead').value;
-                const payload = {name};
+                const minOrder = overlay.querySelector('#mpsSupplierMinOrder').value;
+                const payload = {
+                    name,
+                    currency: overlay.querySelector('#mpsSupplierCurrency').value.trim().toUpperCase() || 'USD',
+                    contact: overlay.querySelector('#mpsSupplierContact').value.trim() || null,
+                    note: overlay.querySelector('#mpsSupplierNote').value.trim() || null,
+                    active: overlay.querySelector('#mpsSupplierActive').checked
+                };
+                if (editing) payload.id = Number(supplier.id);
                 if (leadTime !== '') payload.lead_time_days = Number(leadTime);
+                if (minOrder !== '') payload.min_order_value = Number(minOrder);
                 const result = await API.mpsSaveSupplier(payload);
                 if (result.status !== 'success') { Toast.error(result.message || 'Supplier could not be saved.'); return false; }
                 if (this.state.invalidateMpsCache) this.state.invalidateMpsCache();
-                Toast.success('Supplier saved.');
+                Toast.success(editing ? 'Supplier updated.' : 'Supplier saved.');
+                this.loadOrders();
+                return true;
+            }
+        });
+    },
+
+    deleteSupplier(supplier) {
+        const products = Number(supplier.products || 0);
+        const purchaseOrders = Number(supplier.purchase_orders || 0);
+        const links = [
+            products ? `${num(products)} product${products === 1 ? '' : 's'}` : '',
+            purchaseOrders ? `${num(purchaseOrders)} purchase order${purchaseOrders === 1 ? '' : 's'}` : ''
+        ].filter(Boolean);
+        const impact = links.length ? ` This will unassign ${links.join(' and ')}.` : '';
+        this.confirmDialog({
+            title: 'Delete supplier',
+            message: `Delete "${supplier.name}"? This cannot be undone.${impact}`,
+            confirmText: 'Continue',
+            busyText: 'Continuing...',
+            onConfirm: async () => {
+                setTimeout(() => this.confirmDeleteSupplier(supplier), 0);
+                return true;
+            }
+        });
+    },
+
+    confirmDeleteSupplier(supplier) {
+        this.confirmDialog({
+            title: 'Confirm permanent deletion',
+            message: `Final confirmation: permanently delete "${supplier.name}"? This action cannot be undone.`,
+            confirmText: 'Delete permanently',
+            busyText: 'Deleting supplier...',
+            onConfirm: async () => {
+                const result = await API.mpsDeleteSupplier(Number(supplier.id));
+                if (result.status !== 'success') {
+                    Toast.error(result.message || 'Supplier could not be deleted.');
+                    return false;
+                }
+                if (this.state.invalidateMpsCache) this.state.invalidateMpsCache();
+                const detachedCount = (count, label) => count ? `${num(count)} ${label}${Number(count) === 1 ? '' : 's'}` : '';
+                const detached = [
+                    detachedCount(Number(result.products_unassigned || 0), 'product'),
+                    detachedCount(Number(result.purchase_orders_unassigned || 0), 'purchase order')
+                ].filter(Boolean);
+                Toast.success(detached.length ? `Supplier deleted; unassigned ${detached.join(' and ')}.` : 'Supplier deleted.');
                 this.loadOrders();
                 return true;
             }
@@ -49,7 +109,7 @@ module.exports = {
         const rows = (orders.data||[]).map(po => `<tr><td>${esc(po.reference)}</td><td>${esc(po.supplier_name||'—')}</td><td>${esc(statusLabel(po.freight_mode))}</td><td><span class="mps-status mps-status-${esc(po.status)}">${esc(statusLabel(po.status))}</span></td><td>${esc(po.eta_date||'—')}</td><td>${esc(po.line_count)}</td><td>${money(po.value)}</td><td>${this.isWriter ? this.orderButtons(po) : ''}</td></tr>`).join('');
         panel.innerHTML = `<div class="mps-orders-head"><div><h2>Purchase orders</h2><p>Open purchase orders feed incoming quantities into future planner runs.</p></div>${this.isWriter ? '<div class="mps-actions"><button class="btn btn-sm mps-btn-outline" id="mpsNewPo"><i class="fa-solid fa-plus"></i> New purchase order</button><button class="btn btn-sm mps-btn-primary" id="mpsCreatePos"><i class="fa-solid fa-wand-magic-sparkles"></i> Create from reorder list</button><button class="btn btn-sm mps-btn-outline" id="mpsAddSupplier">Add supplier</button><button class="btn btn-sm mps-btn-outline" id="mpsExportPOs">Export purchase orders</button></div>' : ''}</div>
             <div class="mps-table-wrap wp-list-table-wrapper"><table class="mps-table wp-list-table widefat fixed striped posts"><thead><tr><th>PO number</th><th>Supplier</th><th>Route</th><th>Status</th><th>ETA</th><th>Lines</th><th>Value</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="mps-empty">No purchase orders yet.</td></tr>'}</tbody></table></div>
-            <h2 class="mps-suppliers-title">Suppliers</h2><div class="mps-supplier-list">${this.suppliers.map(s=>`<div><b>${esc(s.name)}</b><span>${esc(s.lead_time_days??'—')} lead days · ${Number(s.products||0)} products</span></div>`).join('')||'<p>No suppliers configured.</p>'}</div>`;
+            <h2 class="mps-suppliers-title">Suppliers</h2><div class="mps-supplier-list">${this.suppliers.map(s=>`<div><b>${esc(s.name)}${Number(s.active) ? '' : ' (inactive)'}</b><span>${esc(s.lead_time_days??'—')} lead days · ${Number(s.products||0)} products</span>${this.isWriter ? `<span class="mps-supplier-actions"><button type="button" class="btn btn-ghost btn-sm" data-edit-supplier="${Number(s.id)}">Edit</button><button type="button" class="btn btn-ghost btn-sm" data-delete-supplier="${Number(s.id)}">Delete</button></span>` : ''}</div>`).join('')||'<p>No suppliers configured.</p>'}</div>`;
         if (this.ordersTrashView && !orders.data?.length) panel.querySelector('.mps-empty')?.replaceChildren('Trash is empty.');
         const poActions = this.ordersTrashView ? null : panel.querySelector('.mps-orders-head .mps-actions');
         panel.querySelector('.mps-orders-head')?.remove();
@@ -124,11 +184,15 @@ module.exports = {
             });
         });
         document.getElementById('mpsNewPo')?.addEventListener('click', () => this.openPurchaseOrderEditor());
-        document.getElementById('mpsImportPO')?.addEventListener('click', async () => {
-            const settings = await API.mpsGetSettings();
-            this.openWorkbookImport(settings.settings || {}, 'purchase_order');
-        });
+        document.getElementById('mpsImportPO')?.addEventListener('click', () => this.openWorkbookImport('purchase_order'));
         document.getElementById('mpsAddSupplier')?.addEventListener('click', () => this.addSupplier());
+        panel.querySelectorAll('[data-edit-supplier]').forEach(button => button.addEventListener('click', () => {
+            this.addSupplier(this.suppliers.find(supplier => String(supplier.id) === button.dataset.editSupplier));
+        }));
+        panel.querySelectorAll('[data-delete-supplier]').forEach(button => button.addEventListener('click', () => {
+            const supplier = this.suppliers.find(item => String(item.id) === button.dataset.deleteSupplier);
+            if (supplier) this.deleteSupplier(supplier);
+        }));
         document.getElementById('mpsExportPOs')?.addEventListener('click', async event => {
             event.currentTarget.disabled = true;
             const result = await API.mpsExportPurchaseOrders();

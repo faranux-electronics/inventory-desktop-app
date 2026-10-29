@@ -2,9 +2,19 @@ const { API, Toast, esc, isoDate, today, daysAgo, money, statusLabel, num, qty, 
 
 module.exports = {
     async showProduct(productId) {
-        const data = await API.mpsGetProductAnalysis(productId);
+        const [data, settingsResult] = await Promise.all([API.mpsGetProductAnalysis(productId), API.mpsGetSettings()]);
         if (data.status !== 'success') return Toast.error(data.message || 'Could not load product analysis.');
         await this.ensureSuppliers();
+        const settings = settingsResult.status === 'success' ? settingsResult.settings || {} : {};
+        const formatSpan = span => {
+            const value = Number(span?.value);
+            if (!Number.isFinite(value) || value <= 0 || !span?.unit) return '';
+            return `${num(value)} ${span.unit}${value === 1 ? '' : 's'}`;
+        };
+        const historyRange = formatSpan(settings.history_window);
+        const coverRange = formatSpan(settings.cover_period);
+        const historyLabel = historyRange ? `last ${historyRange}` : 'history period';
+        const coverLabel = coverRange ? `cover: last ${coverRange}` : 'cover period';
         const p = data.product, summary = data.summary, result = data.mps || {};
         const params = data.params || {};
         const supplierOptions = (this.suppliersList || []).map(s => `<option value="${Number(s.id)}" ${String(s.id) === String(params.supplier_id || '') ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
@@ -15,12 +25,12 @@ module.exports = {
             ['Current stock', qty(result.current_stock)],
             ['Incoming stock', qty(result.incoming)],
             ['Total stock', qty(result.total_stock)],
-            ['Cumulative average', qty(result.avg_all)],
-            ['Cumulative demand', qty(result.cover_all)],
-            ['Cumulative peak', qty(result.peak_all)],
-            ['Window average', qty(result.avg_window)],
-            ['Window demand', qty(result.cover_window)],
-            ['Window peak', qty(result.peak_window)],
+            ['Cumulative average (all history)', qty(result.avg_all)],
+            [`Cumulative demand (${coverLabel})`, qty(result.cover_all)],
+            ['Cumulative peak (all history)', qty(result.peak_all)],
+            [`Window average (${historyLabel})`, qty(result.avg_window)],
+            [`Window demand (${coverLabel})`, qty(result.cover_window)],
+            [`Window peak (${historyLabel})`, qty(result.peak_window)],
             ['Deviation', `${Number(result.deviation || 0) > 0 ? '+' : ''}${qty(result.deviation)}`],
             ['Risk buffer', qty(result.buffer), bufferExceedsStock]
         ].map(([label, value, risk]) => `<div${risk ? ' class="mps-risk-metric"' : ''}><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join('');
@@ -36,7 +46,6 @@ module.exports = {
             <div class="mps-detail-grid"><div><span>Sales in range</span><b>${esc(summary.total_qty)}</b></div><div><span>Daily rate</span><b>${esc(summary.avg_per_day)}</b></div><div><span>Peak bucket</span><b>${esc(summary.peak_bucket_qty)}</b></div><div><span>Days of cover</span><b>${esc(result.days_of_cover ?? '—')}</b></div><div><span>First stockout</span><b>${esc(result.first_stockout_date || '—')}</b></div><div><span>Suggested reorder</span><b>${esc(result.reorder_qty || 0)}</b></div></div>
             <h3>Planning metrics</h3>
             <div class="mps-detail-grid mps-metrics-grid">${metrics}</div>
-            <p class="mps-modal-note">Cumulative uses all history; window uses the configured history period; demand uses the configured cover period.</p>
             <h3>Monthly stock projection</h3>
             ${projectionRows ? `<div class="mps-projection-wrap"><table class="mps-projection"><thead><tr><th>Month</th><th class="mps-num">Opening</th><th class="mps-num">Incoming</th><th class="mps-num">Demand</th><th class="mps-num">Closing</th></tr></thead><tbody>${projectionRows}</tbody></table></div>` : '<p class="mps-chart-empty">No projection available. Run the planner to generate one.</p>'}
             <h3>Demand history</h3><div class="mps-series">${(data.series||[]).slice(-24).map(x=>`<div title="${esc(x.period_start)}: ${esc(x.qty)}"><span>${esc(String(x.period_start).slice(0,7))}</span><b style="height:${Math.max(3,Math.min(100,Number(x.qty)*5))}%"></b></div>`).join('')}</div>

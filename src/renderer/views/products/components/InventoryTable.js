@@ -24,6 +24,7 @@ class InventoryTable {
         if (mapUpdated) this.products.saveState();
 
         const mainContent = document.getElementById('mainContent');
+        if (!mainContent) return;
 
         if (products.length === 0) {
             mainContent.innerHTML = '<div class="card p-lg text-center text-muted" style="background: white; border: 1px solid #c3c4c7;">No products found</div>';
@@ -32,6 +33,9 @@ class InventoryTable {
 
         // 1. Load Locations to map IDs to Names for the Distribution Badges
         const locations = await this.state.loadLocations();
+        if (this.products.app?.currentView !== this.products) return;
+        const liveMainContent = document.getElementById('mainContent');
+        if (!liveMainContent) return;
         const locationMap = {};
         locations.forEach(l => locationMap[l.id] = l.name);
 
@@ -100,7 +104,7 @@ class InventoryTable {
             </style>
         `;
 
-        mainContent.innerHTML = html;
+        liveMainContent.innerHTML = html;
         this.attachTableEvents();
     }
 

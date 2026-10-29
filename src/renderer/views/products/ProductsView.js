@@ -393,6 +393,10 @@ class ProductsView {
                     f.sortBy, f.sortOrder, f.category, f.stockFilter || 'all'
                 );
 
+                if (this.app?.currentView !== this) return;
+                const currentMain = document.getElementById('mainContent');
+                if (!currentMain) return;
+
                 if (res.status === 'success') {
                     this.state.setInventoryData(res.data || [], res.pagination?.pages || 1, res.pagination?.total || 0);
 
@@ -404,11 +408,14 @@ class ProductsView {
                     this.pagination.render(this._cachedPagination);
                     this._dataLoaded = true;
                 } else {
-                    mainContent.innerHTML = `<div class="card p-lg text-center text-error">${res.message}</div>`;
+                    currentMain.innerHTML = `<div class="card p-lg text-center text-error">${res.message}</div>`;
                 }
             } catch (e) {
                 console.error(e);
-                mainContent.innerHTML = '<div class="card p-lg text-center text-error">Failed to load inventory</div>';
+                if (this.app?.currentView === this) {
+                    const currentMain = document.getElementById('mainContent');
+                    if (currentMain) currentMain.innerHTML = '<div class="card p-lg text-center text-error">Failed to load inventory</div>';
+                }
             } finally {
                 this._bgSync.resume('loading');
                 this._inFlightLoad = null;

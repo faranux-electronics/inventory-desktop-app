@@ -296,7 +296,7 @@ class MpsView {
                 <label>From date<input id="mpsRefreshFrom" type="date" value="${daysAgo(45)}" required></label>
                 <label>Through date<input id="mpsRefreshTo" type="date" value="${today()}" required></label>
             </div>
-            <p class="mps-modal-note">Rebuilds WooCommerce sales for this range. Dates before the sales cutover are skipped; imported history is left untouched.</p>`,
+            <p class="mps-modal-note">Rebuilds WooCommerce sales for this range. Dates before the sales sync start date are skipped.</p>`,
             onConfirm: async overlay => {
                 const from = overlay.querySelector('#mpsRefreshFrom').value;
                 const to = overlay.querySelector('#mpsRefreshTo').value;
