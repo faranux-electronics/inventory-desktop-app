@@ -108,7 +108,7 @@ module.exports = {
         this.suppliersList = this.suppliers;
         const rows = (orders.data||[]).map(po => `<tr><td>${esc(po.reference)}</td><td>${esc(po.supplier_name||'—')}</td><td>${esc(statusLabel(po.freight_mode))}</td><td><span class="mps-status mps-status-${esc(po.status)}">${esc(statusLabel(po.status))}</span></td><td>${esc(po.eta_date||'—')}</td><td>${esc(po.line_count)}</td><td>${Number(po.value || 0).toLocaleString()} ${esc(po.currency || 'RWF')}</td><td>${this.isWriter ? this.orderButtons(po) : ''}</td></tr>`).join('');
         panel.innerHTML = `<div class="mps-orders-head"><div><h2>Purchase orders</h2><p>Open purchase orders feed incoming quantities into future planner runs.</p></div>${this.isWriter ? '<div class="mps-actions"><button class="btn btn-sm mps-btn-outline" id="mpsNewPo"><i class="fa-solid fa-plus"></i> New purchase order</button><button class="btn btn-sm mps-btn-primary" id="mpsCreatePos"><i class="fa-solid fa-wand-magic-sparkles"></i> Create from reorder list</button><button class="btn btn-sm mps-btn-outline" id="mpsAddSupplier">Add supplier</button><button class="btn btn-sm mps-btn-outline" id="mpsExportPOs">Export purchase orders</button></div>' : ''}</div>
-            <div class="mps-table-wrap wp-list-table-wrapper"><table class="mps-table wp-list-table widefat fixed striped posts"><thead><tr><th>PO number</th><th>Supplier</th><th>Route</th><th>Status</th><th>ETA</th><th>Lines</th><th>Value (currency)</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="mps-empty">No purchase orders yet.</td></tr>'}</tbody></table></div>
+            <div class="mps-table-wrap wp-list-table-wrapper"><table class="mps-table mps-po-list-table wp-list-table widefat fixed striped posts"><thead><tr><th>PO number</th><th>Supplier</th><th>Route</th><th>Status</th><th>ETA</th><th>Lines</th><th>Value (currency)</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="8" class="mps-empty">No purchase orders yet.</td></tr>'}</tbody></table></div>
             <h2 class="mps-suppliers-title">Suppliers</h2><div class="mps-supplier-list">${this.suppliers.map(s=>`<div><b>${esc(s.name)}${Number(s.active) ? '' : ' (inactive)'}</b><span>${esc(s.lead_time_days??'—')} lead days · ${Number(s.products||0)} products</span>${this.isWriter ? `<span class="mps-supplier-actions"><button type="button" class="btn btn-ghost btn-sm" data-edit-supplier="${Number(s.id)}">Edit</button><button type="button" class="btn btn-ghost btn-sm" data-delete-supplier="${Number(s.id)}">Delete</button></span>` : ''}</div>`).join('')||'<p>No suppliers configured.</p>'}</div>`;
         if (this.ordersTrashView && !orders.data?.length) panel.querySelector('.mps-empty')?.replaceChildren('Trash is empty.');
         const poActions = this.ordersTrashView ? null : panel.querySelector('.mps-orders-head .mps-actions');
@@ -238,8 +238,8 @@ module.exports = {
                 <label>Supplier<select id="mpsPoSupplier"><option value="">Unassigned</option>${supplierOptions}</select></label>
                 <label>Purchase route<select id="mpsPoFreight">${['local','sea','air'].map(v => `<option value="${v}" ${(po.freight_mode || 'air') === v ? 'selected' : ''}>${v === 'local' ? 'Local' : v === 'sea' ? 'Imported · Sea' : 'Imported · Air'}</option>`).join('')}</select></label>
                 <label>ETA<input id="mpsPoEta" type="date" value="${esc(po.eta_date || '')}"></label><label>Currency<select id="mpsPoCurrency"><option value="RWF" ${(po.currency || 'RWF') === 'RWF' ? 'selected' : ''}>RWF</option><option value="USD" ${po.currency === 'USD' ? 'selected' : ''}>USD</option></select></label></div>
-                <div class="mps-table-wrap"><table class="mps-table"><thead><tr><th>SKU</th><th>Product name</th><th>Quantity</th><th id="mpsPoCostHeading">Unit cost ${esc(po.currency || 'RWF')}</th><th></th></tr></thead><tbody id="mpsPoLineRows">${lineRows}</tbody></table></div>
                 <button type="button" class="btn btn-sm mps-btn-outline" id="mpsPoAddLine">Add line</button>
+                <div class="mps-table-wrap mps-po-lines-wrap"><table class="mps-table mps-po-lines-table"><thead><tr><th>SKU</th><th>Product name</th><th>Quantity</th><th id="mpsPoCostHeading">Unit cost ${esc(po.currency || 'RWF')}</th><th></th></tr></thead><tbody id="mpsPoLineRows">${lineRows}</tbody></table></div><p id="mpsPoCurrencyStatus" class="mps-modal-note" role="status" aria-live="polite"></p>
                 <label>Notes<textarea id="mpsPoNote" rows="2">${esc(po.note || '')}</textarea></label>`,
             onConfirm: async overlay => {
                 const parsed = [...overlay.querySelectorAll('#mpsPoLineRows tr')].map(row => {
@@ -268,35 +268,86 @@ module.exports = {
                 return true;
             }
         });
+        overlay.querySelector('.mps-dialog')?.classList.add('mps-po-editor-dialog');
+        const editorForm = overlay.querySelector('.mps-dialog-form');
+        const editorActions = editorForm.querySelector('.mps-dialog-actions');
+        const editorScrollBody = document.createElement('div');
+        editorScrollBody.className = 'mps-po-scroll-body';
+        while (editorForm.firstChild !== editorActions) editorScrollBody.append(editorForm.firstChild);
+        editorForm.insertBefore(editorScrollBody, editorActions);
         const lineBody = overlay.querySelector('#mpsPoLineRows');
         const currencySelect = overlay.querySelector('#mpsPoCurrency');
+        const saveButton = overlay.querySelector('button[type="submit"]');
+        const currencyStatus = overlay.querySelector('#mpsPoCurrencyStatus');
+        let currencyUpdateToken = 0;
         const applyCatalogCost = row => {
             const costInput = row.querySelector('[data-po-cost]');
-            if (!costInput || row.dataset.poCostAuto !== '1') return;
+            if (!costInput || row.dataset.poCostAuto !== '1') return false;
             const selectedCost = currencySelect.value === 'USD' ? row.dataset.costUsd : row.dataset.costRwf;
-            costInput.value = selectedCost === '' || selectedCost == null ? '' : selectedCost;
+            if (selectedCost === '' || selectedCost == null || !Number.isFinite(Number(selectedCost))) return false;
+            costInput.value = selectedCost;
+            row.dataset.poCostCurrency = currencySelect.value;
+            row.dataset.currencyPending = '0';
+            row.classList.remove('mps-po-currency-attention');
+            row.style.outline = '';
+            return true;
+        };
+        const updateCurrencyStatus = (message = '') => {
+            const pendingRows = [...lineBody.querySelectorAll('tr')].filter(row => row.dataset.currencyPending === '1');
+            saveButton.disabled = pendingRows.length > 0;
+            currencyStatus.textContent = message || (pendingRows.length
+                ? `Update or enter a unit cost for: ${pendingRows.map(row => row.querySelector('[data-po-sku]')?.value.trim() || 'SKU required').join(', ')}.`
+                : '');
         };
         currencySelect?.addEventListener('change', async event => {
             const currency = event.target.value;
+            const token = ++currencyUpdateToken;
             overlay.querySelector('#mpsPoCostHeading').textContent = 'Unit cost ' + currency;
-            for (const row of lineBody.querySelectorAll('tr')) {
-                if (row.dataset.poCostAuto === '1') { applyCatalogCost(row); continue; }
-                if (row.dataset.poCostAuto === '0') continue;
+            const rows = [...lineBody.querySelectorAll('tr')];
+            const needsLookup = [];
+            for (const row of rows) {
+                if (row.dataset.poCostAuto === '1' && applyCatalogCost(row)) continue;
                 const sku = row.querySelector('[data-po-sku]')?.value.trim();
+                row.dataset.currencyPending = '1';
+                row.classList.add('mps-po-currency-attention');
+                row.style.outline = '2px solid #b45309';
+                if (row.dataset.poCostAuto === '0') continue;
                 if (!sku) continue;
-                const result = await API.mpsGetPricingCatalog({search: sku, page: 1, per_page: 20});
-                if (currencySelect.value !== currency || row.dataset.poCostAuto === '0') continue;
-                const product = (result.data || []).find(item => String(item.sku || '').trim().toLowerCase() === sku.toLowerCase());
-                if (!product) continue;
+                needsLookup.push({row, sku});
+            }
+            updateCurrencyStatus(needsLookup.length
+                ? `Updating ${needsLookup.length} product price${needsLookup.length === 1 ? '' : 's'} to ${currency}�`
+                : 'Review the highlighted costs and enter the new currency amounts.');
+            await Promise.all(needsLookup.map(async ({row, sku}) => {
+                let result;
+                try { result = await API.mpsGetPricingCatalog({search: sku, page: 1, per_page: 20}); }
+                catch (_) { result = null; }
+                if (token !== currencyUpdateToken || currencySelect.value !== currency) return;
+                const product = (result?.data || []).find(item => String(item.sku || '').trim().toLowerCase() === sku.toLowerCase());
+                if (!product) return;
                 row.dataset.costRwf = product.cost_price == null ? '' : String(product.cost_price);
                 row.dataset.costUsd = product.cost_usd == null ? '' : String(product.cost_usd);
                 row.dataset.poCostAuto = '1';
-                applyCatalogCost(row);
+                if (!applyCatalogCost(row)) {
+                    row.dataset.currencyPending = '1';
+                    row.classList.add('mps-po-currency-attention');
+                    row.style.outline = '2px solid #b45309';
+                }
+            }));
+            if (token === currencyUpdateToken) updateCurrencyStatus();
+        });
+        const bindPoCostInput = input => input.addEventListener('input', () => {
+            const row = input.closest('tr');
+            row.dataset.poCostAuto = '0';
+            if (row.dataset.currencyPending === '1' && input.value.trim() !== '' && Number.isFinite(Number(input.value)) && Number(input.value) >= 0) {
+                row.dataset.currencyPending = '0';
+                row.dataset.poCostCurrency = currencySelect.value;
+                row.classList.remove('mps-po-currency-attention');
+                row.style.outline = '';
+                updateCurrencyStatus();
             }
         });
-        lineBody.querySelectorAll('[data-po-cost]').forEach(input => input.addEventListener('input', () => {
-            input.closest('tr').dataset.poCostAuto = '0';
-        }));
+        lineBody.querySelectorAll('[data-po-cost]').forEach(bindPoCostInput);
         const bindPoSkuLookup = input => input.addEventListener('change', async () => {
             const sku = input.value.trim();
             const row = input.closest('tr');
@@ -313,7 +364,7 @@ module.exports = {
             row.dataset.costRwf = match.cost_price == null ? '' : String(match.cost_price);
             row.dataset.costUsd = match.cost_usd == null ? '' : String(match.cost_usd);
             const costInput = row.querySelector('[data-po-cost]');
-            if (!costInput.value || row.dataset.poCostAuto === '1') {
+            if (row.dataset.currencyPending === '1' || !costInput.value || row.dataset.poCostAuto === '1') {
                 row.dataset.poCostAuto = '1';
                 applyCatalogCost(row);
             }
@@ -321,6 +372,7 @@ module.exports = {
         lineBody.querySelectorAll('[data-po-sku]').forEach(bindPoSkuLookup);
         overlay.querySelector('#mpsPoAddLine')?.addEventListener('click', () => {
             lineBody.insertAdjacentHTML('beforeend', '<tr><td><input data-po-sku placeholder="SKU" required></td><td data-po-product>—</td><td><input data-po-qty type="number" min="1" step="1" placeholder="Qty" required></td><td><input data-po-cost type="number" min="0" step="0.01" placeholder="Unit cost"></td><td><button type="button" class="btn btn-ghost btn-sm" data-po-remove>Remove</button></td></tr>');
+            bindPoCostInput(lineBody.lastElementChild.querySelector('[data-po-cost]'));
             bindPoSkuLookup(lineBody.lastElementChild.querySelector('[data-po-sku]'));
         });
         overlay.addEventListener('click', event => {
