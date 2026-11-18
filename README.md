@@ -47,6 +47,22 @@ The application includes several reusable vanilla JS UI components (located in `
 - **Toast (`Toast.js`)**: A lightweight notification system for temporary flash messages.
 - **Button (`Button.js`)**: Reusable button string generator with multiple stylistic variants (primary, outlined, ghost).
 
+
+## Release and Update Workflow
+
+- Source code is maintained in [inventory-desktop-app](https://github.com/faranux-electronics/inventory-desktop-app).
+- Installers and auto-update files are published in [faranux-erp-app](https://github.com/faranux-electronics/faranux-erp-app/releases). This repository is public so installed apps can check for updates without storing a GitHub credential in the app.
+- Releases are created by pushing a version tag such as `v1.4.5`. The GitHub Actions workflow builds the installer and publishes the release files to `faranux-erp-app`.
+
+### Required GitHub Actions secrets
+
+In the source repository, configure `GOOGLE_CLIENT_ID` and `API_URL` as repository secrets. Also add `RELEASES_TOKEN`: a fine-grained token owned by `faranux-electronics`, limited to the `faranux-erp-app` repository, with **Contents: Read and write**. The workflow uses it only to publish release artifacts. Never put this token in `.env`, the packaged app, or source code.
+
+### Existing installation migration
+
+The transition release is also uploaded to the existing `inventory-desktop-app` update feed so installed copies can update and switch to the new feed. Keep `inventory-desktop-app` public until all deployed devices have installed the transition release. If the source repository is made private before an older installation updates, that installation cannot read the old feed and must be updated manually from the public releases page.
+
+
 ## Installation Guide
 
 ### System Requirements
@@ -56,7 +72,7 @@ The application includes several reusable vanilla JS UI components (located in `
 
 ### Installation Steps
 
-1. Download the latest installer (`Faranux MIS Setup.exe`) from the releases page.
+1. Download the latest installer from the [Faranux ERP releases page](https://github.com/faranux-electronics/faranux-erp-app/releases).
 
 2. When you run the installer, Windows SmartScreen might show a warning message. To proceed with the installation:
    - Click on "More info" or "..." (three dots)
