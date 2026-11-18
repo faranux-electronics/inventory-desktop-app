@@ -91,7 +91,7 @@ class CustomerSearch {
                 this.resultsPanel.querySelectorAll('.pos-ac-item').forEach(item =>
                     item.addEventListener('click', () => this._selectItem(item.dataset, q)));
             } else {
-                this.resultsPanel.innerHTML = `<div class="pos-ac-item" style="color:#6b7280;">Use "${q}" as walk-in</div>`;
+                this.resultsPanel.innerHTML = `<div class="pos-ac-item" style="color:var(--theme-text-muted);">Use "${q}" as walk-in</div>`;
                 this.resultsPanel.querySelector('.pos-ac-item').addEventListener('click', () => this._selectWalkIn(q));
             }
         } catch (e) { this.resultsPanel.style.display = 'none'; }
@@ -401,7 +401,7 @@ class OrderSettingsModal {
             inp.id = 'posCashierInput'; inp.type = 'text';
             inp.className = 'pos-input';
             inp.placeholder = '⚠️ API Error: Type name manually';
-            inp.style.borderColor = '#EF4444';
+            inp.style.borderColor = 'var(--palette-hex-ef4444)';
             el.replaceWith(inp);
         } else {
             if (el.tagName === 'INPUT') {
@@ -727,7 +727,7 @@ class OrderSettingsModal {
         return `
         <div id="posSettingsModalOverlay" class="pcm-overlay" style="display:none; z-index: 2000;">
             <div class="pcm-modal" style="width: min(540px, 92vw); max-height: 90vh; display: flex; flex-direction: column;">
-                <div class="pcm-header pcm-header--pos-settings" style="background:#932013; padding: 12px 16px; flex-shrink: 0;">
+                <div class="pcm-header pcm-header--pos-settings" style="background:var(--palette-hex-932013); padding: 12px 16px; flex-shrink: 0;">
                     Order Settings
                     <button id="posSettingsCloseBtn" class="pcm-close" style="width:24px;height:24px;">&times;</button>
                 </div>
@@ -738,8 +738,8 @@ class OrderSettingsModal {
                             <label class="pos-field-label">Cashier</label>
                             <div style="display: flex; gap: 6px;">
                                 <select id="posCashier" class="pos-select" style="flex: 1;"><option value="">Loading…</option></select>
-                                <button id="posRefreshStaffBtn" type="button" style="padding: 0 8px; border: 1px solid #E2E8F0; background: #fff; border-radius: 4px; cursor: pointer; color: #4b5563;" title="Force Refresh Staff">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.87L21 8"></path></svg>
+                                <button id="posRefreshStaffBtn" type="button" style="padding: 0 8px; border: 1px solid var(--theme-border-subtle); background: var(--theme-surface); border-radius: 4px; cursor: pointer; color: var(--theme-text-secondary);" title="Force Refresh Staff">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.13-5.87L21 8"></path></svg>
                                 </button>
                             </div>
                         </div>
@@ -749,7 +749,7 @@ class OrderSettingsModal {
                                 <input id="posCustomerSearch" type="text" class="pos-input" placeholder="Search walk-in…" autocomplete="off">
                                 <input id="posCustomerId" type="hidden" value="">
                                 <input id="posCustomerEmail" type="hidden" value="">
-                                <div id="posCustomerResults" class="pos-autocomplete-dropdown" style="display:none; position:absolute; z-index:999999; top:calc(100% + 4px); bottom:auto; left:0; right:0; box-shadow: 0 6px 20px rgba(0,0,0,.15); max-height: 180px;"></div>
+                                <div id="posCustomerResults" class="pos-autocomplete-dropdown" style="display:none; position:absolute; z-index:999999; top:calc(100% + 4px); bottom:auto; left:0; right:0; box-shadow: 0 6px 20px var(--palette-rgb-0-0-0-0p15); max-height: 180px;"></div>
                             </div>
                         </div>
                     </div>
@@ -786,7 +786,7 @@ class OrderSettingsModal {
                         </div>
                     </div>
 
-                    <div class="pos-field-group" style="background:#F8FAFC; padding:8px 10px; border-radius:6px; border:1px solid #E2E8F0;">
+                    <div class="pos-field-group" style="background:var(--palette-hex-f8fafc); padding:8px 10px; border-radius:6px; border:1px solid var(--theme-border-subtle);">
                         <div class="pos-tax-row">
                             <label class="pos-toggle-wrap" id="posTaxToggle">
                                 <div class="pos-toggle" id="posTaxToggleEl"></div>
@@ -822,14 +822,14 @@ class OrderSettingsModal {
                         <textarea id="posNotes" class="pos-input" rows="2" placeholder="Customer instructions…" style="resize:none;"></textarea>
                     </div>
 
-                    <div class="pos-field-group" style="background:#F8FAFC; padding:8px 10px; border-radius:6px; border:1px solid #E2E8F0;">
+                    <div class="pos-field-group" style="background:var(--palette-hex-f8fafc); padding:8px 10px; border-radius:6px; border:1px solid var(--theme-border-subtle);">
                         <div class="pos-tax-row">
                             <label class="pos-toggle-wrap" id="posLiveCartToggle">
                                 <div class="pos-toggle" id="posLiveCartToggleEl"></div>
                                 <span class="pos-tax-label">Enable Live Cart Display</span>
                             </label>
                         </div>
-                        <div style="margin-top:6px; font-size:11px; color:#6B7280;">
+                        <div style="margin-top:6px; font-size:11px; color:var(--theme-text-muted);">
                             Register ID: <input id="posLiveCartRegisterId" type="text" class="pos-input" style="width:120px; padding:4px; font-size:11px;" value="till-1" placeholder="till-1">
                         </div>
                     </div>
@@ -1003,7 +1003,7 @@ class POSPaymentPanel {
         btn.disabled = on || (!on && this._blockingItems && this._blockingItems.length > 0);
         btn.innerHTML = on
             ? `<svg class="pos-spinner-inline" viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="10" stroke-width="3" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Processing…`
-            : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15"><polyline points="20 6 9 17 4 12"/></svg> Charge`;
+            : `<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="15"><polyline points="20 6 9 17 4 12"/></svg> Charge`;
 
         const voidBtn = this.container.querySelector('#posVoidBtn');
         if (voidBtn) voidBtn.disabled = on;
@@ -1198,7 +1198,7 @@ class POSPaymentPanel {
             <div class="pos-pp-section pos-pp-section--methods">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                     <button id="posOpenSettingsBtn" type="button" class="pos-settings-btn-icon" title="Order Details & Adjustments">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                         Settings
                     </button>
                     <div class="pos-live-cart-status" id="posLiveCartStatus">
@@ -1215,11 +1215,11 @@ class POSPaymentPanel {
                     Void
                 </button>
                 <button id="posQuoteBtn" class="pos-quote-btn" disabled>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                     Quote
                 </button>
                 <button id="posCheckoutBtn" class="pos-checkout-btn" disabled>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="16"><polyline points="20 6 9 17 4 12"/></svg>
                     <span id="posCheckoutBtnText">Charge</span>
                 </button>
             </div>

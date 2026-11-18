@@ -1,11 +1,30 @@
-const { ipcRenderer } = require('electron');
+const desktopBridge = typeof window !== 'undefined' ? window.faranuxDesktop : null;
 
 let API_URL = 'http://localhost:8000/index.php';
+let authFailureHandled = false;
+
+function getClientBranchSnapshot() {
+    try {
+        const user = JSON.parse(localStorage.getItem('faranux_user') || 'null');
+        return user ? JSON.stringify({branch_id: user.branch_id ?? null, allowed_branches: Array.isArray(user.allowed_branches) ? user.allowed_branches : []}) : '';
+    } catch (_) { return ''; }
+}
+
+function handleAuthenticationFailure(response, data) {
+    const branchChanged = data?.code === 'branch_assignment_changed';
+    if ((!response || (response.status !== 401 && !branchChanged)) || authFailureHandled || !localStorage.getItem('faranux_user')) return;
+    const app = window.app;
+    if (!app || typeof app.handleAuthenticationRequired !== 'function') return;
+    authFailureHandled = true;
+    app.handleAuthenticationRequired(branchChanged
+        ? 'Your branch assignments changed. You have been signed out; please sign in again to refresh your access.'
+        : 'Your session is no longer valid. You have been signed out; please sign in again.');
+}
 
 // Safe async initialization
 (async () => {
     try {
-        const mainUrl = await ipcRenderer.invoke('get-api-url');
+        const mainUrl = await desktopBridge?.getApiUrl?.();
         if (mainUrl) API_URL = mainUrl;
     } catch (e) {
         console.warn("Could not fetch API URL from main process, falling back to localhost.");
@@ -32,6 +51,8 @@ async function request(action, method = 'GET', body = null, signal = null) {
                 console.warn("Corrupt user data in storage");
             }
         }
+        const branchSnapshot = getClientBranchSnapshot();
+        if (branchSnapshot) options.headers['X-Client-Session-Branches'] = branchSnapshot;
         if (body) options.body = JSON.stringify(body);
         const separator = action.includes('?') ? '&' : '?';
         const url = `${API_URL}${separator}action=${action}`;
@@ -40,6 +61,8 @@ async function request(action, method = 'GET', body = null, signal = null) {
         if (!text) throw new Error("Empty response from server");
         try {
             const data = JSON.parse(text);
+            handleAuthenticationFailure(res, data);
+            if ((action === 'login' || action === 'google_login') && data?.status === 'success') authFailureHandled = false;
             if (data && data.status === 'error') {
                 console.error('Backend Validation Error:', data.message);
             }
@@ -62,6 +85,8 @@ async function downloadFile(action, filename, signal = null) {
             method: 'GET',
             headers: {}
         };
+        const branchSnapshot = getClientBranchSnapshot();
+        if (branchSnapshot) options.headers['X-Client-Session-Branches'] = branchSnapshot;
         if (signal) {
             options.signal = signal;
         }
@@ -80,7 +105,10 @@ async function downloadFile(action, filename, signal = null) {
         const res = await fetch(url, options);
         if (!res.ok) {
             const text = await res.text();
-            throw new Error(text || `Server rejected: ${res.status}`);
+            let data = {};
+            try { data = JSON.parse(text); } catch (_) {}
+            handleAuthenticationFailure(res, data);
+            throw new Error(data.message || text || `Server rejected: ${res.status}`);
         }
         const blob = await res.blob();
         const blobUrl = URL.createObjectURL(blob);
@@ -128,8 +156,17 @@ module.exports = {
         request(`get_inventory&page=${page}&search=${encodeURIComponent(search)}&location_id=${locationId}&status=${status}&sort_by=${sortBy}&sort_order=${sortOrder}&category=${encodeURIComponent(category)}&stock_filter=${stockFilter}`),
 
     importStock: (items, mode) => request('import_stock', 'POST', {items, mode}),
-    getAuditLogs: (actionFilter = '', page = 1, startDate = '', endDate = '') => {
-        let query = `get_audit_logs&filter_action=${actionFilter}&page=${page}`;
+    getAuditLogs: (actionFilter = '', page = 1, startDate = '', endDate = '', category = '', level = '') => {
+        let query = `get_audit_logs&filter_action=${encodeURIComponent(actionFilter)}&page=${page}`;
+        if (startDate) query += `&start_date=${encodeURIComponent(startDate)}`;
+        if (endDate) query += `&end_date=${encodeURIComponent(/^\d{4}-\d{2}-\d{2}$/.test(endDate) ? `${endDate} 23:59:59` : endDate)}`;
+        if (category) query += `&category=${encodeURIComponent(category)}`;
+        if (level) query += `&level=${encodeURIComponent(level)}`;
+        return request(query);
+    },
+    getStockImportLogs: (page = 1, startDate = '', endDate = '', perPage = 10) => {
+        let query = `get_audit_logs&filter_exact_action=STOCK_IMPORT&page=${page}`;
+        query += `&per_page=${Math.max(1, Math.min(100, Number(perPage) || 10))}`;
         if (startDate) query += `&start_date=${encodeURIComponent(startDate)}`;
         if (endDate) query += `&end_date=${encodeURIComponent(endDate)}`;
         return request(query);
@@ -142,7 +179,7 @@ module.exports = {
     getCategories: () => request('get_categories'),
 
     wcGetCategories: () => request('wc_get_categories'),
-    getStockAdjustments: (productId) => request(`get_stock_adjustments&product_id=${productId}`),
+    getStockAdjustments: (productId, page = 1, perPage = 50) => request(`get_stock_adjustments&product_id=${productId}&page=${page}&per_page=${perPage}`),
     adjustStock: (productId, locationId, qty, reason) => request('adjust_stock', 'POST', {
         product_id: productId,
         location_id: locationId,
@@ -153,7 +190,7 @@ module.exports = {
     syncBatch: (page = 1, perPage = 50) => request('sync_batch', 'POST', {page, per_page: perPage}),
     exportInventory: (status, locationId, category, search, stockFilter, sortBy, sortOrder) => {
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        
+
         // Build all query parameters dynamically
         const params = new URLSearchParams({
             status: status || '',
@@ -260,11 +297,15 @@ module.exports = {
     mpsGetResults: (filters = {}, signal = null) => request(`mps_results&${new URLSearchParams(filters).toString()}`, 'GET', null, signal),
     mpsExportResults: (filters = {}, filename = 'mps-results.csv', signal = null) => downloadFile(`mps_export_results&${new URLSearchParams(filters).toString()}`, filename, signal),
     mpsGetPricingCatalog: (filters = {}) => request(`mps_pricing_catalog&${new URLSearchParams(filters).toString()}`),
+    mpsGetPartPricingHistory: (catalogId) => request(`mps_part_pricing_history&catalog_id=${encodeURIComponent(catalogId)}`),
     mpsSavePartPricing: (data) => request('mps_save_part_pricing', 'POST', data),
+    mpsCreateCatalogProduct: (data) => request('mps_create_catalog_product', 'POST', data),
     mpsDeletePartPricing: (productId) => request('mps_delete_part_pricing', 'POST', {product_id: productId}),
     mpsExportPricing: (filename = 'mps-pricing.csv') => downloadFile('mps_export_pricing', filename),
     mpsExportPurchaseOrders: (filename = 'mps-purchase-orders.csv') => downloadFile('mps_export_purchase_orders', filename),
     mpsExportPurchaseOrder: (id, filename) => downloadFile(`mps_export_purchase_orders&id=${encodeURIComponent(id)}`, filename),
+    mpsExportStockoutForecast: (months = 3, filename = `mps-stockout-forecast-${months}m.csv`) => downloadFile(`mps_export_stockout_forecast&months=${encodeURIComponent(months)}`, filename),
+    mpsExportOutOfStock: (filename = 'mps-out-of-stock.csv') => downloadFile('mps_export_out_of_stock', filename),
     mpsRollbackCostImport: (batchId) => request('mps_rollback_cost_import', 'POST', {batch_id: batchId}),
     mpsGetProductAnalysis: (productId, from = '', to = '', bucket = 'month') => {
         const filters = {product_id: productId, bucket};
@@ -282,9 +323,15 @@ module.exports = {
     mpsRun: (asOfDate = null) => request('mps_run', 'POST', asOfDate ? {as_of_date: asOfDate} : {}),
     mpsGetPurchaseOrders: (filters = {}) => request(`mps_get_purchase_orders&${new URLSearchParams(filters).toString()}`),
     mpsGetPurchaseOrder: (id) => request(`mps_get_purchase_order&id=${encodeURIComponent(id)}`),
+    mpsGetPurchaseOrderCommercials: (id) => request(`mps_get_purchase_order_commercials&id=${encodeURIComponent(id)}`),
+    mpsSavePurchaseOrderWorkflow: (id, workflow_data) => request('mps_save_purchase_order_workflow', 'POST', {id, workflow_data}),
+    mpsSetPurchaseOrderPriority: (ids) => request('mps_set_purchase_order_priority', 'POST', {ids}),
     mpsGetCalendarEvents: (from, to) => request(`mps_get_calendar_events&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
     mpsCalendarHasEvents: () => request('mps_calendar_has_events'),
     mpsSavePurchaseOrder: (data) => request('mps_save_purchase_order', 'POST', data),
+    mpsSavePurchaseOrderQuote: (data) => request('mps_save_purchase_order_quote', 'POST', data),
+    mpsFinalizePurchaseOrderQuote: (poId, quoteId) => request('mps_finalize_purchase_order_quote', 'POST', {po_id: poId, quote_id: quoteId}),
+    mpsSavePurchaseOrderFee: (data) => request('mps_save_purchase_order_fee', 'POST', data),
     mpsDeletePurchaseOrder: (id) => request('mps_delete_purchase_order', 'POST', {id}),
     mpsRestorePurchaseOrder: (id) => request('mps_restore_purchase_order', 'POST', {id}),
     mpsPermanentlyDeletePurchaseOrder: (id) => request('mps_permanently_delete_purchase_order', 'POST', {id}),
@@ -296,6 +343,8 @@ module.exports = {
             form.append('kind', kind);
             form.append('options', JSON.stringify(options));
             const headers = {};
+            const branchSnapshot = getClientBranchSnapshot();
+            if (branchSnapshot) headers['X-Client-Session-Branches'] = branchSnapshot;
             const storedUser = localStorage.getItem('faranux_user');
             if (storedUser) {
                 try {
@@ -306,7 +355,9 @@ module.exports = {
             const separator = action.includes('?') ? '&' : '?';
             const response = await fetch(`${API_URL}${separator}action=${action}`, {method: 'POST', headers, body: form});
             const text = await response.text();
-            return JSON.parse(text);
+            const data = JSON.parse(text);
+            handleAuthenticationFailure(response, data);
+            return data;
         } catch (e) {
             return {status: 'error', message: e.message || 'Workbook request failed.'};
         }
@@ -317,4 +368,6 @@ module.exports = {
     mpsReceivePurchaseOrder: (id, received = {}, locationId = null) =>
         request('mps_receive_purchase_order', 'POST', {id, received, location_id: locationId}),
     mpsCreatePurchaseOrders: (data = {}) => request('mps_create_purchase_orders', 'POST', data),
+    mpsAISuggest: (productId, task = 'summary') => request('mps_ai_suggest', 'POST', {product_id: productId, task}),
+    mpsAIChat: (question, history = [], context = {}) => request('mps_ai_chat', 'POST', {question, history, context}),
 };

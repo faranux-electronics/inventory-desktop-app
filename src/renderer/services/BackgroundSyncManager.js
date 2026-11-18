@@ -57,8 +57,11 @@ class BackgroundSyncManager {
 
         this._running = false;
         this._paused = new Set();
+        this._lastStatus = {status: 'idle', message: ''};
+        this._stallTimer = null;
         this._es = null;       // active EventSource
         this._pollTimer = null;
+        this._startTimer = null;
         this._started = false;
 
         this._onVisibilityChange = this._onVisibilityChange.bind(this);
@@ -69,6 +72,8 @@ class BackgroundSyncManager {
     /** Wire up and start the background poll loop. Call once at app boot. */
     start() {
         if (this._started) return;
+        const token = typeof this._api.getToken === 'function' ? this._api.getToken() : this._api.token;
+        if (!token) return;
         this._started = true;
         document.addEventListener('visibilitychange', this._onVisibilityChange);
 
@@ -76,7 +81,10 @@ class BackgroundSyncManager {
         // finish before sync adds any server load. Random jitter prevents
         // multiple open tabs from all firing at the same moment.
         const jitter = 30000 + Math.random() * 15000;
-        setTimeout(() => this._poll(), jitter);
+        this._startTimer = setTimeout(() => {
+            this._startTimer = null;
+            this._poll();
+        }, jitter);
 
         this._pollTimer = setInterval(() => this._poll(), POLL_INTERVAL);
     }
@@ -86,18 +94,21 @@ class BackgroundSyncManager {
         this._closeStream();
         clearInterval(this._pollTimer);
         this._pollTimer = null;
+        clearTimeout(this._startTimer);
+        this._startTimer = null;
+        this._started = false;
         document.removeEventListener('visibilitychange', this._onVisibilityChange);
         this._emit({status: 'idle', message: 'Sync stopped'});
     }
 
     /**
-     * Temporarily prevent new syncs. If a stream is open it is closed
-     * gracefully and will restart on the next poll cycle.
+     * Temporarily prevent new syncs. An active stream continues to completion.
      * @param {string} reason — unique tag per caller
      */
     pause(reason = 'default') {
+        // Pause only prevents a new sync from starting. Keep an active server
+        // stream alive while another app tab loads its data.
         this._paused.add(reason);
-        if (this._running) this._closeStream();
     }
 
     resume(reason = 'default') {
@@ -126,8 +137,13 @@ class BackgroundSyncManager {
      * Payload: { status:'running'|'done'|'error'|'idle', message, synced?, mode? }
      * @returns {function} unsubscribe
      */
-    onStatusChange(cb) {
-        if (typeof cb === 'function') this._listeners.push(cb);
+    onStatusChange(cb, {replay = true} = {}) {
+        if (typeof cb === 'function') {
+            this._listeners.push(cb);
+            if (replay && this._lastStatus.message) {
+                try { cb(this._lastStatus); } catch {}
+            }
+        }
         return () => {
             this._listeners = this._listeners.filter(l => l !== cb);
         };
@@ -150,7 +166,9 @@ class BackgroundSyncManager {
     }
 
     _poll() {
-        if (this._running || this._isPaused() || document.hidden) return;
+        if (!this._started || this._running || this._isPaused() || document.hidden) return;
+        const token = typeof this._api.getToken === 'function' ? this._api.getToken() : this._api.token;
+        if (!token) return;
         if (!this._isDue()) return;
         this._openStream(false);
     }
@@ -174,13 +192,14 @@ class BackgroundSyncManager {
         if (this._running || this._isPaused() || document.hidden) return;
 
         this._running = true;
+        this._armStallWatchdog();
         this._emit({status: 'running', message: 'Sync starting\u2026'});
 
         let url;
         try {
             url = this._getUrl(force);
         } catch (e) {
-            this._running = false;
+            this._closeStream();
             this._emit({status: 'error', message: 'Could not build sync URL'});
             return;
         }
@@ -189,12 +208,13 @@ class BackgroundSyncManager {
             this._es = new EventSource(url, {withCredentials: true});
         } catch (e) {
             console.error('[BGSync] EventSource failed:', e);
-            this._running = false;
+            this._closeStream();
             this._emit({status: 'error', message: 'Could not open sync stream'});
             return;
         }
 
         this._es.addEventListener('progress', e => {
+            this._armStallWatchdog();
             const d = this._parse(e.data);
             const pageInfo = d.pages ? ` (page ${d.page}/${d.pages})` : '';
             this._emit({
@@ -244,7 +264,20 @@ class BackgroundSyncManager {
         };
     }
 
+    _armStallWatchdog() {
+        clearTimeout(this._stallTimer);
+        this._stallTimer = setTimeout(() => {
+            if (!this._running) return;
+            const message = 'No sync progress for 2.5 minutes. Sync stopped; run Sync Now to retry.';
+            console.error('[BGSync]', message);
+            this._emit({status: 'error', message});
+            this._closeStream();
+        }, 150000);
+    }
+
     _closeStream() {
+        clearTimeout(this._stallTimer);
+        this._stallTimer = null;
         if (this._es) {
             this._es.close();
             this._es = null;
@@ -261,6 +294,7 @@ class BackgroundSyncManager {
     }
 
     _emit(payload) {
+        this._lastStatus = payload;
         this._listeners.forEach(cb => {
             try {
                 cb(payload);

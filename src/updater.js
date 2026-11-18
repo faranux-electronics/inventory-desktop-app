@@ -1,42 +1,33 @@
-// updater.js - Electron Auto Update Listener
-const { ipcRenderer } = require('electron');
 const Toast = require('./renderer/components/Toast.js');
 const Modal = require('./renderer/components/Modal.js');
 
 function initUpdater() {
+    const desktop = globalThis.window?.faranuxDesktop;
+    if (!desktop) return;
 
-    ipcRenderer.on('update-available', (event, info) => {
+    desktop.onUpdateAvailable(info => {
         Modal.open({
-            title: "Update Available",
-            body: `
-                <div class="text-center">
-                    <h3>Version ${info.version} is available</h3>
-                    <p>A new update is ready to download.</p>
-                </div>
-            `,
-            confirmText: "Download",
-            cancelText: "Later",
-            onConfirm: () => ipcRenderer.send('download-update')
+            title: 'Update Available',
+            body: '<div class="text-center"><h3>Version ' + info.version + ' is available</h3><p>A new update is ready to download.</p></div>',
+            confirmText: 'Download',
+            cancelText: 'Later',
+            onConfirm: () => desktop.downloadUpdate()
         });
     });
 
-    ipcRenderer.on('download-progress', (event, progress) => {
-        const percent = Math.round(progress.percent);
-        Toast.info(`Downloading update: ${percent}%`, 1500);
+    desktop.onDownloadProgress(progress => {
+        Toast.info('Downloading update: ' + Math.round(progress.percent) + '%', 1500);
     });
 
-    ipcRenderer.on('update-downloaded', (event, info) => {
+    desktop.onUpdateDownloaded(info => {
         Modal.open({
-            title: "Update Ready",
-            body: `<p>Version ${info.version} downloaded.</p>`,
-            confirmText: "Restart & Install",
-            onConfirm: () => ipcRenderer.send('quit-and-install')
+            title: 'Update Ready',
+            body: '<p>Version ' + info.version + ' downloaded.</p>',
+            confirmText: 'Restart & Install',
+            onConfirm: () => desktop.quitAndInstall()
         });
     });
-
-    ipcRenderer.on('update-error', (event, err) => {
-        Toast.error("Update failed: " + err);
-    });
+    desktop.onUpdateError(error => Toast.error('Update failed: ' + error));
 }
 
 module.exports = initUpdater;

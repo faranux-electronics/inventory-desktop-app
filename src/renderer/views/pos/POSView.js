@@ -79,6 +79,7 @@ class POSView {
 
     render() {
         const content = document.getElementById('content');
+        content.dataset.view = 'pos';
         content.innerHTML = this._layoutHTML();
         this._initComponents();
         this._initResizer();
@@ -104,7 +105,7 @@ class POSView {
                 <div class="pos-cart-tabs" id="posCartTabs">
                     <div class="pos-tab-list" id="posTabList"></div>
                     <button class="pos-tab-add" id="posTabAdd" title="New cart (max ${MAX_CARTS})">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12"><line x1="12" y1="4" x2="12" y2="20"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="12"><line x1="12" y1="4" x2="12" y2="20"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
                         <span>New Cart</span>
                     </button>
                 </div>
@@ -427,15 +428,15 @@ class POSView {
         el.style.cssText = [
             'position:absolute', 'inset:0', 'z-index:50',
             'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center',
-            'background:rgba(255,255,255,0.93)', 'backdrop-filter:blur(2px)',
+            'background:var(--palette-rgb-255-255-255-0p93)', 'backdrop-filter:blur(2px)',
             'gap:14px', 'transition:opacity 0.3s ease', 'pointer-events:none'
         ].join(';');
         el.innerHTML = `
             <svg viewBox="0 0 50 50" width="40" height="40" style="animation:pos-spin 0.9s linear infinite;">
-                <circle cx="25" cy="25" r="20" fill="none" stroke="#2689C4" stroke-width="4"
+                <circle cx="25" cy="25" r="20" fill="none" stroke="var(--palette-hex-2689c4)" stroke-width="4"
                     stroke-dasharray="90 35" stroke-linecap="round"/>
             </svg>
-            <span style="font-size:13px;color:#4b5563;font-weight:500;letter-spacing:0.01em;">
+            <span style="font-size:13px;color:var(--theme-text-secondary);font-weight:500;letter-spacing:0.01em;">
                 Loading catalog…
             </span>`;
 
@@ -667,7 +668,7 @@ class POSView {
                         <select class="pos-transfer-source" data-idx="${i}">${optionsHtml}</select>
                         <input class="pos-transfer-qty" data-idx="${i}" type="number" min="1" value="${item.qty}" style="width:70px;">
                     </div>
-                    <div class="pos-transfer-request-error" data-idx="${i}" style="color: #dc2626; font-size: 12px; margin-top: 4px; display: none;"></div>
+                    <div class="pos-transfer-request-error" data-idx="${i}" style="color: var(--palette-hex-dc2626); font-size: 12px; margin-top: 4px; display: none;"></div>
                 </div>`;
         }).join('');
 
@@ -752,9 +753,9 @@ class POSView {
                 const isRowValid = !!select.value && qty > 0 && qty <= available;
 
                 if (!isRowValid) allValid = false;
-                select.style.borderColor = isRowValid ? '' : '#dc2626';
-                qtyInput.style.borderColor = isRowValid ? '' : '#dc2626';
-                
+                select.style.borderColor = isRowValid ? '' : 'var(--palette-hex-dc2626)';
+                qtyInput.style.borderColor = isRowValid ? '' : 'var(--palette-hex-dc2626)';
+
                 if (errorLabel) {
                     if (qty > available) {
                         errorLabel.textContent = `Quantity exceeds available stock (${available})`;
@@ -884,7 +885,7 @@ class POSView {
                 amount: parseFloat(f.amount) || 0
             })),
             tax: Math.round(taxAmt),
-            taxName: taxOn && taxRate > 0 
+            taxName: taxOn && taxRate > 0
                 ? `${modalData.taxName || 'Tax'} (${taxRate}%) ${taxOnItems ? 'on items' : 'on total'}, ${taxInclusive ? 'incl.' : 'excl.'}`
                 : (modalData.taxName || 'Tax'),
             total: total,

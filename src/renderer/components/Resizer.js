@@ -58,13 +58,13 @@ class Resizer {
             if (!dragging) return;
             const delta = isVert ? moveEvent.clientX - startPos : moveEvent.clientY - startPos;
             let newSize = startSize + (reverse ? -delta : delta);
-            
+
             if (minSize !== undefined) newSize = Math.max(newSize, minSize);
-            
+
             let currentMax = typeof maxSize === 'function' ? maxSize() : maxSize;
             if (currentMax === undefined && container) {
-                currentMax = isVert 
-                    ? container.getBoundingClientRect().width - resizer.offsetWidth 
+                currentMax = isVert
+                    ? container.getBoundingClientRect().width - resizer.offsetWidth
                     : container.getBoundingClientRect().height - resizer.offsetHeight;
             }
 
@@ -94,11 +94,11 @@ class Resizer {
             activePointerId = e.pointerId;
             startPos = isVert ? e.clientX : e.clientY;
             startSize = target.getBoundingClientRect()[isVert ? 'width' : 'height'];
-            
+
             document.body.style.cursor = isVert ? 'col-resize' : 'row-resize';
             document.body.style.userSelect = 'none';
             resizer.classList.add('ui-resizer--active');
-            
+
             if (resizer.setPointerCapture) {
                 resizer.setPointerCapture(activePointerId);
             }

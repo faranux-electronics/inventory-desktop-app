@@ -20,25 +20,25 @@ class POSReceipt {
 
         overlay.innerHTML = `
             <div class="rpt-modal" role="dialog" style="max-width: 380px; text-align: center; padding: 32px 24px;">
-                <div style="color: #15803d; margin-bottom: 16px;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="64" style="margin: 0 auto; display: block;">
+                <div style="color: var(--palette-hex-15803d); margin-bottom: 16px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="64" style="margin: 0 auto; display: block;">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                 </div>
 
-                <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 8px; color: #1f2937;">Sale Completed!</h2>
+                <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 8px; color: var(--palette-hex-1f2937);">Sale Completed!</h2>
 
                 ${data.wcOrderId
-                ? `<span style="display: inline-block; background: #f3f4f6; color: #4b5563; padding: 4px 12px; border-radius: 9999px; font-size: 14px; font-weight: bold; margin-bottom: 16px;">Order #${data.wcOrderId}</span>`
+                ? `<span style="display: inline-block; background: var(--theme-surface-muted); color: var(--theme-text-secondary); padding: 4px 12px; border-radius: 9999px; font-size: 14px; font-weight: bold; margin-bottom: 16px;">Order #${data.wcOrderId}</span>`
                 : ''}
 
-                <p style="color: #6b7280; font-size: 14px; margin-bottom: 24px;">
+                <p style="color: var(--theme-text-muted); font-size: 14px; margin-bottom: 24px;">
                     How would you like the receipt?
                 </p>
 
                 <div style="display: flex; gap: 12px; flex-direction: column;">
-                    <button class="rpt-btn" id="rptPrintBtn" style="background: #932013; color: white; border: none; padding: 12px; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" style="margin-right: 8px;">
+                    <button class="rpt-btn" id="rptPrintBtn" style="background: var(--palette-hex-932013); color: var(--palette-name-white); border: none; padding: 12px; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="18" style="margin-right: 8px;">
                             <polyline points="6 9 6 2 18 2 18 9"/>
                             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
                             <rect x="6" y="14" width="12" height="8"/>
@@ -46,8 +46,8 @@ class POSReceipt {
                         <span class="rpt-btn-label">Print Receipt (A4)</span>
                     </button>
 
-                    <button class="rpt-btn" id="rptThermalPrintBtn" style="background: #1f2937; color: white; border: none; padding: 12px; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" style="margin-right: 8px;">
+                    <button class="rpt-btn" id="rptThermalPrintBtn" style="background: var(--palette-hex-1f2937); color: var(--palette-name-white); border: none; padding: 12px; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="18" style="margin-right: 8px;">
                             <polyline points="6 9 6 2 18 2 18 9"/>
                             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
                             <rect x="6" y="14" width="12" height="8"/>
@@ -55,8 +55,8 @@ class POSReceipt {
                         <span class="rpt-btn-label">Print Receipt (Thermal)</span>
                     </button>
 
-                    <button class="rpt-btn" id="rptDownloadBtn" style="background: white; color: #374151; border: 1px solid #d1d5db; padding: 10px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" style="margin-right: 8px;">
+                    <button class="rpt-btn" id="rptDownloadBtn" style="background: var(--theme-surface); color: var(--palette-hex-374151); border: 1px solid var(--theme-border); padding: 10px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="16" style="margin-right: 8px;">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                             <polyline points="7 10 12 15 17 10"/>
                             <line x1="12" y1="15" x2="12" y2="3"/>
@@ -64,7 +64,7 @@ class POSReceipt {
                         <span class="rpt-btn-label">Download PDF</span>
                     </button>
 
-                    <button class="rpt-btn" id="rptNewSaleBtn" style="background: none; color: #932013; border: none; padding: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                    <button class="rpt-btn" id="rptNewSaleBtn" style="background: none; color: var(--palette-hex-932013); border: none; padding: 8px; font-size: 14px; font-weight: 600; cursor: pointer;">
                         Skip &amp; Start New Sale
                     </button>
                 </div>

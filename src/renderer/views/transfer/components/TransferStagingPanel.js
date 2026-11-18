@@ -92,9 +92,9 @@ class TransferStagingPanel {
             if (this._mode === 'send') this._fromId = String(userBranchId);
             else this._toId = String(userBranchId);
         }
-        
+
         this._enforceDefaultBranch();
-        
+
         this._renderModeToggle();
         this._renderBranchSelectors();
         this._renderItems();
@@ -182,18 +182,18 @@ class TransferStagingPanel {
         if (!btn) return;
         btn.disabled = on || this._items.length === 0;
         btn.innerHTML = on
-            ? `<svg class="tsp-spin" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Processing…`
+            ? `<svg class="tsp-spin" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="3"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Processing…`
             : this._submitButtonLabel();
     }
 
     _submitButtonLabel() {
         if (this._fulfillContext) {
-            return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Fulfill Request`;
+            return `<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Fulfill Request`;
         }
         if (this._mode === 'request') {
-            return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 19V5M19 12l-7-7-7 7"/></svg> Request Items`;
+            return `<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><path d="M12 19V5M19 12l-7-7-7 7"/></svg> Request Items`;
         }
-        return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Initiate Transfer`;
+        return `<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Initiate Transfer`;
     }
 
     render(container) {
@@ -212,7 +212,7 @@ class TransferStagingPanel {
                     <div class="tsp-items-header">
                         <span id="tspItemCount" class="tsp-item-label">Transfer Queue</span>
                         <button class="tsp-clear-btn" id="tspClearBtn" title="Clear all">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
                             Clear
                         </button>
                     </div>
@@ -264,7 +264,7 @@ class TransferStagingPanel {
         if (this._fulfillContext) {
             el.innerHTML = `
                 <div class="tsp-fulfill-banner">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="13"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     Fulfilling request <strong>${esc(this._fulfillContext.requestBatchId)}</strong>
                     <button class="tsp-fulfill-exit" id="tspExitFulfill" title="Cancel and go back">&times;</button>
                 </div>`;
@@ -274,11 +274,11 @@ class TransferStagingPanel {
 
         el.innerHTML = `
             <button class="tsp-mode-btn ${this._mode === 'send' ? 'active' : ''}" id="tspModeSend" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12"><path d="M12 19V5M19 12l-7-7-7 7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="12"><path d="M12 19V5M19 12l-7-7-7 7"/></svg>
                 Send Stock
             </button>
             <button class="tsp-mode-btn ${this._mode === 'request' ? 'active' : ''}" id="tspModeRequest" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="12"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
                 Request Stock
             </button>`;
 
@@ -335,17 +335,17 @@ class TransferStagingPanel {
             <div class="tsp-branch-row">
                 <div class="tsp-branch-block">
                     <label class="tsp-branch-label">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 8 16 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="11"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 8 16 12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>
                         ${fromLabel}
                     </label>
                     <select class="tsp-branch-sel" id="tspFromBranch" ${lockFrom ? 'disabled' : ''}>${fromOpts}</select>
                 </div>
                 <div class="tsp-branch-arrow">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="16"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </div>
                 <div class="tsp-branch-block">
                     <label class="tsp-branch-label">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="11"><circle cx="12" cy="12" r="10"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
                         ${toLabel}
                     </label>
                     <select class="tsp-branch-sel" id="tspToBranch" ${(lockTo || this._fulfillContext) ? 'disabled' : ''}>${toOpts}</select>
@@ -409,7 +409,7 @@ class TransferStagingPanel {
                     : 'Click products on the left to stage them for transfer');
             el.innerHTML = `
                 <div class="tsp-empty">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="rgba(36,59,83,0.25)" stroke-width="1.5" width="32"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-rgb-36-59-83-0p25)" stroke-width="1.5" width="32"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     <div>${esc(emptyMsg)}</div>
                 </div>`;
             return;
@@ -432,7 +432,7 @@ class TransferStagingPanel {
     <div class="tsp-item-thumb">
         ${item.imageUrl
                     ? `<img src="${esc(item.imageUrl)}" alt="" loading="lazy">`
-                    : `<svg viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" width="16"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`}
+                    : `<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-hex-d1d5db)" stroke-width="1.5" width="16"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`}
     </div>
     <div class="tsp-item-info">
         <div class="tsp-item-name">${esc(item.name)}</div>

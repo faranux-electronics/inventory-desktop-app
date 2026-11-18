@@ -1,5 +1,3 @@
-const {ipcRenderer} = require('electron');
-const path = require('path');
 const API = require('./api.js');
 const pkg = require('../../../package.json');
 
@@ -75,7 +73,7 @@ class NotificationManager {
         const title = pkg.productName || 'Faranux MIS';
         const body = latestNotification?.formatted_message || "You have new notifications.";
 
-        ipcRenderer.send('show-os-notification', {title, body});
+        globalThis.window?.faranuxDesktop?.showOSNotification?.({title, body});
     }
 
     setSoundPreference(fileName) {

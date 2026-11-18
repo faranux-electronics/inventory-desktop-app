@@ -1,4 +1,7 @@
 const { API, Toast, esc, isoDate, today, daysAgo, money, statusLabel, num, qty, monthLabel, shortNum, CHART_COLORS, STATUS_COLORS, STATUS_ORDER, FILTER_DEBOUNCE_MS, donutChart, legendHtml, hBars, columnChart } = require('./helpers.js');
+const PageHeader = require('../../components/PageHeader.js');
+const Button = require('../../components/Button.js');
+const Tabs = require('../../components/Tabs.js');
 
 class MpsView {
     constructor(app) {
@@ -6,12 +9,17 @@ class MpsView {
         this.state = app.state;
         this.tab = 'summary';
         this.pricingPage = 1;
+        this.pricingPerPage = 25;
+        this.pricingExchangeRate = null;
+        this.pricingExchangeRatePromise = null;
         this.pricingStatus = 'all';
+        this.pricingProfit = 'all';
         this.pricingFilterTimer = null;
         this.pricingRequestToken = 0;
         this.pricingSortBy = 'sku';
         this.pricingSortOrder = 'ASC';
         this.ordersPage = 1;
+        this.ordersPerPage = 25;
         this.ordersSearch = '';
         this.ordersSearchTimer = null;
         this.ordersRequestToken = 0;
@@ -19,12 +27,14 @@ class MpsView {
         this.ordersSortBy = 'reference';
         this.ordersSortOrder = 'ASC';
         this.calendarMonth = today().slice(0, 7);
+        this.calendarDate = today();
+        this.calendarView = 'month';
         this.calendarRequestToken = 0;
         this.calendarAvailabilityToken = 0;
         this.sortBy = 'order_by_date';
         this.sortOrder = 'ASC';
         this.page = 1;
-        this.perPage = 50;
+        this.perPage = 25;
         this.filters = {
             search: '',
             status: '',
@@ -33,7 +43,8 @@ class MpsView {
             stockout_date: '',
             order_by_date: '',
             max_days_of_cover: '',
-            estimated_only: false
+            estimated_only: false,
+            deviation: ''
         };
         this.isWriter = ['admin', 'manager', 'supply_chain_manager'].includes(this.state.getUser()?.role);
         this.abortController = null;
@@ -47,7 +58,7 @@ class MpsView {
         this.suppliersList = [];
         this.categoriesList = [];
         this._hasLoadedPlanning = false;
-        this.summaryPageCap = 5;
+        this.summaryPageCap = 0;
         this.summaryPerPage = 200;
         this.salesTrackerTimer = null;
         this.salesTrackerToken = 0;
@@ -84,27 +95,50 @@ class MpsView {
             const active = tab.dataset.tab === name;
             tab.classList.toggle('active', active);
             tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            if (active) tab.setAttribute('aria-current', 'page');
+            else tab.removeAttribute('aria-current');
         });
     }
 
     render() {
         this.isWriter = ['admin', 'manager', 'supply_chain_manager'].includes(this.state.getUser()?.role);
+        const content = document.getElementById('content');
+        const user = this.state.getUser();
+        const canRestore = this._suspendedContent
+            && this._suspendedUserId === user?.id
+            && this._suspendedRole === user?.role;
+        if (canRestore && content) {
+            content.dataset.view = 'mps';
+            content.replaceChildren(this._suspendedContent);
+            this._suspendedContent = null;
+            this._suspendedUserId = null;
+            this._suspendedRole = null;
+            const panel = document.getElementById('mpsPanel');
+            if (panel?.querySelector('.mps-loading, [aria-busy="true"]')) this.loadTab();
+            return;
+        }
+        this._suspendedContent = null;
+        this._suspendedUserId = null;
+        this._suspendedRole = null;
+        content.dataset.view = 'mps';
         this.cancelInFlight();
         this._hasLoadedPlanning = false;
+        const actions = [
+            this.isWriter ? Button.html({id: 'mpsRefreshSales', text: 'Refresh sales', icon: 'fa-solid fa-rotate', variant: 'outline', size: 'md', ariaLabel: 'Refresh sales data'}) : '',
+            this.isWriter ? Button.html({id: 'mpsRun', text: 'Run planner', icon: 'fa-solid fa-play', variant: 'primary', size: 'md', ariaLabel: 'Run MPS planner'}) : ''
+        ].join('');
+        const tabs = Tabs.html({className: 'mps-tabs', activeId: 'summary', tabs: [
+            {key: 'summary', label: 'Summary', role: 'tab', ariaControls: 'mpsPanel'},
+            {key: 'planning', label: 'Planning', role: 'tab', ariaControls: 'mpsPanel'},
+            {key: 'calendar', label: 'Calendar', role: 'tab', ariaControls: 'mpsPanel', className: 'mps-calendar-tab', hidden: true},
+            {key: 'pricing', label: 'Part pricing', role: 'tab', ariaControls: 'mpsPanel'},
+            {key: 'orders', label: 'Purchase orders', role: 'tab', ariaControls: 'mpsPanel'},
+            {key: 'settings', label: 'Settings', role: 'tab', ariaControls: 'mpsPanel'}
+        ]});
         document.getElementById('content').innerHTML = `
             <section class="mps-page" aria-live="polite">
-                <div class="page-header mb-md">
-                    <div class="header-row mb-sm" style="display:flex;justify-content:flex-start;align-items:center;gap:15px;flex-wrap:wrap;">
-                        <div class="mps-title-group">
-                            <h1 class="page-title text-neutral-800 font-normal" style="font-size:23px;margin:0;">Master Planner</h1>
-                            <p class="mps-subtitle">Demand outlook, suggested reorders and purchase orders in one place.</p>
-                        </div>
-                        <div class="mps-actions">${this.isWriter ? '<button class="btn btn-sm mps-btn-outline" id="mpsRefreshSales" aria-label="Refresh sales data"><i class="fa-solid fa-rotate"></i> Refresh sales</button><button class="btn btn-sm mps-btn-primary" id="mpsRun" aria-label="Run MPS planner"><i class="fa-solid fa-play"></i> Run planner</button>' : ''}</div>
-                    </div>
-                    <div class="mps-tabbar">
-                        <nav class="mps-tabs" role="tablist" aria-label="MPS tabs"><button data-tab="summary" class="active" role="tab" aria-selected="true" aria-controls="mpsPanel">Summary</button><button data-tab="planning" role="tab" aria-selected="false" aria-controls="mpsPanel">Planning</button><button data-tab="calendar" class="mps-calendar-tab" role="tab" aria-selected="false" aria-controls="mpsPanel" hidden>Calendar</button><button data-tab="pricing" role="tab" aria-selected="false" aria-controls="mpsPanel">Part pricing</button><button data-tab="orders" role="tab" aria-selected="false" aria-controls="mpsPanel">Purchase orders</button><button data-tab="settings" role="tab" aria-selected="false" aria-controls="mpsPanel">Settings</button></nav>
-                    </div>
-                </div>
+                ${PageHeader.html({title: 'Master Planner', icon: 'fa-solid fa-chart-line', subtitle: 'Demand outlook, suggested reorders and purchase orders in one place.', className: 'mps-page-header page-header-surface', actions: `<div class="mps-actions">${actions}</div>`})}
+                <div class="mps-tabbar"><nav role="tablist" aria-label="MPS tabs">${tabs}</nav></div>
                 <div class="wrap" style="max-width:100%;position:relative;">
                     <div id="mpsPanel" role="tabpanel" aria-live="polite"><div class="mps-loading" aria-busy="true"><i class="fa-solid fa-spinner fa-spin"></i> Loading planner data...</div></div>
                 </div>
@@ -119,8 +153,24 @@ class MpsView {
         });
         document.getElementById('mpsRun')?.addEventListener('click', () => this.runPlanner());
         document.getElementById('mpsRefreshSales')?.addEventListener('click', () => this.refreshSales());
+        document.getElementById('mpsAskAI')?.addEventListener('click', () => {
+            const chartQuestion = this.tab === 'summary' && this.summary ? this.summaryChartExplanationPrompt() : '';
+            this.openAIChat(chartQuestion, chartQuestion ? 'Explain the summary charts' : '', this.buildAIChatContext());
+        });
         this.updateCalendarTabVisibility();
         this.loadTab();
+    }
+
+    suspend() {
+        const content = document.getElementById('content');
+        if (!content || content.dataset.view !== 'mps') return;
+        const user = this.state.getUser();
+        this._suspendedUserId = user?.id ?? null;
+        this._suspendedRole = user?.role ?? null;
+        this.cancelInFlight();
+        document.querySelectorAll('.mps-overlay').forEach(overlay => overlay.remove());
+        this._suspendedContent = document.createDocumentFragment();
+        while (content.firstChild) this._suspendedContent.appendChild(content.firstChild);
     }
 
     async updateCalendarTabVisibility() {
@@ -153,64 +203,6 @@ class MpsView {
         else if (activeTab === 'pricing') await this.loadPricing();
         else if (activeTab === 'orders') await this.loadOrders();
         else await this.loadSettings();
-        if (this.tab === activeTab) this.addContextualHelp(activeTab);
-    }
-
-    addContextualHelp(tab) {
-        const panel = document.getElementById('mpsPanel');
-        if (!panel || panel.querySelector(`.mps-context-help[data-context-tab="${tab}"]`)) return;
-        panel.querySelector('.mps-context-help')?.remove();
-        const help = {
-            summary: {
-                title: 'Summary: planner health and priorities',
-                text: 'See the latest planner totals, demand and stock risks, and products with the highest reorder value.',
-                next: 'Check when sales were last refreshed, then run the planner before acting on new recommendations.',
-                button: 'Review Planning', target: 'planning'
-            },
-            planning: {
-                title: 'Planning: review product recommendations',
-                text: 'Search, filter, and sort products by their stock and demand status. Open a product to see why it was recommended and edit its supplier, lead time, and usual purchase route.',
-                next: 'After checking recommendations and product settings, create draft purchase orders from the reorder list.',
-                button: 'Open Purchase Orders', target: 'orders'
-            },
-            calendar: {
-                title: 'Calendar: follow reorder and arrival dates',
-                text: 'Reorder markers show suggested order dates. PO markers show estimated arrival dates for active orders. Select an item to open its product or purchase order.',
-                next: 'Review the matching order and update its status or receipt in Purchase Orders.',
-                button: 'Open Purchase Orders', target: 'orders'
-            },
-            pricing: {
-                title: 'Part Pricing: review costs and selling prices',
-                text: 'Cost is the purchase cost. Calculated sale price is a recommendation from Settings; approved sale price is the price currently used by inventory. VAT, CIT, profit, and margin are calculated from these values.',
-                next: 'Confirm the cost source and approved price before saving. Pricing changes update inventory cost or the MPS approved-price override.',
-                button: 'Open Settings', target: 'settings'
-            },
-            orders: {
-                title: 'Purchase Orders: create and track purchases',
-                text: 'Create a PO manually, import one, or create drafts from reorder recommendations. Check the supplier, route, product lines, quantities, and ETA before moving an order forward.',
-                next: 'Record received quantities and the receiving location when goods arrive. Trashed orders can be restored or permanently deleted from Trash.',
-                button: 'Review Planning', target: 'planning'
-            },
-            settings: {
-                title: 'Settings: control planner and pricing rules',
-                text: 'Planner settings control the sales history and demand windows used for recommendations. Pricing settings control exchange rate, markup, VAT, and CIT calculations.',
-                next: 'After changing planner assumptions, run the planner again and review the results before creating POs.',
-                button: 'Open Summary', target: 'summary'
-            }
-        }[tab];
-        if (!help) return;
-        const details = document.createElement('details');
-        details.className = 'mps-context-help';
-        details.dataset.contextTab = tab;
-        details.innerHTML = `<summary><i class="fa-solid fa-circle-question" aria-hidden="true"></i><span>${esc(help.title)}</span><span class="mps-context-hint">What should I do here?</span></summary><div class="mps-context-body"><p>${esc(help.text)}</p><p><strong>Next:</strong> ${esc(help.next)}</p><button class="btn btn-sm btn-secondary" type="button" data-context-target="${help.target}">${esc(help.button)}</button></div>`;
-        panel.prepend(details);
-        details.querySelector('[data-context-target]')?.addEventListener('click', () => {
-            const target = details.querySelector('[data-context-target]')?.dataset.contextTarget;
-            const navButton = document.querySelector(`.mps-tabs button[data-tab="${target}"]`);
-            if (!navButton || navButton.hidden) return;
-            this.activateTab(target);
-            this.loadTab();
-        });
     }
 
     async runPlanner() {
@@ -228,7 +220,7 @@ class MpsView {
         if (button) button.disabled = false;
     }
 
-    openDialog({title, body, confirmText = 'Save', busyText = 'Saving...', confirmClass = 'mps-btn-primary', onConfirm}) {
+    openDialog({title, body, confirmText = 'Save', cancelText = 'Cancel', busyText = 'Saving...', confirmClass = 'mps-btn-primary', onConfirm}) {
         const overlay = document.createElement('div');
         overlay.className = 'mps-overlay';
         overlay.setAttribute('role', 'dialog');
@@ -237,10 +229,7 @@ class MpsView {
             <header><div><h2>${esc(title)}</h2></div><button class="mps-close" type="button" aria-label="Close">&times;</button></header>
             <form class="mps-dialog-form" novalidate>
                 ${body}
-                <div class="mps-dialog-actions">
-                    <button class="btn btn-sm btn-secondary" type="button" data-dialog-cancel>Cancel</button>
-                    <button class="btn btn-sm ${confirmClass}" type="submit">${esc(confirmText)}</button>
-                </div>
+                <div class="mps-dialog-actions">${cancelText ? Button.html({text: cancelText, variant: 'secondary', size: 'md', type: 'button', dataAttributes: {'data-dialog-cancel': ''}}) : ''}${Button.html({text: confirmText, variant: confirmClass.includes('danger') ? 'danger' : 'primary', size: 'md', type: 'submit', className: confirmClass})}</div>
             </form>
         </section>`;
         document.body.appendChild(overlay);
@@ -248,7 +237,7 @@ class MpsView {
         const onKey = event => { if (event.key === 'Escape') close(); };
         document.addEventListener('keydown', onKey);
         overlay.querySelector('.mps-close').addEventListener('click', close);
-        overlay.querySelector('[data-dialog-cancel]').addEventListener('click', close);
+        overlay.querySelector('[data-dialog-cancel]')?.addEventListener('click', close);
         overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
         overlay.querySelectorAll('.mps-table, .mps-projection').forEach(table => this.enableClientTableSorting(table));
 
@@ -362,6 +351,146 @@ class MpsView {
         }
         Toast.error('Sales refresh is taking too long. Check the backend log.');
         return null;
+    }
+
+    buildAIChatContext() {
+        const tab = ['summary', 'planning', 'calendar', 'pricing'].includes(this.tab) ? this.tab : 'summary';
+        if (tab === 'summary') return {tab, filters: this.summaryFilters?.() || {}};
+        if (tab === 'planning') return {tab, filters: this.activeFilters?.() || {}};
+        if (tab === 'calendar') return {tab, view: this.calendarView || 'month', selected_date: this.calendarDate || today(), ...(this.calendarRange || {})};
+        return {tab, page: this.pricingPage || 1, filters: {search: this.pricingSearch || '', product_status: this.pricingStatus || 'all', profit: this.pricingProfit || 'all', sort_by: this.pricingSortBy || 'sku', sort_order: this.pricingSortOrder || 'ASC'}};
+    }
+    openAIChat(initialQuestion = '', initialLabel = '', tabContext = this.buildAIChatContext()) {
+        const labels = {summary: 'Summary', planning: 'Planning', calendar: 'Calendar', pricing: 'Part pricing'};
+        const topics = {summary: ['Summary trends and risks', 'Products that need attention', 'Reorder outlook'], planning: ['Why a product needs reordering', 'Which products to prioritize', 'Stock coverage and incoming stock'], calendar: ['Upcoming reorder dates', 'Purchase order ETAs', 'Dates with overlapping supply risks'], pricing: ['Products below the margin target', 'Negative-margin products', 'How VAT and CIT affect a price']};
+        const tabLabel = labels[tabContext.tab] || 'Master Planner';
+        const topicList = (topics[tabContext.tab] || topics.summary).map(topic => `<li>${esc(topic)}</li>`).join('');
+        const overlay = document.createElement('div');
+        overlay.className = 'mps-overlay mps-ai-chat-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', 'AI Chat');
+        overlay.innerHTML = `
+            <section class="mps-dialog mps-ai-chat-dialog">
+                <header>
+                    <div><small>Master Planner assistant | ${esc(tabLabel)}</small><h2>Ask AI</h2></div>
+                    <button class="mps-close" aria-label="Close">&#215;</button>
+                </header>
+                <div class="mps-chat-container">
+                    <div class="mps-chat-messages" id="mpsChatMessages">
+                        <div class="mps-chat-message mps-chat-ai">
+                            <div class="mps-chat-avatar"><i class="fa-solid fa-robot"></i></div>
+                            <div class="mps-chat-content">
+                                <p>I can help with the current ${esc(tabLabel)} view, using its current data and filters.</p><p>For example, ask about:</p>
+                                <ul>
+                                    ${topicList}
+                                </ul>
+                                <p><small>Ask a follow-up or refer to products and dates visible in this tab.</small></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mps-chat-input-area">
+                        <textarea id="mpsChatInput" placeholder="Ask about the current ${esc(tabLabel)} view..." rows="2" maxlength="2000"></textarea>
+                        <button class="btn btn-primary btn-sm" id="mpsChatSend"><i class="fa-solid fa-paper-plane"></i> Send</button>
+                    </div>
+                </div>
+            </section>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector('.mps-close').onclick = () => overlay.remove();
+        overlay.onclick = event => { if (event.target === overlay) overlay.remove(); };
+
+        const messagesContainer = overlay.querySelector('#mpsChatMessages');
+        const input = overlay.querySelector('#mpsChatInput');
+        const sendBtn = overlay.querySelector('#mpsChatSend');
+        const conversation = [];
+
+        const addMessage = (content, isUser = false) => {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `mps-chat-message ${isUser ? 'mps-chat-user' : 'mps-chat-ai'}`;
+            msgDiv.innerHTML = `
+                <div class="mps-chat-avatar"><i class="fa-solid ${isUser ? 'fa-user' : 'fa-robot'}"></i></div>
+                <div class="mps-chat-content">${content}</div>
+            `;
+            messagesContainer.appendChild(msgDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        };
+
+        const addLoading = () => {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'mps-chat-message mps-chat-ai mps-chat-loading';
+            loadingDiv.id = 'mpsChatLoading';
+            loadingDiv.innerHTML = `
+                <div class="mps-chat-avatar"><i class="fa-solid fa-robot"></i></div>
+                <div class="mps-chat-content"><i class="fa-solid fa-spinner fa-spin"></i> Thinking...</div>
+            `;
+            messagesContainer.appendChild(loadingDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        };
+
+        const removeLoading = () => {
+            const loading = messagesContainer.querySelector('#mpsChatLoading');
+            if (loading) loading.remove();
+        };
+
+        const sendMessage = async (requestQuestion = '', displayQuestion = '') => {
+            const question = requestQuestion || input.value.trim();
+            const visibleQuestion = displayQuestion || input.value.trim();
+            if (!question) return;
+
+            addMessage(esc(visibleQuestion), true);
+            input.value = '';
+            input.style.height = 'auto';
+            addLoading();
+            sendBtn.disabled = true;
+
+            const history = conversation.slice(-12);
+            conversation.push({role: 'user', content: question});
+
+            try {
+                const res = await API.mpsAIChat(question, history, tabContext);
+                removeLoading();
+
+                if (res.status === 'success') {
+                    const response = res.response || 'No response from AI.';
+                    addMessage(esc(response));
+                    conversation.push({role: 'assistant', content: response});
+                } else {
+                    addMessage(`<div class="mps-chat-error"><i class="fa-solid fa-circle-exclamation"></i> ${esc(res.error || res.message || 'Could not get AI response.')}${res.quota_exceeded ? ' <small>(Daily limit reached)</small>' : ''}</div>`);
+                    if (res.quota_exceeded) {
+                        Toast.error('Daily AI limit has been reached. Try again after it resets.');
+                    }
+                }
+            } catch (e) {
+                removeLoading();
+                addMessage(`<div class="mps-chat-error"><i class="fa-solid fa-circle-exclamation"></i> ${esc(e.message || 'AI service unavailable.')}</div>`);
+                Toast.error(e.message || 'AI service unavailable.');
+            } finally {
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        };
+
+        sendBtn.onclick = sendMessage;
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Auto-resize textarea
+        input.addEventListener('input', () => {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        });
+
+        if (initialQuestion) {
+            input.value = initialQuestion;
+            sendMessage(initialQuestion, initialLabel);
+        } else {
+            setTimeout(() => input.focus(), 100);
+        }
     }
 }
 

@@ -34,7 +34,7 @@ class TransferModals {
         const itemsHtml = items.map(i => {
             const isCanceled = i.status === 'canceled';
 
-            const rowStyle = isCanceled ? 'background-color: rgba(0,0,0,0.02);' : '';
+            const rowStyle = isCanceled ? 'background-color: var(--palette-rgb-0-0-0-0p02);' : '';
             const canceledCellStyle = isCanceled ? 'opacity: 0.5; text-decoration: line-through;' : '';
 
             // If canceled, do not render input fields so they aren't processed on submit
@@ -45,11 +45,11 @@ class TransferModals {
                         const surplus = this.value - this.dataset.sent;
                         const disp = document.getElementById('surplus-${esc(i.id)}');
                         if (disp) {
-                            if (surplus > 0) { disp.textContent = '+' + surplus; disp.style.display = 'inline'; } 
+                            if (surplus > 0) { disp.textContent = '+' + surplus; disp.style.display = 'inline'; }
                             else { disp.style.display = 'none'; }
                         }
                      ">
-                     <span id="surplus-${esc(i.id)}" style="color: #a855f7; font-weight: bold; font-size: 12px; display: none;"></span>
+                     <span id="surplus-${esc(i.id)}" style="color: var(--palette-hex-a855f7); font-weight: bold; font-size: 12px; display: none;"></span>
                    </div>`;
 
             const noteHtml = isCanceled
@@ -63,7 +63,7 @@ class TransferModals {
                     <div class="text-xs text-muted font-mono" style="${canceledCellStyle}">${esc(i.product_sku || '')}</div>
                 </td>
                 ${i.requested_qty ? `<td class="text-center text-primary fw-medium" style="${canceledCellStyle}">${esc(String(i.requested_qty))}</td>` : (items.some(x => x.requested_qty) ? `<td></td>` : '')}
-                <td class="text-center font-bold" style="color: #2271b1; ${canceledCellStyle}">${parseInt(i.qty) || 0}</td>
+                <td class="text-center font-bold" style="color: var(--palette-hex-2271b1); ${canceledCellStyle}">${parseInt(i.qty) || 0}</td>
                 <td style="width: 100px;" class="text-center">
                     ${recvHtml}
                 </td>
@@ -87,8 +87,8 @@ class TransferModals {
                         </div>
                     </div>
 
-                    <div class="alert bg-info-50 mb-md text-sm border border-info-200 p-sm rounded" style="color: #004085;">
-                        <i class="fa-solid fa-circle-info" style="color: #004085;"></i>
+                    <div class="alert bg-info-50 mb-md text-sm border border-info-200 p-sm rounded" style="color: var(--palette-hex-004085);">
+                        <i class="fa-solid fa-circle-info" style="color: var(--palette-hex-004085);"></i>
                         Verify the quantities received. If the numbers mismatch, adjust them up or down. Inventory for both branches will balance automatically.
                     </div>
 
@@ -170,7 +170,7 @@ class TransferModals {
         const itemsHtml = items.map(i => {
             const isCanceled = i.status === 'canceled';
 
-            const rowStyle = isCanceled ? 'background-color: rgba(0,0,0,0.02);' : '';
+            const rowStyle = isCanceled ? 'background-color: var(--palette-rgb-0-0-0-0p02);' : '';
             const canceledCellStyle = isCanceled ? 'opacity: 0.5; text-decoration: line-through;' : '';
             const canceledNoteStyle = isCanceled ? 'opacity: 0.8;' : '';
 
@@ -195,7 +195,7 @@ class TransferModals {
                     </td>
                     <td class="text-center" style="${canceledCellStyle}">${parseInt(i.qty) || 0}</td>
                     <td class="text-center font-bold ${qtyClass}" style="${canceledCellStyle}">
-                        ${recvVal} ${parseInt(i.surplus_qty) > 0 ? `<span style="color:#a855f7;font-size:11px;margin-left:4px;">(+${i.surplus_qty})</span>` : ''}
+                        ${recvVal} ${parseInt(i.surplus_qty) > 0 ? `<span style="color:var(--palette-hex-a855f7);font-size:11px;margin-left:4px;">(+${i.surplus_qty})</span>` : ''}
                     </td>
                     <td class="text-sm text-muted" style="${canceledNoteStyle}">${noteStr}</td>
                 </tr>
@@ -209,8 +209,8 @@ class TransferModals {
 
         const totalSurplus = items.reduce((sum, i) => sum + (parseInt(i.surplus_qty) || 0), 0);
         const surplusAlert = totalSurplus > 0 ? `
-            <div class="alert mb-md text-sm border p-sm rounded" style="background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border-color: #d8b4fe; color: #7c3aed; display: flex; align-items: center; gap: 8px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div class="alert mb-md text-sm border p-sm rounded" style="background: linear-gradient(135deg, var(--theme-purple-surface) 0%, var(--palette-hex-f3e8ff) 100%); border-color: var(--palette-hex-d8b4fe); color: var(--palette-hex-7c3aed); display: flex; align-items: center; gap: 8px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <strong>Surplus Detected:</strong> This transfer included ${totalSurplus} surplus item(s) beyond what was sent.
             </div>
         ` : '';
@@ -260,18 +260,18 @@ class TransferModals {
 
     handleRevert(batchId) {
         const bodyHtml = `
-            <div style="margin-bottom: 15px; color: var(--error-500); background: #fef2f2; padding: 12px; border-radius: 6px; border: 1px solid #fecaca; font-size: 13px;">
+            <div style="margin-bottom: 15px; color: var(--error-500); background: var(--theme-danger-surface); padding: 12px; border-radius: 6px; border: 1px solid var(--palette-hex-fecaca); font-size: 13px;">
                 <strong>Warning:</strong> You are about to forcefully revert <b>${batchId}</b>.<br><br>
                 This will immediately pull the received stock back out of the destination branch and refund the original amount to the sender branch. This action will be permanently logged.
             </div>
             <div class="form-group">
-                <label style="display:block; margin-bottom:5px; font-size: 13px; font-weight: 600;">Reason for Reverting <span style="color:red">*</span></label>
-                <textarea id="revert-reason" class="form-control" rows="3" placeholder="Enter administrative reason for this revert..." style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; padding: 8px; font-family: inherit;"></textarea>
+                <label style="display:block; margin-bottom:5px; font-size: 13px; font-weight: 600;">Reason for Reverting <span style="color:var(--palette-name-red)">*</span></label>
+                <textarea id="revert-reason" class="form-control" rows="3" placeholder="Enter administrative reason for this revert..." style="width: 100%; border: 1px solid var(--theme-border); border-radius: 4px; padding: 8px; font-family: inherit;"></textarea>
             </div>
         `;
 
         Modal.open({
-            title: '<span style="color: var(--error-500); display: flex; align-items: center; gap: 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Revert Completed Transfer</span>',
+            title: '<span style="color: var(--error-500); display: flex; align-items: center; gap: 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Revert Completed Transfer</span>',
             body: bodyHtml,
             confirmText: 'Confirm Revert',
             onConfirm: async () => {

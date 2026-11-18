@@ -38,12 +38,12 @@ class ThermalPdfGenerator {
         (data.fees || []).filter(f => f.amount > 0).forEach(f => { dynamicY += 5; });
         if (data.taxAmount > 0) dynamicY += 5;
         dynamicY += 6; // Total paid gap + thick line
-        
+
         if (data.notes) {
             const noteLines = Math.ceil(data.notes.length / 40);
             dynamicY += (noteLines * 4) + 4;
         }
-        
+
         dynamicY += 15; // Footer (****)
         dynamicY += 5; // Bottom margin safety
 
@@ -51,13 +51,13 @@ class ThermalPdfGenerator {
 
         // 80mm width paper, length dynamically calculated
         const doc = new jsPDF({ format: [80, Math.max(totalHeight, 150)], unit: 'mm' });
-        
+
         const darkText = [0, 0, 0];
         const lightText = [50, 50, 50];
         const borderColor = [100, 100, 100];
-        
+
         const centerX = 40; // Center of 80mm
-        
+
         let currentY = 10;
 
         // --- 1. Document Header ---
@@ -100,7 +100,7 @@ class ThermalPdfGenerator {
 
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
-        
+
         const now = new Date();
         const dateStr = now.toLocaleDateString('en-RW', { year: 'numeric', month: 'short', day: '2-digit' });
         const timeStr = now.toLocaleTimeString('en-RW', { hour: '2-digit', minute: '2-digit' });
@@ -111,7 +111,7 @@ class ThermalPdfGenerator {
         currentY += 5;
         doc.text(`Date: ${dateStr} ${timeStr}`, centerX, currentY, { align: 'center' });
         currentY += 5;
-        
+
         // Divider Line
         doc.setDrawColor(...borderColor);
         doc.setLineWidth(0.5);
@@ -127,7 +127,7 @@ class ThermalPdfGenerator {
             : 'Walk-in Customer';
         doc.text(`Customer: ${custName}`, 4, currentY);
         currentY += 4;
-        
+
         doc.setFontSize(8);
         doc.setTextColor(...lightText);
         doc.text(`Cashier: ${data.cashierName || 'Admin'}`, 4, currentY);
@@ -241,13 +241,12 @@ class ThermalPdfGenerator {
      * Prints the receipt by opening it in the system's default browser.
      */
     static async printThermalReceiptPDF(data) {
-        const { ipcRenderer } = require('electron');
         const { doc, receiptId } = await this._buildReceiptDoc(data);
 
         doc.autoPrint();
         const arrayBuffer = doc.output('arraybuffer');
 
-        const result = await ipcRenderer.invoke('open-pdf-in-browser', {
+        const result = await globalThis.window?.faranuxDesktop?.openPdfInBrowser({
             buffer: arrayBuffer,
             filename: `Thermal_Receipt_${receiptId}.pdf`
         });

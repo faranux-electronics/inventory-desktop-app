@@ -261,7 +261,7 @@ class UserModals {
         Modal.open({
             title: "Permanently Delete User",
             body: `
-                <div style="background: #fee2e2; color: #b91c1c; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                <div style="background: var(--theme-danger-surface); color: var(--palette-hex-b91c1c); padding: 10px; border-radius: 4px; margin-bottom: 15px;">
                     <i class="fa-solid fa-triangle-exclamation"></i> <b>Warning:</b> This action cannot be undone.
                 </div>
                 <p>Are you sure you want to permanently delete <b>${name}</b>?</p>

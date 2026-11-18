@@ -1,0 +1,133 @@
+/* Login and pending approval screens. */
+@font-face {
+    font-family: "DM Serif Display";
+    src: url("../../assets/DMSerifDisplay-Regular.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+.login-container {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) minmax(480px, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    background: var(--neutral-100);
+    padding: 0;
+}
+
+.login-visual {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 0;
+    background: var(--theme-surface);
+}
+
+.login-arduino-image {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    border-radius: inherit;
+    transform-origin: center 58%;
+    animation: arduinoImageLoop 8s ease-in-out infinite;
+}
+
+.login-image-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: flex-end;
+    padding: clamp(24px, 4vw, 52px);
+    background: linear-gradient(180deg, var(--palette-name-transparent) 38%, var(--palette-rgb-0-0-0-0p6) 100%);
+    pointer-events: none;
+}
+
+.login-onboarding-copy h2 {
+    margin: 0;
+    color: var(--palette-name-white);
+    font-family: "DM Serif Display", Georgia, serif;
+    font-size: clamp(22px, 2.7vw, 36px);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-shadow: 0 1px 3px var(--palette-rgb-0-0-0-0p3);
+}
+
+.login-onboarding-copy p {
+    max-width: 440px;
+    margin: 10px 0 0;
+    color: var(--palette-name-white);
+    font-family: var(--font-family), sans-serif;
+    font-size: clamp(14px, 1.25vw, 16px);
+    line-height: 1.55;
+    text-shadow: 0 1px 3px var(--palette-rgb-0-0-0-0p3);
+}
+
+.login-panel {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    overflow-y: auto;
+    padding: 24px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 520px;
+    padding: clamp(32px, 3vw, 52px);
+    background: var(--theme-surface);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    animation: loginSlideUp 0.4s ease-out;
+}
+
+@keyframes arduinoImageLoop {
+    0%, 100% { transform: scale(1.1); }
+    50% { transform: scale(1.16); }
+}
+
+.login-brand-logo {
+    display: block;
+    width: 80px;
+    height: 88px;
+    object-fit: contain;
+    margin: 0 auto var(--spacing-md);
+}
+.login-title {
+    margin: 2px 0 8px;
+    color: var(--theme-text-primary);
+    font-family: "DM Serif Display", Georgia, serif;
+    font-size: 24px;
+    font-weight: 400;
+    letter-spacing: 0.055em;
+    line-height: 1.2;
+}
+.login-divider { position: relative; margin: var(--spacing-lg) 0; text-align: center; }
+.login-divider::before { position: absolute; top: 50%; right: 0; left: 0; height: 1px; background: var(--neutral-200); content: ''; }
+.login-divider span { position: relative; padding: 0 var(--spacing-md); background: var(--theme-surface); color: var(--neutral-500); font-size: var(--font-size-xs); }
+
+@keyframes loginSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 900px) {
+    .login-container { grid-template-columns: minmax(0, 1fr); padding: 12px; }
+    .login-visual { display: none; }
+    .login-panel { padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .login-arduino-image, .login-card { animation: none; }
+}

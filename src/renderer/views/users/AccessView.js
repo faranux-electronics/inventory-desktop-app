@@ -1,5 +1,12 @@
 const Toast = require('../../components/Toast.js');
 const API = require('../../services/api.js');
+const PageHeader = require('../../components/PageHeader.js');
+const Pagination = require('../../components/Pagination.js');
+const Input = require('../../components/Input.js');
+const Select = require('../../components/Select.js');
+const Button = require('../../components/Button.js');
+const Table = require('../../components/Table.js');
+const FilterBar = require('../../components/FilterBar.js');
 const UserTable = require('./components/UserTable.js');
 const UserModals = require('./components/UserModals.js');
 const NavPermissionsPanel = require('./components/NavPermissionsPanel.js');
@@ -14,91 +21,66 @@ class AccessView {
         this.navPanel = new NavPermissionsPanel(this.state);
         this.currentTab = 'users';      // 'users' | 'trash' | 'navigation'
         this.userSubTab = 'active';     // 'active' | 'trash'  (sub-tab within users tab)
+        this.currentPage = 1;
+        this.pageSize = 20;
+        this.filteredUsers = [];
+        this.userFilters = {role: '', status: ''};
     }
 
     render() {
         const content = document.getElementById('content');
+        content.dataset.view = 'access';
         content.innerHTML = `
-            <div class="page-header mb-md">
-                <div class="header-row">
-                    <h1 class="page-title text-neutral-800 font-normal">Access Management</h1>
-                </div>
-            </div>
+            ${PageHeader.html({title: 'Access Management', icon: 'fa-solid fa-user-shield', subtitle: 'Manage users and navigation permissions.', actions: Button.html({text: 'Add New User', icon: 'fa-solid fa-user-plus', id: 'addUserBtn', variant: 'outline', size: 'md', className: 'access-add-user'}), className: 'page-header-surface access-page-header'})}
 
-            <!-- Primary tabs -->
-            <div class="tabs mb-md" style="display: flex; gap: 0; border-bottom: 2px solid #c3c4c7;">
-                <button class="primary-tab-btn active" data-tab="users"
-                    style="${this._primaryTabStyle(true)}">
+            <div class="access-content">
+                <!-- Primary tabs -->
+                <div class="tabs access-primary-tabs">
+                <button class="tab-btn primary-tab-btn active" data-tab="users">
                     <i class="fa-solid fa-users-gear"></i> Users
                 </button>
-                <button class="primary-tab-btn" data-tab="navigation"
-                    style="${this._primaryTabStyle(false)}">
+                <button class="tab-btn primary-tab-btn" data-tab="navigation">
                     <i class="fa-solid fa-sliders"></i> Navigation
                 </button>
-            </div>
+                </div>
 
-            <!-- Users panel -->
-            <div id="tab-panel-users">
+                <!-- Users panel -->
+                <div id="tab-panel-users">
                 <!-- Secondary tabs: Active / Trash -->
-                <div style="display: flex; gap: 16px; border-bottom: 1px solid #c3c4c7; margin-bottom: 12px;">
-                    <button class="sub-tab-btn active" data-subtab="active"
-                        style="${this._subTabStyle(true)}">Active Users</button>
-                    <button class="sub-tab-btn" data-subtab="trash"
-                        style="${this._subTabStyle(false)}">Trash</button>
+                <div class="tabs access-secondary-tabs">
+                    <button class="tab-btn sub-tab-btn active" data-subtab="active">Active Users</button>
+                    <button class="tab-btn sub-tab-btn" data-subtab="trash">Trash</button>
                 </div>
 
-                <div class="flex items-center gap-sm mb-md p-sm justify-between"
-                     style="background:#f8f9fa; border:1px solid #c3c4c7; border-radius:4px; flex-wrap:wrap;">
-                    <div class="search-box" style="min-width:280px; position:relative;">
-                        <i class="fa-solid fa-search" style="font-size:13px; color:#8c8f94; position:absolute; left:10px; top:50%; transform:translateY(-50%);"></i>
-                        <input type="text" id="userSearch" class="search-input form-input-sm w-full"
-                               style="background:white; padding-left:32px; border-color:#8c8f94;"
-                               placeholder="Search by name or email...">
+                ${FilterBar.html({className: 'access-user-filter-bar flex items-center mb-md justify-between', ariaLabel: 'Filter users', content: `
+                    <div class="access-user-search">
+                        <i class="fa-solid fa-search" aria-hidden="true"></i>
+                        ${Input.html({type: 'search', id: 'userSearch', ariaLabel: 'Search users by name or email', placeholder: 'Search by name or email...', className: 'access-search-input'})}
                     </div>
-                    <button class="btn btn-sm" id="addUserBtn"
-                            style="background:white; border:1px solid #2271b1; color:#2271b1; padding:6px 14px; font-weight:500;">
-                        <i class="fa-solid fa-user-plus"></i> Add New User
-                    </button>
+                    ${Select.html({id: 'userRoleFilter', ariaLabel: 'Filter users by role', value: this.userFilters.role, className: 'access-user-filter', options: [{value: '', label: 'All roles'}, ...['admin', 'manager', 'cashier', 'supply_chain_manager'].map(role => ({value: role, label: role === 'supply_chain_manager' ? 'Supply Chain Manager' : role.charAt(0).toUpperCase() + role.slice(1)}))]})}
+                    ${Select.html({id: 'userStatusFilter', ariaLabel: 'Filter users by status', value: this.userFilters.status, className: 'access-user-filter', options: [{value: '', label: 'All statuses'}, ...['active', 'pending', 'suspended'].map(status => ({value: status, label: status.charAt(0).toUpperCase() + status.slice(1)}))]})}
+                    ${Button.html({text: 'Clear Filters', id: 'clearUserFiltersBtn', variant: 'outline', size: 'sm', className: 'access-clear-filters-btn'})}
+                `})}
+
+                ${Table.html({
+                    headers: ['Name', 'Email', 'Role', 'Status', 'Assigned Branches', {label: 'Actions', className: 'text-right'}],
+                    body: '<tr><td colspan="6" class="text-center p-lg text-muted">Loading...</td></tr>',
+                    bodyId: 'usersTableBody',
+                    className: 'access-users-table',
+                    wrapperClass: 'access-users-table-wrapper',
+                    ariaLabel: 'Access management users'
+                })}
+                <div id="userPagination"></div>
                 </div>
 
-                <div style="background:white; border:1px solid #c3c4c7; border-radius:4px; overflow:hidden;">
-                    <table style="width:100%; border-collapse:collapse;">
-                        <thead style="background:white; border-bottom:1px solid #c3c4c7;">
-                            <tr>
-                                <th style="padding:10px; color:#2c3338; font-weight:400; border-bottom:1px solid #c3c4c7; text-align:left;">Name</th>
-                                <th style="padding:10px; color:#2c3338; font-weight:400; border-bottom:1px solid #c3c4c7; text-align:left;">Email</th>
-                                <th style="padding:10px; color:#2c3338; font-weight:400; border-bottom:1px solid #c3c4c7; text-align:left;">Role</th>
-                                <th style="padding:10px; color:#2c3338; font-weight:400; border-bottom:1px solid #c3c4c7; text-align:left;">Status</th>
-                                <th style="padding:10px; color:#2c3338; font-weight:400; border-bottom:1px solid #c3c4c7; text-align:left;">Assigned Branches</th>
-                                <th style="padding:10px; color:#2c3338; font-weight:400; border-bottom:1px solid #c3c4c7;" class="text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody">
-                            <tr><td colspan="6" class="text-center p-lg text-muted">Loading...</td></tr>
-                        </tbody>
-                    </table>
+                <!-- Navigation panel -->
+                <div id="tab-panel-navigation" style="display:none;">
+                    <div id="nav-perms-container"></div>
                 </div>
-            </div>
-
-            <!-- Navigation panel -->
-            <div id="tab-panel-navigation" style="display:none;">
-                <div id="nav-perms-container"></div>
             </div>
         `;
 
         this.init();
-    }
-
-    _primaryTabStyle(active) {
-        return active
-            ? 'padding:10px 20px; border:none; background:#2271b1; color:white; font-weight:600; cursor:pointer; border-radius:4px 4px 0 0; margin-right:2px;'
-            : 'padding:10px 20px; border:none; background:#f0f0f1; color:#50575e; font-weight:600; cursor:pointer; border-radius:4px 4px 0 0; margin-right:2px;';
-    }
-
-    _subTabStyle(active) {
-        return active
-            ? 'padding:8px 16px; border:none; background:none; border-bottom:2px solid #2271b1; color:#2271b1; font-weight:600; cursor:pointer;'
-            : 'padding:8px 16px; border:none; background:none; border-bottom:2px solid transparent; color:#50575e; font-weight:600; cursor:pointer;';
     }
 
     async init() {
@@ -135,13 +117,39 @@ class AccessView {
                     );
                 }
 
-                this.tableComponent.render(users, currentUser);
+                if (this.userFilters.role) users = users.filter(user => user.role === this.userFilters.role);
+                if (this.userFilters.status) users = users.filter(user => user.status === this.userFilters.status);
+
+                this.filteredUsers = users;
+                this.currentPage = Math.min(this.currentPage, Math.max(1, Math.ceil(users.length / this.pageSize)));
+                this.renderUsersPage(currentUser);
             } else {
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center text-error p-lg">${res.message}</td></tr>`;
             }
         } catch (e) {
             tbody.innerHTML = `<tr><td colspan="6" class="text-center text-error p-lg">Failed to load users</td></tr>`;
         }
+    }
+
+    renderUsersPage(currentUser = this.state.getUser()) {
+        const start = (this.currentPage - 1) * this.pageSize;
+        this.tableComponent.render(this.filteredUsers.slice(start, start + this.pageSize), currentUser);
+        Pagination.render(document.getElementById('userPagination'), {
+            page: this.currentPage,
+            pageSize: this.pageSize,
+            total: this.filteredUsers.length,
+            itemLabel: 'users',
+            pageSizeId: 'userRowsPerPage',
+            onPageChange: page => {
+                this.currentPage = page;
+                this.renderUsersPage(currentUser);
+            },
+            onPageSizeChange: pageSize => {
+                this.pageSize = pageSize;
+                this.currentPage = 1;
+                this.renderUsersPage(currentUser);
+            }
+        });
     }
 
     attachEvents() {
@@ -151,8 +159,8 @@ class AccessView {
                 const tab = btn.dataset.tab;
                 this.currentTab = tab;
 
-                document.querySelectorAll('.primary-tab-btn').forEach((b, i) => {
-                    b.style.cssText = this._primaryTabStyle(b === btn);
+                document.querySelectorAll('.primary-tab-btn').forEach(b => {
+                    b.classList.toggle('active', b === btn);
                 });
 
                 document.getElementById('tab-panel-users').style.display = tab === 'users' ? '' : 'none';
@@ -168,9 +176,9 @@ class AccessView {
         document.querySelectorAll('.sub-tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.userSubTab = btn.dataset.subtab;
+                this.currentPage = 1;
 
                 document.querySelectorAll('.sub-tab-btn').forEach(b => {
-                    b.style.cssText = this._subTabStyle(b === btn);
                     b.classList.toggle('active', b === btn);
                 });
 
@@ -182,7 +190,27 @@ class AccessView {
         });
 
         document.getElementById('addUserBtn').addEventListener('click', () => this.modals.showAddUserModal());
-        document.getElementById('userSearch')?.addEventListener('input', () => this.loadUsers());
+        const reloadFromFirstPage = () => {
+            this.currentPage = 1;
+            this.loadUsers();
+        };
+        document.getElementById('userSearch')?.addEventListener('input', reloadFromFirstPage);
+        document.getElementById('userRoleFilter')?.addEventListener('change', event => {
+            this.userFilters.role = event.target.value;
+            reloadFromFirstPage();
+        });
+        document.getElementById('userStatusFilter')?.addEventListener('change', event => {
+            this.userFilters.status = event.target.value;
+            reloadFromFirstPage();
+        });
+        document.getElementById('clearUserFiltersBtn')?.addEventListener('click', () => {
+            this.userFilters = {role: '', status: ''};
+            this.currentPage = 1;
+            document.getElementById('userRoleFilter').value = '';
+            document.getElementById('userStatusFilter').value = '';
+            document.getElementById('userSearch').value = '';
+            this.loadUsers();
+        });
     }
 }
 

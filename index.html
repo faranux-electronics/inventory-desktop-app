@@ -6,9 +6,12 @@
     <title>Faranux ERP</title>
 
     <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self' https://api.faranux.com;
+        default-src 'self';
+        base-uri 'none';
+        object-src 'none';
+        form-action 'self';
         connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://api.faranux.com https://docs.google.com https://*.googleusercontent.com;
-        script-src 'self' 'unsafe-inline';
+        script-src 'self';
         style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
         font-src 'self' https://cdnjs.cloudflare.com;
         img-src 'self' data: https:;
@@ -17,18 +20,27 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <link rel="stylesheet" href="src/renderer/styles/variables.css">
+    <link rel="stylesheet" href="src/renderer/styles/colors.css">
     <link rel="stylesheet" href="src/renderer/styles/layout.css">
     <link rel="stylesheet" href="src/renderer/styles/components.css">
+    <link rel="stylesheet" href="src/renderer/styles/profile.css">
+    <link rel="stylesheet" href="src/renderer/styles/sidebar.css">
     <link rel="stylesheet" href="src/renderer/styles/utilities.css">
     <link rel="stylesheet" href="src/renderer/styles/pos.css">
+    <link rel="stylesheet" href="src/renderer/styles/products.css">
     <link rel="stylesheet" href="src/renderer/styles/transfer.css">
     <link rel="stylesheet" href="src/renderer/styles/logs.css">
     <link rel="stylesheet" href="src/renderer/styles/branchbalance.css">
     <link rel="stylesheet" href="src/renderer/styles/mps.css">
+    <link rel="stylesheet" href="src/renderer/styles/import.css">
+    <link rel="stylesheet" href="src/renderer/styles/branches.css">
+    <link rel="stylesheet" href="src/renderer/styles/access.css">
+    <link rel="stylesheet" href="src/renderer/styles/notifications.css">
+    <link rel="stylesheet" href="src/renderer/styles/login.css">
 </head>
 <body>
 <div id="app" class="app-container"></div>
 
-<script src="./src/app.js"></script>
+<script src="./src/app.bundle.js"></script>
 </body>
 </html>

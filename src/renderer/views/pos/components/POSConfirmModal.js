@@ -23,13 +23,13 @@ class POSConfirmModal {
             // Show price change if price was modified (not for misc items)
             const priceChanged = i.originalPrice && i.originalPrice !== i.price && !i.isMisc;
             const priceDisplay = priceChanged
-                ? `<span style="text-decoration: line-through; color: #9ca3af; margin-right: 6px;">${i.originalPrice.toLocaleString()}</span> ${taxedUnit.toLocaleString()}`
+                ? `<span style="text-decoration: line-through; color: var(--palette-hex-9ca3af); margin-right: 6px;">${i.originalPrice.toLocaleString()}</span> ${taxedUnit.toLocaleString()}`
                 : `${taxedUnit.toLocaleString()}`;
 
             return `<tr>
         <td class="pcm-td">
             <strong>${i.name}</strong>
-            ${i.sku ? `<div style="font-size:10.5px;color:#6b7280;margin-top:3px;">SKU: ${i.sku}</div>` : ''}
+            ${i.sku ? `<div style="font-size:10.5px;color:var(--theme-text-muted);margin-top:3px;">SKU: ${i.sku}</div>` : ''}
         </td>
         <td class="pcm-td pcm-td--c">${i.qty}</td>
         <td class="pcm-td pcm-td--r">${priceDisplay} Frw</td>
@@ -52,7 +52,7 @@ class POSConfirmModal {
         overlay.innerHTML = `
             <div class="pcm-modal" role="dialog" aria-modal="true">
                 <div class="pcm-header">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="20"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>
                     Confirm Sale
                     <button class="pcm-close" id="pcmClose">&times;</button>
                 </div>
@@ -82,8 +82,8 @@ class POSConfirmModal {
                         <p class="pcm-section-label">Order Details</p>
                         <div class="pcm-summary">
                             <div class="pcm-sum-row pcm-sum-row--method"><span>Payment</span><span><strong>${paymentMethod.replace(/_/g,' ').toUpperCase()}</strong></span></div>
-                            <div class="pcm-sum-row pcm-sum-row--method"><span>Cashier</span><span>${cashierName||'—'}${cashierEmail?` <span style="color:#9ca3af;font-size:10px;">${cashierEmail}</span>`:''}</span></div>
-                            <div class="pcm-sum-row pcm-sum-row--method"><span>Customer</span><span>${customerName}${customerEmail?` <span style="color:#9ca3af;font-size:10px;">${customerEmail}</span>`:''}</span></div>
+                            <div class="pcm-sum-row pcm-sum-row--method"><span>Cashier</span><span>${cashierName||'—'}${cashierEmail?` <span style="color:var(--palette-hex-9ca3af);font-size:10px;">${cashierEmail}</span>`:''}</span></div>
+                            <div class="pcm-sum-row pcm-sum-row--method"><span>Customer</span><span>${customerName}${customerEmail?` <span style="color:var(--palette-hex-9ca3af);font-size:10px;">${customerEmail}</span>`:''}</span></div>
                         </div>
                     </div>
                     ${notes?`<div class="pcm-notes"><p class="pcm-section-label">Notes</p><p class="pcm-notes-text">${notes}</p></div>`:''}
@@ -110,7 +110,7 @@ class POSConfirmModal {
             overlay.classList.remove('pcm-overlay--in');
             setTimeout(() => { overlay.remove(); this.onCancel(); }, 220);
         };
-        
+
         overlay.querySelector('#pcmClose').addEventListener('click', handleClose);
         overlay.querySelector('#pcmCancelBtn').addEventListener('click', handleClose);
         overlay.querySelector('#pcmConfirmBtn').addEventListener('click', () => {

@@ -10,19 +10,19 @@ function esc(str) {
    Mounted as a tab inside TransfersView (see trvPanelBalance).
    ======================================================================= */
 class BranchBalancePanel {
-    constructor({onScrollEnd, onLoadAll}) { 
-        this.onScrollEnd = onScrollEnd;   
-        this.onLoadAll = onLoadAll;       
+    constructor({onScrollEnd, onLoadAll}) {
+        this.onScrollEnd = onScrollEnd;
+        this.onLoadAll = onLoadAll;
 
         this._branches = [];
-        this._products = [];              
+        this._products = [];
         this._fromId = '';
         this._toId = '';
         this._percent = 25;
-        this._overrides = {};             
-        this._excluded = new Set();       
+        this._overrides = {};
+        this._excluded = new Set();
         this._el = null;
-        this._isAllLoaded = false;        
+        this._isAllLoaded = false;
     }
 
     setAllLoaded(isLoaded) {
@@ -104,10 +104,10 @@ class BranchBalancePanel {
                     ${[10, 25, 50, 75].map(p => `<button type="button" class="trv-btn trv-btn-ghost bbp-pct-btn" data-pct="${p}">${p}%</button>`).join('')}
                 </div>
                 <div class="trv-toolbar-spacer"></div>
-                
+
                 <!-- NEW BUTTON HERE -->
                 <button type="button" class="trv-btn trv-btn-ghost" id="bbpLoadAllBtn" style="color: var(--primary-600); border-color: var(--primary-200); background: var(--primary-50); ${this._isAllLoaded ? 'display:none;' : ''}">↓ Load Entire Catalog</button>
-                
+
                 <button type="button" class="trv-btn" id="bbpExportBtn">Export CSV</button>
             </div>
         `;
@@ -124,7 +124,7 @@ class BranchBalancePanel {
         });
         el.querySelector('#bbpPercent').addEventListener('input', (e) => {
             this._percent = Math.max(1, Math.min(100, parseInt(e.target.value) || 0));
-            this._overrides = {}; 
+            this._overrides = {};
             this._renderMatrix();
         });
         el.querySelectorAll('.bbp-pct-btn').forEach(btn => btn.addEventListener('click', () => {
@@ -139,7 +139,7 @@ class BranchBalancePanel {
         el.querySelector('#bbpLoadAllBtn')?.addEventListener('click', (e) => {
             const btn = e.target;
             btn.disabled = true;
-            btn.innerHTML = `<svg class="lpg-spinner" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: text-bottom;"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Fetching...`;
+            btn.innerHTML = `<svg class="lpg-spinner" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" style="vertical-align: text-bottom;"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Fetching...`;
             this.onLoadAll?.();
         });
     }
@@ -211,7 +211,7 @@ class BranchBalancePanel {
             const moveQty = this._computeQty(p);
             const fromQty = parseInt(map[this._fromId] || 0);
             const disabled = fromQty <= 0 || !hasDestination;
-            
+
             // Track valid items for the Master Checkbox logic
             if (!disabled) {
                 validCount++;
@@ -288,7 +288,7 @@ class BranchBalancePanel {
         body.querySelectorAll('.bbp-check').forEach(cb => cb.addEventListener('change', () => {
             const id = parseInt(cb.dataset.id);
             if (cb.checked) this._excluded.delete(id); else this._excluded.add(id);
-            
+
             // Re-evaluate master checkbox state without full re-render
             const master = body.querySelector('#bbpMasterCheck');
             if (master) {
@@ -308,8 +308,8 @@ class BranchBalancePanel {
             this._overrides[id] = val;
             const row = inp.closest('.bbp-row');
             const cb = row?.querySelector('.bbp-check');
-            if (cb && val === 0) { 
-                cb.checked = false; 
+            if (cb && val === 0) {
+                cb.checked = false;
                 this._excluded.add(id);
                 // Also uncheck master if a local item drops to 0
                 const master = body.querySelector('#bbpMasterCheck');

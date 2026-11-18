@@ -1,6 +1,7 @@
 const Toast = require('../../../components/Toast.js');
 const Modal = require('../../../components/Modal.js');
 const API = require('../../../services/api.js');
+const Button = require('../../../components/Button.js');
 
 class ImportForm {
     constructor(parentView) {
@@ -11,11 +12,11 @@ class ImportForm {
     render(container) {
         container.innerHTML = `
             <div style="display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;">
-                <div style="flex: 1; min-width: 350px; background: white; border: 1px solid #c3c4c7; border-radius: 4px; padding: 20px;">
-                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 15px; border-bottom: 1px solid #f0f0f1; padding-bottom: 10px;">
+                <div style="flex: 1; min-width: 350px; background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 4px; padding: 20px;">
+                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 15px; border-bottom: 1px solid var(--palette-hex-f0f0f1); padding-bottom: 10px;">
                         1. Import Settings
                     </h3>
-                    
+
                     <div class="form-group mb-lg">
                         <label class="form-label" style="font-weight: 500;">Import Mode</label>
                         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
@@ -30,7 +31,7 @@ class ImportForm {
                         </div>
                     </div>
 
-                    <div class="tabs mb-md" style="border-bottom: 1px solid #c3c4c7;">
+                    <div class="tabs import-source-tabs mb-md">
                         <button class="tab-btn active" id="tabUpload" style="padding: 8px 16px;">Upload File</button>
                         <button class="tab-btn" id="tabLink" style="padding: 8px 16px;">Import via Link</button>
                     </div>
@@ -40,9 +41,7 @@ class ImportForm {
                             <input type="file" id="csvFileInput" accept=".csv" class="form-input" style="padding: 10px;">
                             <small class="text-muted block mt-xs">Must be a standard comma-separated .csv file</small>
                         </div>
-                        <button class="btn btn-sm btn-ghost w-full" id="downloadTemplateBtn">
-                            <i class="fa-solid fa-download"></i> Download Template
-                        </button>
+                        ${Button.html({id: 'downloadTemplateBtn', text: 'Download CSV Template', icon: 'fa-solid fa-download', variant: 'outline', size: 'md'})}
                     </div>
 
                     <div id="sectionLink" class="hidden">
@@ -51,18 +50,16 @@ class ImportForm {
                             <input type="url" id="csvUrlInput" class="form-input" placeholder="https://docs.google.com/spreadsheets/.../pub?output=csv">
                             <small class="text-muted block mt-xs"><i class="fa-solid fa-lightbulb text-warning-500"></i> <b>Google Sheets:</b> Go to File > Share > Publish to web > Choose "Comma-separated values (.csv)"</small>
                         </div>
-                        <button class="btn btn-sm btn-secondary w-full" id="fetchUrlBtn">
-                            <i class="fa-solid fa-cloud-arrow-down"></i> Fetch Data from Link
-                        </button>
+                        ${Button.html({id: 'fetchUrlBtn', text: 'Fetch Data from Link', icon: 'fa-solid fa-cloud-arrow-down', variant: 'primary', size: 'md'})}
                     </div>
                 </div>
 
-                <div style="width: 300px; background: #f8f9fa; border: 1px solid #c3c4c7; border-radius: 4px; padding: 20px;">
-                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 15px; border-bottom: 1px solid #f0f0f1; padding-bottom: 10px;">
-                        <i class="fa-solid fa-circle-info" style="color: #2271b1;"></i> Branch ID Guide
+                <div style="width: 300px; background: var(--theme-surface-alt); border: 1px solid var(--theme-border); border-radius: 4px; padding: 20px;">
+                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 15px; border-bottom: 1px solid var(--palette-hex-f0f0f1); padding-bottom: 10px;">
+                        <i class="fa-solid fa-circle-info" style="color: var(--palette-hex-2271b1);"></i> Branch ID Guide
                     </h3>
                     <p class="text-xs text-muted mb-md">Use these exact IDs in the <b>Branch_ID</b> column of your CSV.</p>
-                    <table class="compact-table" style="width: 100%; background: white; border: 1px solid #e5e7eb; border-radius: 4px;">
+                    <table class="compact-table" style="width: 100%; background: var(--theme-surface); border: 1px solid var(--theme-border-subtle); border-radius: 4px;">
                         <tbody id="branchGuideTable">
                             <tr><td class="text-center text-xs text-muted p-sm">Loading branches...</td></tr>
                         </tbody>
@@ -70,16 +67,14 @@ class ImportForm {
                 </div>
             </div>
 
-            <div id="previewContainer" class="hidden" style="margin-top: 20px; background: white; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden;">
-                <div style="padding: 15px; background: #f8f9fa; border-bottom: 1px solid #c3c4c7; display: flex; justify-content: space-between; align-items: center;">
+            <div id="previewContainer" class="hidden" style="margin-top: 20px; background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 4px; overflow: hidden;">
+                <div style="padding: 15px; background: var(--theme-surface-alt); border-bottom: 1px solid var(--theme-border); display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="font-size: 14px; font-weight: 600; margin: 0;">2. Preview Data</h3>
-                    <button class="btn btn-sm btn-primary" id="confirmImportBtn">
-                        <i class="fa-solid fa-check"></i> Confirm & Import
-                    </button>
+                    ${Button.html({id: 'confirmImportBtn', text: 'Confirm & Import', icon: 'fa-solid fa-check', variant: 'primary', size: 'md'})}
                 </div>
                 <div class="table-container" style="max-height: 400px; overflow-y: auto;">
                     <table style="width: 100%; border-collapse: collapse;">
-                        <thead style="background: white; border-bottom: 1px solid #c3c4c7; position: sticky; top: 0;">
+                        <thead style="background: var(--theme-surface); border-bottom: 1px solid var(--theme-border); position: sticky; top: 0;">
                             <tr>
                                 <th style="padding: 10px;">Row</th>
                                 <th style="padding: 10px;">SKU</th>
@@ -100,8 +95,8 @@ class ImportForm {
         if (tbody) {
             tbody.innerHTML = locations.map(l => `
                 <tr>
-                    <td style="padding: 8px; font-weight: 600; color: #2271b1; width: 50px; text-align: center; border-right: 1px solid #f0f0f1;">${l.id}</td>
-                    <td style="padding: 8px; font-size: 12px; color: #50575e;">${l.name}</td>
+                    <td style="padding: 8px; font-weight: 600; color: var(--palette-hex-2271b1); width: 50px; text-align: center; border-right: 1px solid var(--palette-hex-f0f0f1);">${l.id}</td>
+                    <td style="padding: 8px; font-size: 12px; color: var(--theme-text-secondary);">${l.name}</td>
                 </tr>
             `).join('');
         }
@@ -207,10 +202,10 @@ class ImportForm {
             this.parsedData.push(item);
 
             previewHtml += `
-                <tr style="border-bottom: 1px solid #f0f0f1; font-size: 13px;">
-                    <td style="padding: 8px 10px; color: #a7aaad;">${i}</td>
+                <tr style="border-bottom: 1px solid var(--palette-hex-f0f0f1); font-size: 13px;">
+                    <td style="padding: 8px 10px; color: var(--palette-hex-a7aaad);">${i}</td>
                     <td style="padding: 8px 10px; font-family: monospace; font-weight: 600;">${item.sku}</td>
-                    <td style="padding: 8px 10px; color: #2271b1; font-weight: 600;">${item.qty}</td>
+                    <td style="padding: 8px 10px; color: var(--palette-hex-2271b1); font-weight: 600;">${item.qty}</td>
                     <td style="padding: 8px 10px;">${item.branch_id}</td>
                 </tr>
             `;
@@ -309,11 +304,11 @@ class ImportForm {
                     body: `
                         <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; gap: 10px;">
                             <p class="text-neutral-700" style="margin: 0; font-size: 13px;"><b>0 items were imported.</b> Please fix the errors below and try again:</p>
-                            <button id="btnDownloadErrors" class="btn btn-sm btn-secondary" style="flex-shrink: 0; background: white; border: 1px solid #c3c4c7;">
+                            <button id="btnDownloadErrors" class="btn btn-sm btn-secondary" style="flex-shrink: 0; background: var(--theme-surface); border: 1px solid var(--theme-border);">
                                 <i class="fa-solid fa-download"></i> Download CSV
                             </button>
                         </div>
-                        <div style="max-height: 200px; overflow-y: auto; background: #fef2f2; color: #b91c1c; padding: 10px; border-radius: 4px; font-size: 12px; font-family: monospace; border: 1px solid #fca5a5;">
+                        <div style="max-height: 200px; overflow-y: auto; background: var(--theme-danger-surface); color: var(--palette-hex-b91c1c); padding: 10px; border-radius: 4px; font-size: 12px; font-family: monospace; border: 1px solid var(--palette-hex-fca5a5);">
                             ${res.errors.join('<br>')}
                         </div>
                     `,

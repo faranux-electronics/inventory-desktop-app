@@ -1,4 +1,6 @@
 const Toast = require('../../components/Toast.js');
+const PageHeader = require('../../components/PageHeader.js');
+const Button = require('../../components/Button.js');
 const API = require('../../services/api.js');
 const ProductsFilters = require('./components/ProductsFilters.js');
 const InventoryTable = require('./components/InventoryTable.js');
@@ -29,7 +31,6 @@ class ProductsView {
         // Background auto-sync — shared across re-renders via app-level singleton
         if (!app._bgSync) {
             app._bgSync = new BackgroundSyncManager(API, this.state);
-            app._bgSync.start();
         }
         this._bgSync = app._bgSync;
 
@@ -54,66 +55,44 @@ class ProductsView {
 
     render() {
         const content = document.getElementById('content');
+        content.dataset.view = 'products';
 
         // Capture any existing table/pagination HTML so we can restore it
         // immediately after rebuilding the page chrome — the user should never
         // see a blank flash when switching tabs back to Products.
-        const existingMain = document.getElementById('mainContent')?.innerHTML || '';
+        const existingMain = document.getElementById('mainContent')?.innerHTML || '<div class="text-center p-xl" role="status"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Loading products...</div>';
         const existingPagination = document.getElementById('paginationContainer')?.innerHTML || '';
 
+        const actions = [
+            `<div id="wcWebhookStatus" style="display:none; align-items:center; gap:6px; font-size:11px; font-weight:600; border-radius:12px; padding:4px 10px; white-space:nowrap; cursor:help; position:relative;">
+                <i class="fa-solid fa-bolt"></i><span id="wcWebhookText"></span>
+            </div>`,
+            `<div id="wcWebhookPopover" style="display:none; position:absolute; top:60px; right:15px; background:var(--theme-surface); border:1px solid var(--theme-border); border-radius:8px; padding:12px; box-shadow:0 4px 12px var(--palette-rgb-0-0-0-0p15); z-index:1000; min-width:200px; font-size:12px;">
+                <div style="font-weight:600; margin-bottom:8px; color:var(--theme-text-primary);">WooCommerce Webhooks</div>
+                <div id="wcWebhookPopoverContent"></div>
+            </div>`,
+            Button.html({id: 'refreshBtn', icon: 'fa-solid fa-rotate', variant: 'ghost', size: 'md', title: 'Refresh Data', ariaLabel: 'Refresh Data'}),
+            Button.html({id: 'syncBtn', text: 'Sync Now', icon: 'fa-solid fa-cloud-arrow-down', variant: 'primary', size: 'md'}),
+            Button.html({id: 'exportBtn', text: 'Export', icon: 'fa-solid fa-download', variant: 'outline', size: 'md'})
+        ].join('');
+
         content.innerHTML = `
-<div class="page-header mb-md">
-                <div class="header-row mb-sm" style="display: flex; justify-content: flex-start; align-items: center; gap: 15px;">
-                    <h1 class="page-title text-neutral-800 font-normal" style="font-size: 23px; margin: 0;">Products</h1>
-                    <button class="btn btn-sm" id="syncBtn" style="background: white; border: 1px solid #2271b1; color: #2271b1; font-weight: 500;">
-                                <i class="fa-solid fa-cloud-arrow-down"></i> Sync Now
-                            </button>
-                            <button class="btn btn-sm" id="exportBtn" style="background: white; border: 1px solid #c3c4c7; color: #2c3338;">
-                                <i class="fa-solid fa-download"></i> Export
-                            </button>
-                             <button class="btn btn-sm btn-ghost" id="refreshBtn" title="Refresh Data">
-                            <i class="fa-solid fa-rotate"></i>
-                        </button>
-                        <!-- Background sync status — updated automatically, no spinner blocking the UI -->
-                        <span id="bgSyncBadge" style="
-                            display:none; align-items:center; gap:5px;
-                            font-size:11px; font-weight:600; color:#2271b1;
-                            background:rgba(34,113,177,0.08); border:1px solid rgba(34,113,177,0.2);
-                            border-radius:12px; padding:3px 10px; white-space:nowrap;
-                        "></span>
-                        <!-- WooCommerce webhook status indicator -->
-                        <div id="wcWebhookStatus" style="
-                            display:none; align-items:center; gap:6px;
-                            font-size:11px; font-weight:600;
-                            border-radius:12px; padding:4px 10px; white-space:nowrap;
-                            cursor:help; position:relative;
-                        ">
-                            <i class="fa-solid fa-bolt"></i>
-                            <span id="wcWebhookText"></span>
-                        </div>
-                        <!-- Popover for webhook status details -->
-                        <div id="wcWebhookPopover" style="
-                            display:none; position:absolute; top:60px; right:15px;
-                            background:white; border:1px solid #c3c4c7; border-radius:8px;
-                            padding:12px; box-shadow:0 4px 12px rgba(0,0,0,0.15);
-                            z-index:1000; min-width:200px; font-size:12px;
-                        ">
-                            <div style="font-weight:600; margin-bottom:8px; color:#2c3338;">WooCommerce Webhooks</div>
-                            <div id="wcWebhookPopoverContent"></div>
-                        </div>
-                </div>
-                 <div style="background: #f0f0f1; padding: 10px; border-bottom: 1px solid #c3c4c7;">
+            ${PageHeader.html({
+                title: 'Products',
+                icon: 'fa-solid fa-boxes-stacked',
+                subtitle: 'Manage inventory levels and product details.',
+                className: 'products-page-header page-header-surface',
+                actions,
+                children: `<div class="products-sync-status-row"><span id="bgSyncBadge" style="display:none; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--palette-hex-2271b1); background:var(--palette-rgb-34-113-177-0p08); border:1px solid var(--palette-rgb-34-113-177-0p2); border-radius:12px; padding:3px 10px; white-space:nowrap;"></span></div><div class="products-filters-strip">
                     <div id="statusFilterContainer"></div>
                     <div id="filtersContainer"></div>
                     <div id="bulkActionsContainer"></div>
-                </div>
-            </div>
+                </div>`
+            })}
             <div class="wrap" style="max-width: 100%; position: relative;">
-             <div id="mainContent">${existingMain}</div>
-             <div id="paginationContainer" style="margin-top: 15px;">${existingPagination}</div>
-            </div>
-        `;
-
+                <div id="mainContent">${existingMain}</div>
+                <div id="paginationContainer" style="margin-top: 15px;">${existingPagination}</div>
+            </div>`;
         this.init();
     }
 
@@ -194,41 +173,44 @@ class ProductsView {
     _updateSyncBadge({status, message}) {
         const badge = document.getElementById('bgSyncBadge');
         if (!badge) return;
+        if (status === 'idle' && this._bgSync.isRunning) return;
 
         // Hide badge only for idle status, but show for paused, running, done, error
-        if (status === 'idle' || !message) {
+        if (!message || (status === 'idle' && !message.startsWith('Last sync:'))) {
             badge.style.display = 'none';
             return;
         }
 
         badge.style.display = 'inline-flex';
+        clearTimeout(this._badgeHideTimer);
+
+        const syncBtn = document.getElementById('syncBtn');
+        if (syncBtn) {
+            const running = status === 'running';
+            syncBtn.disabled = running;
+            syncBtn.innerHTML = running
+                ? '<i class="fa-solid fa-arrows-rotate fa-spin"></i> Syncing…'
+                : '<i class="fa-solid fa-cloud-arrow-down"></i> Sync Now';
+        }
 
         const icons = {
             running: '<i class="fa-solid fa-arrows-rotate fa-spin" style="font-size:10px;"></i>',
             paused: '<i class="fa-solid fa-pause" style="font-size:10px;"></i>',
-            done: '<i class="fa-solid fa-circle-check" style="color:#16a34a;font-size:10px;"></i>',
-            error: '<i class="fa-solid fa-circle-exclamation" style="color:#dc2626;font-size:10px;"></i>',
+            done: '<i class="fa-solid fa-circle-check" style="color:var(--palette-hex-16a34a);font-size:10px;"></i>',
+            error: '<i class="fa-solid fa-circle-exclamation" style="color:var(--palette-hex-dc2626);font-size:10px;"></i>',
         };
 
         const colors = {
-            running: 'rgba(34,113,177,0.08)',
-            paused: 'rgba(34,113,177,0.05)',
-            done: 'rgba(22,163,74,0.08)',
-            error: 'rgba(220,38,38,0.08)',
+            running: 'var(--theme-info-surface)',
+            paused: 'var(--theme-surface-muted)',
+            done: 'var(--theme-success-surface)',
+            error: 'var(--theme-danger-surface)',
         };
 
         badge.style.background = colors[status] || colors.running;
         badge.innerHTML = `${icons[status] || ''} ${message}`;
 
-        // Auto-hide the 'done' badge after 5 s
-        if (status === 'done') {
-            clearTimeout(this._badgeHideTimer);
-            this._badgeHideTimer = setTimeout(() => {
-                if (badge) {
-                    badge.style.display = 'none';
-                }
-            }, 5000);
-        }
+        // Keep the completion result visible so users can confirm the sync finished.
     }
 
     _timeAgo(date) {
@@ -252,36 +234,36 @@ class ProductsView {
             if (res.status === 'success') {
                 // Always show all three numbers with icons
                 badge.style.display = 'inline-flex';
-                badge.style.background = 'rgba(34, 113, 177, 0.08)';
-                badge.style.color = '#2271b1';
-                badge.style.border = '1px solid rgba(34, 113, 177, 0.2)';
+                badge.style.background = 'var(--theme-info-surface)';
+                badge.style.color = 'var(--palette-hex-2271b1)';
+                badge.style.border = '1px solid var(--palette-rgb-34-113-177-0p2)';
 
                 text.innerHTML = `
-                    <span style="color:#16a34a;"><i class="fa-solid fa-circle-check"></i> ${res.active}</span>
-                    <span style="margin:0 6px; color:#6b7280;">|</span>
-                    <span style="color:#d97706;"><i class="fa-solid fa-pause"></i> ${res.paused}</span>
-                    <span style="margin:0 6px; color:#6b7280;">|</span>
-                    <span style="color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> ${res.disabled}</span>
+                    <span style="color:var(--palette-hex-16a34a);"><i class="fa-solid fa-circle-check"></i> ${res.active}</span>
+                    <span style="margin:0 6px; color:var(--theme-text-muted);">|</span>
+                    <span style="color:var(--palette-hex-d97706);"><i class="fa-solid fa-pause"></i> ${res.paused}</span>
+                    <span style="margin:0 6px; color:var(--theme-text-muted);">|</span>
+                    <span style="color:var(--palette-hex-dc2626);"><i class="fa-solid fa-circle-xmark"></i> ${res.disabled}</span>
                 `;
 
                 popoverContent.innerHTML = `
                     <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                        <span style="color:#16a34a;"><i class="fa-solid fa-circle-check"></i> Active:</span>
+                        <span style="color:var(--palette-hex-16a34a);"><i class="fa-solid fa-circle-check"></i> Active:</span>
                         <span style="font-weight:600;">${res.active}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                        <span style="color:#d97706;"><i class="fa-solid fa-pause"></i> Paused:</span>
+                        <span style="color:var(--palette-hex-d97706);"><i class="fa-solid fa-pause"></i> Paused:</span>
                         <span style="font-weight:600;">${res.paused}</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                        <span style="color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> Disabled:</span>
+                        <span style="color:var(--palette-hex-dc2626);"><i class="fa-solid fa-circle-xmark"></i> Disabled:</span>
                         <span style="font-weight:600;">${res.disabled}</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; padding-top:6px; border-top:1px solid #e5e7eb;">
+                    <div style="display:flex; justify-content:space-between; padding-top:6px; border-top:1px solid var(--theme-border-subtle);">
                         <span>Total:</span>
                         <span style="font-weight:600;">${res.total}</span>
                     </div>
-                    <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e5e7eb; font-size:11px; color:#6b7280;">
+                    <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--theme-border-subtle); font-size:11px; color:var(--theme-text-muted);">
                         <div style="margin-bottom:4px;"><strong>Active:</strong> Webhooks are delivering events</div>
                         <div style="margin-bottom:4px;"><strong>Paused:</strong> Temporarily suspended, can be resumed</div>
                         <div><strong>Disabled:</strong> Permanently disabled</div>
@@ -290,14 +272,14 @@ class ProductsView {
             } else {
                 // Display error/not configured state
                 badge.style.display = 'inline-flex';
-                badge.style.background = 'rgba(220, 38, 38, 0.08)';
-                badge.style.color = '#dc2626';
-                badge.style.border = '1px solid rgba(220, 38, 38, 0.2)';
+                badge.style.background = 'var(--palette-rgb-220-38-38-0p08)';
+                badge.style.color = 'var(--palette-hex-dc2626)';
+                badge.style.border = '1px solid var(--palette-rgb-220-38-38-0p2)';
                 text.textContent = 'Not Configured';
 
                 popoverContent.innerHTML = `
-                    <div style="color:#dc2626; margin-bottom:8px;">${res.message || 'WooCommerce not configured'}</div>
-                    <div style="color:#6b7280; font-size:11px;">
+                    <div style="color:var(--palette-hex-dc2626); margin-bottom:8px;">${res.message || 'WooCommerce not configured'}</div>
+                    <div style="color:var(--theme-text-muted); font-size:11px;">
                         Configure WooCommerce credentials in settings to enable webhook integration.
                     </div>
                 `;
@@ -365,7 +347,7 @@ class ProductsView {
                     Toast.error(message);
                 }
             }
-        });
+        }, {replay: false});
 
         this.syncInProgress = true;
         // force=true → full sync (all products, ignores delta timestamp)
@@ -440,12 +422,12 @@ class ProductsView {
         const f = this.state.getFilters();
         // Passing all active filters so the export matches the table view
         API.exportInventory(
-            f.status, 
-            f.location_id || '', 
+            f.status,
+            f.location_id || '',
             f.category || '',
             f.search || '',            // Added search query
             f.stockFilter || 'all',    // Added stock filter (e.g., 'mismatch')
-            f.sortBy || 'name',        // Added sorting 
+            f.sortBy || 'name',        // Added sorting
             f.sortOrder || 'ASC'       // Added sort direction
         );
         Toast.success("Export started");

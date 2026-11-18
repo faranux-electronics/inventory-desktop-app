@@ -27,7 +27,7 @@ class InventoryTable {
         if (!mainContent) return;
 
         if (products.length === 0) {
-            mainContent.innerHTML = '<div class="card p-lg text-center text-muted" style="background: white; border: 1px solid #c3c4c7;">No products found</div>';
+            mainContent.innerHTML = '<div class="card p-lg text-center text-muted" style="background: var(--theme-surface); border: 1px solid var(--theme-border);">No products found</div>';
             return;
         }
 
@@ -45,40 +45,40 @@ class InventoryTable {
             const isMatch = f.sortBy === field || (field === 'created_at' && f.sortBy === 'date_created');
             if (!isMatch) return '';
             return f.sortOrder === 'ASC'
-                ? '<i class="fa-solid fa-sort-up" style="color: #2271b1; margin-left: 4px;"></i>'
-                : '<i class="fa-solid fa-sort-down" style="color: #2271b1; margin-left: 4px;"></i>';
+                ? '<i class="fa-solid fa-sort-up" style="color: var(--palette-hex-2271b1); margin-left: 4px;"></i>'
+                : '<i class="fa-solid fa-sort-down" style="color: var(--palette-hex-2271b1); margin-left: 4px;"></i>';
         };
 
         const allCheckedOnPage = products.length > 0 && products.every(p => this.products.selectedProducts.has(p.id));
 
         const html = `
-            <div class="wp-list-table-wrapper" style="background: white; border: 1px solid #c3c4c7; box-shadow: 0 1px 1px rgba(0,0,0,.04);">
+            <div class="wp-list-table-wrapper" style="background: var(--theme-surface); border: 1px solid var(--theme-border); box-shadow: 0 1px 1px var(--palette-rgb-0-0-0-0p04);">
                 <table class="wp-list-table widefat fixed striped posts" style="width: 100%; border-collapse: collapse; table-layout: fixed; text-align: left;">
                     <thead>
-                        <tr style="background: white; border-bottom: 1px solid #c3c4c7;">
-                            <th style="width: 40px; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                        <tr style="background: var(--theme-surface); border-bottom: 1px solid var(--theme-border);">
+                            <th style="width: 40px; padding: 8px 10px; font-weight: 600; color: var(--theme-text-primary);">
                                 <input type="checkbox" id="selectAllCheckbox" class="form-checkbox" ${allCheckedOnPage ? 'checked' : ''}>
                             </th>
-                            <th style="width: 60px; padding: 8px 10px; font-weight: 600; color: #2c3338;">Image</th>
-                            <th class="sortable" data-field="name" style="padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th style="width: 60px; padding: 8px 10px; font-weight: 600; color: var(--theme-text-primary);">Image</th>
+                            <th class="sortable" data-field="name" style="padding: 8px 10px; font-weight: 600; color: var(--theme-text-primary);">
                                 Name ${sortIcon('name')}
                             </th>
-                            <th class="sortable" data-field="sku" style="width: 11%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th class="sortable" data-field="sku" style="width: 11%; padding: 8px 10px; font-weight: 600; color: var(--theme-text-primary);">
                                 SKU ${sortIcon('sku')}
                             </th>
-                            <th class="sortable" data-field="stock_quantity" style="width: 18%; padding: 8px 10px; font-weight: 600; color: #2c3338; cursor: pointer;" title="Sort by Stock">
+                            <th class="sortable" data-field="stock_quantity" style="width: 18%; padding: 8px 10px; font-weight: 600; color: var(--theme-text-primary); cursor: pointer;" title="Sort by Stock">
                                 Stock Details ${sortIcon('stock_quantity')}
                             </th>
-                            <th class="sortable" data-field="mismatch" style="width: 14%; padding: 8px 10px; font-weight: 600; color: #2c3338; text-align: center;" title="Shows pending transfers or WC/Local stock difference">
+                            <th class="sortable" data-field="mismatch" style="width: 14%; padding: 8px 10px; font-weight: 600; color: var(--theme-text-primary); text-align: center;" title="Shows pending transfers or WC/Local stock difference">
                                 Status ${sortIcon('mismatch')}
                             </th>
-                            <th class="sortable" data-field="category" style="width: 11%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th class="sortable" data-field="category" style="width: 11%; padding: 8px 10px; font-weight: 600; color: var(--theme-text-primary);">
                                 Category ${sortIcon('category')}
                             </th>
-                            <th class="sortable" data-field="price" style="width: 10%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th class="sortable" data-field="price" style="width: 10%; padding: 8px 10px; font-weight: 600; color: var(--theme-text-primary);">
                                 Price ${sortIcon('price')}
                             </th>
-                            <th class="sortable" data-field="created_at" style="width: 10%; padding: 8px 10px; font-weight: 600; color: #2c3338;">
+                            <th class="sortable" data-field="created_at" style="width: 10%; padding: 8px 10px; font-weight: 600; color: var(--theme-text-primary);">
                                 Created ${sortIcon('created_at')}
                             </th>
                         </tr>
@@ -90,17 +90,17 @@ class InventoryTable {
             </div>
 
             <style>
-                .wp-list-table tr:nth-child(odd) { background-color: #f6f7f7; }
-                .wp-list-table tr:hover { background-color: #f0f0f1; }
-                .row-actions { visibility: hidden; padding: 4px 0 0; font-size: 13px; color: #a7aaad; }
+                .wp-list-table tr:nth-child(odd) { background-color: var(--theme-surface-muted); }
+                .wp-list-table tr:hover { background-color: var(--theme-surface-muted); }
+                .row-actions { visibility: hidden; padding: 4px 0 0; font-size: 13px; color: var(--palette-hex-a7aaad); }
                 .wp-list-table tr:hover .row-actions { visibility: visible; }
-                .row-actions span a { text-decoration: none; color: #2271b1; cursor: pointer; }
-                .row-actions span a:hover { color: #135e96; }
+                .row-actions span a { text-decoration: none; color: var(--palette-hex-2271b1); cursor: pointer; }
+                .row-actions span a:hover { color: var(--palette-hex-135e96); }
                 .stock-distribution-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-                .stock-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; border: 1px solid #c3c4c7; background: #f8f9fa; color: #3c434a; }
-                .stock-badge.high { background: #edfaef; border-color: #68de7c; color: #007017; }
-                .stock-badge.low { background: #fae1e3; border-color: #f49c9a; color: #d31e20; }
-                .stock-badge.oos { background: #fae1e3; border-color: #f49c9a; color: #da2527; }
+                .stock-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; border: 1px solid var(--theme-border); background: var(--theme-surface-alt); color: var(--palette-hex-3c434a); }
+                .stock-badge.high { background: var(--palette-hex-edfaef); border-color: var(--palette-hex-68de7c); color: var(--palette-hex-007017); }
+                .stock-badge.low { background: var(--palette-hex-fae1e3); border-color: var(--palette-hex-f49c9a); color: var(--palette-hex-d31e20); }
+                .stock-badge.oos { background: var(--palette-hex-fae1e3); border-color: var(--palette-hex-f49c9a); color: var(--palette-hex-da2527); }
             </style>
         `;
 
@@ -139,9 +139,9 @@ class InventoryTable {
 
             const pctBadgeHtml = `
                 <span class="stock-percentage-badge" style="
-                    background: ${branchStock > 0 ? '#f0f6fc' : '#f6f7f7'};
-                    color: ${branchStock > 0 ? '#2271b1' : '#646970'};
-                    border: 1px solid ${branchStock > 0 ? '#c8e1ff' : '#dcdcde'};
+                    background: ${branchStock > 0 ? 'var(--palette-hex-f0f6fc)' : 'var(--palette-hex-f6f7f7)'};
+                    color: ${branchStock > 0 ? 'var(--palette-hex-2271b1)' : 'var(--palette-hex-646970)'};
+                    border: 1px solid ${branchStock > 0 ? 'var(--palette-hex-c8e1ff)' : 'var(--palette-hex-dcdcde)'};
                     padding: 2px 8px;
                     border-radius: 10px;
                     font-size: 11px;
@@ -155,7 +155,7 @@ class InventoryTable {
             if (pendingTransferCount > 0 || pendingTransferQty > 0) {
                 mismatchHtml = `
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
-                        <span class="btn-in-transit" data-product-id="${product.id}" style="background: #e7f3ff; color: #2271b1; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; border: 1px solid #b8daff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" title="Click to view unapproved transfers">
+                        <span class="btn-in-transit" data-product-id="${product.id}" style="background: var(--palette-hex-e7f3ff); color: var(--palette-hex-2271b1); padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; border: 1px solid var(--palette-hex-b8daff); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" title="Click to view unapproved transfers">
                             <i class="fa-solid fa-truck-fast"></i> (${pendingTransferQty} in transit)
                         </span>
                         ${pctBadgeHtml}
@@ -176,11 +176,11 @@ class InventoryTable {
 
                 mismatchHtml = `
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
-                        <span class="btn-in-transit" data-product-id="${product.id}" style="background: #e7f3ff; color: #2271b1; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; border: 1px solid #b8daff; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" title="Click to view unapproved transfers">
+                        <span class="btn-in-transit" data-product-id="${product.id}" style="background: var(--palette-hex-e7f3ff); color: var(--palette-hex-2271b1); padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; border: 1px solid var(--palette-hex-b8daff); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" title="Click to view unapproved transfers">
                             <i class="fa-solid fa-truck-fast"></i> (${pendingTransferQty} in transit)
                         </span>
                         ${hasEffectiveMismatch ? `
-                            <span style="background: #fcf0f1; color: #d63638; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; border: 1px solid #f1acaa;" title="Effective mismatch after in-transit stock">
+                            <span style="background: var(--theme-danger-surface); color: var(--palette-hex-d63638); padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; border: 1px solid var(--palette-hex-f1acaa);" title="Effective mismatch after in-transit stock">
                                 ${sign}${effectiveMismatch}
                             </span>
                         ` : ''}
@@ -188,19 +188,19 @@ class InventoryTable {
                 `;
             } else if (mismatch === 0) {
                 // Perfect match: Subdued green check
-                mismatchHtml = `<span style="color: #00a32a; font-weight: 600; font-size: 12px;"><i class="fa-solid fa-check"></i></span>`;
+                mismatchHtml = `<span style="color: var(--palette-hex-00a32a); font-weight: 600; font-size: 12px;"><i class="fa-solid fa-check"></i></span>`;
             } else {
                 // Mismatch: Bright red badge showing the difference
                 const sign = mismatch > 0 ? '+' : '';
-                mismatchHtml = `<span style="background: #fcf0f1; color: #d63638; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; border: 1px solid #f1acaa;">
+                mismatchHtml = `<span style="background: var(--theme-danger-surface); color: var(--palette-hex-d63638); padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; border: 1px solid var(--palette-hex-f1acaa);">
                     ${sign}${mismatch}
                 </span>`;
             }
         }
 
         const imageHtml = product.image_url
-            ? `<img src="${product.image_url}" alt="${product.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #c3c4c7;" onerror="this.style.display='none'">`
-            : `<div style="width: 40px; height: 40px; background: #f0f0f1; border: 1px solid #c3c4c7; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #a7aaad; font-size: 10px;">None</div>`;
+            ? `<img src="${product.image_url}" alt="${product.name}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid var(--theme-border);" onerror="this.style.display='none'">`
+            : `<div style="width: 40px; height: 40px; background: var(--theme-surface-muted); border: 1px solid var(--theme-border); border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--palette-hex-a7aaad); font-size: 10px;">None</div>`;
 
         // --- UPDATED BADGE LOGIC ---
         // 1. Convert the stock_breakdown string into a searchable object (e.g., { "1": 14, "2": 0 })
@@ -230,38 +230,38 @@ class InventoryTable {
         // ---------------------------
 
         return `
-        <tr style="border-bottom: 1px solid #f0f0f1; ${isSelected ? 'background-color: #f0f6fb !important;' : ''}">
+        <tr class="${product.status === 'deleted' ? 'deleted-on-site' : ''}" ${product.status === 'deleted' ? 'data-website-deleted="true"' : ''} style="border-bottom: 1px solid var(--palette-hex-f0f0f1); ${isSelected ? 'background-color: var(--theme-info-surface) !important;' : ''}">
             <td style="padding: 10px; vertical-align: top;">
-                <input type="checkbox" class="form-checkbox product-checkbox" 
+                <input type="checkbox" class="form-checkbox product-checkbox"
                        data-id="${product.id}" ${isSelected ? 'checked' : ''}>
             </td>
             <td style="padding: 10px; vertical-align: top;">${imageHtml}</td>
             <td style="padding: 10px; vertical-align: top;">
-                <strong style="color: #2271b1; font-size: 14px;">${product.name}</strong>
-                ${product.status !== 'publish' ? `<span style="background: #fcf0f1; color: #d63638; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 1px solid #f1acaa;">${product.status}</span>` : ''}
-                
+                <strong style="color: var(--palette-hex-2271b1); font-size: 14px;">${product.name}</strong>
+                ${product.status === 'deleted' ? `<span style="background: var(--palette-hex-fff4e5); color: var(--palette-hex-8a4b08); padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 1px solid var(--palette-hex-f4c27a);" title="Deleted from WooCommerce; this local product and its branch stock remain available">Deleted on website · local only</span>` : product.status !== 'publish' ? `<span style="background: var(--theme-danger-surface); color: var(--palette-hex-d63638); padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 1px solid var(--palette-hex-f1acaa);">${product.status}</span>` : ''}
+
                 <div class="row-actions">
                     <span class="edit"><a class="btn-adjust" data-id="${product.id}" data-name="${product.name.replace(/"/g, '&quot;')}" data-breakdown="${product.stock_breakdown || ''}">Adjust Stock</a></span>
                     <span> | </span><span class="history"><a class="btn-history" data-id="${product.id}" data-name="${product.name.replace(/"/g, '&quot;')}">History</a></span>
                     ${product.product_url ? ` | <span class="view"><a href="${product.product_url}" target="_blank">View on Web</a></span>` : ''}
                 </div>
             </td>
-            <td style="padding: 10px; vertical-align: top; font-family: monospace; color: #50575e; font-size: 13px;">
+            <td style="padding: 10px; vertical-align: top; font-family: monospace; color: var(--theme-text-secondary); font-size: 13px;">
                 ${product.sku || '-'}
             </td>
             <td style="padding: 10px; vertical-align: top;">
-                <div style="font-size: 12px; color: #50575e; margin-bottom: 2px;">
+                <div style="font-size: 12px; color: var(--theme-text-secondary); margin-bottom: 2px;">
                     <span style="display: inline-block; width: 75px;">WC Pool:</span>
-                    <strong style="color: #1d2327;">${parseInt(product.wc_stock_quantity || 0).toLocaleString()}</strong>
+                    <strong style="color: var(--theme-text-primary);">${parseInt(product.wc_stock_quantity || 0).toLocaleString()}</strong>
                 </div>
-                <div style="font-size: 12px; color: #50575e; margin-bottom: 2px;">
+                <div style="font-size: 12px; color: var(--theme-text-secondary); margin-bottom: 2px;">
                     <span style="display: inline-block; width: 75px;">Total Local:</span>
-                    <strong style="color: #1d2327;">${parseInt((isSingleBranch ? product.transferable_pool : branchStock) || 0).toLocaleString()}</strong>
+                    <strong style="color: var(--theme-text-primary);">${parseInt((isSingleBranch ? product.transferable_pool : branchStock) || 0).toLocaleString()}</strong>
                 </div>
                 ${isSingleBranch ? `
-                <div style="font-size: 12px; color: #50575e; margin-bottom: 6px;">
+                <div style="font-size: 12px; color: var(--theme-text-secondary); margin-bottom: 6px;">
                     <span style="display: inline-block; width: 75px;">This Branch:</span>
-                    <strong style="color: #2271b1;">${branchStock.toLocaleString()}</strong>
+                    <strong style="color: var(--palette-hex-2271b1);">${branchStock.toLocaleString()}</strong>
                 </div>
                 ` : `
                 <div style="margin-bottom: 4px;"></div>
@@ -271,13 +271,13 @@ class InventoryTable {
             <td style="padding: 10px; vertical-align: middle; text-align: center;">
                 ${mismatchHtml}
             </td>
-            <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
+            <td style="padding: 10px; vertical-align: top; color: var(--theme-text-secondary); font-size: 13px;">
                 ${product.category || '-'}
             </td>
-            <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
+            <td style="padding: 10px; vertical-align: top; color: var(--theme-text-secondary); font-size: 13px;">
                 ${parseInt(product.price || 0).toLocaleString()} Frw
             </td>
-            <td style="padding: 10px; vertical-align: top; color: #50575e; font-size: 13px;">
+            <td style="padding: 10px; vertical-align: top; color: var(--theme-text-secondary); font-size: 13px;">
                 ${product.date_created ? new Date(product.date_created).toLocaleDateString() : '-'}
             </td>
         </tr>
@@ -311,7 +311,7 @@ class InventoryTable {
 
                 // Update row highlight
                 const tr = cb.closest('tr');
-                if (cb.checked) tr.style.setProperty('background-color', '#f0f6fb', 'important');
+                if (cb.checked) tr.style.setProperty('background-color', 'var(--palette-hex-f0f6fb)', 'important');
                 else tr.style.removeProperty('background-color');
 
                 // Keep "Select All" checkbox visually accurate
@@ -384,11 +384,11 @@ class InventoryTable {
         Modal.open({
             title: `Adjust Local Stock: ${productName}`,
             body: `
-                <div class="mb-md p-sm bg-neutral-100 rounded" style="border: 1px solid #c3c4c7; font-size: 13px; color: #50575e;">
-                    <i class="fa-solid fa-circle-info" style="color: #2271b1; margin-right: 4px;"></i> 
+                <div class="mb-md p-sm bg-neutral-100 rounded" style="border: 1px solid var(--theme-border); font-size: 13px; color: var(--theme-text-secondary);">
+                    <i class="fa-solid fa-circle-info" style="color: var(--palette-hex-2271b1); margin-right: 4px;"></i>
                     This tool adjusts physical stock at a specific local branch. <b>It does not affect WooCommerce.</b>
                 </div>
-                
+
                 <div class="form-group mb-md">
                     <label class="form-label">Location (Branch)</label>
                     <select id="adjustLocation" class="form-select">
@@ -403,14 +403,14 @@ class InventoryTable {
                     </small>
                 </div>
 
-                <div class="mb-md p-md rounded" style="background: #f8f9fa; border: 1px dashed #c3c4c7;">
+                <div class="mb-md p-md rounded" style="background: var(--theme-surface-alt); border: 1px dashed var(--theme-border);">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                        <span style="color: #50575e; font-size: 13px;">Current Branch Stock:</span>
-                        <strong id="previewCurrentStock" style="color: #1d2327; font-size: 14px;">0</strong>
+                        <span style="color: var(--theme-text-secondary); font-size: 13px;">Current Branch Stock:</span>
+                        <strong id="previewCurrentStock" style="color: var(--theme-text-primary); font-size: 14px;">0</strong>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-top: 1px solid #e5e7eb; padding-top: 8px;">
-                        <span style="color: #50575e; font-size: 13px; font-weight: 600;">Stock After Adjustment:</span>
-                        <strong id="previewNewStock" style="color: #2271b1; font-size: 16px;">0</strong>
+                    <div style="display: flex; justify-content: space-between; border-top: 1px solid var(--theme-border-subtle); padding-top: 8px;">
+                        <span style="color: var(--theme-text-secondary); font-size: 13px; font-weight: 600;">Stock After Adjustment:</span>
+                        <strong id="previewNewStock" style="color: var(--palette-hex-2271b1); font-size: 16px;">0</strong>
                     </div>
                 </div>
 
@@ -471,13 +471,13 @@ class InventoryTable {
 
             // Color code the final result (Green for increase, Red for negative/error)
             if (newStock < 0) {
-                newDisplay.style.color = '#d63638'; // Red warning
+                newDisplay.style.color = 'var(--palette-hex-d63638)'; // Red warning
             } else if (change > 0) {
-                newDisplay.style.color = '#00a32a'; // Green increase
+                newDisplay.style.color = 'var(--palette-hex-00a32a)'; // Green increase
             } else if (change < 0) {
-                newDisplay.style.color = '#b32d2e'; // Dark red decrease
+                newDisplay.style.color = 'var(--palette-hex-b32d2e)'; // Dark red decrease
             } else {
-                newDisplay.style.color = '#2271b1'; // Default blue
+                newDisplay.style.color = 'var(--palette-hex-2271b1)'; // Default blue
             }
         };
 
@@ -488,29 +488,43 @@ class InventoryTable {
         // Trigger calculation once on load to populate the initial state
         updatePreview();
     }
-    async showHistoryModal(productId, productName) {
+    async showHistoryModal(productId, productName, page = 1) {
         const locations = await this.state.loadLocations();
         const locationMap = {};
         locations.forEach(l => locationMap[l.id] = l.name);
 
         // We create an empty array to store the raw database records for the CSV exporter
         let rawExportData = [];
+        let historyPage = page;
+        let historyPages = 1;
+        let historyTotal = 0;
 
         Modal.open({
             title: `Stock History: ${productName}`,
             body: `<div id="historyModalBody" style="min-height: 120px; display: flex; align-items: center; justify-content: center;">
-                   <i class="fa-solid fa-spinner fa-spin" style="color: #2271b1; font-size: 20px;"></i>
+                   <i class="fa-solid fa-spinner fa-spin" style="color: var(--palette-hex-2271b1); font-size: 20px;"></i>
                </div>`,
             confirmText: 'Export CSV',
             cancelText: 'Close',
-            size: 'lg',
+            size: 'xl',
 
-            onConfirm: () => {
+            onConfirm: async () => {
                 // Instead of scraping the HTML, we check if our raw data array has records
                 if (!rawExportData || rawExportData.length === 0) {
                     Toast.error("No data to export.");
                     return false;
                 }
+
+                const completeHistory = [];
+                for (let exportPage = 1; exportPage <= historyPages; exportPage++) {
+                    const pageResult = await API.getStockAdjustments(productId, exportPage, 50);
+                    if (pageResult.status !== 'success') {
+                        Toast.error('Could not load the complete stock history for export.');
+                        return false;
+                    }
+                    completeHistory.push(...(pageResult.data || []));
+                }
+                rawExportData = completeHistory;
 
                 // Define our comprehensive CSV Headers
                 const headers = [
@@ -578,19 +592,22 @@ class InventoryTable {
                 return false;
             }
         });
+        document.querySelector('#modal-overlay .modal-xl')?.classList.add('stock-history-modal');
 
         try {
-            const res = await API.getStockAdjustments(productId);
+            const res = await API.getStockAdjustments(productId, historyPage);
             const body = document.getElementById('historyModalBody');
             if (!body) return;
 
             if (res.status !== 'success' || !res.data || res.data.length === 0) {
-                body.innerHTML = '<p style="color: #646970; font-size: 13px; text-align: center; padding: 20px;">No adjustment history found for this product.</p>';
+                body.innerHTML = '<p style="color: var(--theme-text-muted); font-size: 13px; text-align: center; padding: 20px;">No adjustment history found for this product.</p>';
                 return;
             }
 
             // ✅ Save the raw database data to our variable so the CSV exporter can use it
             rawExportData = res.data;
+            historyPages = res.pagination?.pages || 1;
+            historyTotal = res.pagination?.total || res.data.length;
 
             // Helper to make database ENUMs look nice in the UI
             const formatReason = (reason) => {
@@ -601,49 +618,62 @@ class InventoryTable {
             const rowsHtml = res.data.map(row => {
                 const locName = row.location_name || locationMap[row.location_id] || `Branch #${row.location_id}`;
                 const sign = row.qty_change > 0 ? '+' : '';
-                const qtyColor = row.qty_change > 0 ? '#00a32a' : (row.qty_change < 0 ? '#d63638' : '#50575e');
+                const qtyColor = row.qty_change > 0 ? 'var(--palette-hex-00a32a)' : (row.qty_change < 0 ? 'var(--palette-hex-d63638)' : 'var(--palette-hex-50575e)');
                 const date = new Date(row.created_at).toLocaleString();
-                const performedBy = row.performed_by_name ? row.performed_by_name : (row.performed_by ? `User #${row.performed_by}` : '<span style="color:#d63638; font-style:italic;">System</span>');
+                const performedBy = row.performed_by_name ? row.performed_by_name : (row.performed_by ? `User #${row.performed_by}` : '<span style="color:var(--palette-hex-d63638); font-style:italic;">System</span>');
 
                 return `
-                <tr style="border-bottom: 1px solid #f0f0f1; font-size: 13px;">
-                    <td style="padding: 8px 10px; color: #50575e; white-space: nowrap;">${date}</td>
-                    <td style="padding: 8px 10px; color: #2c3338; font-weight: 500;">${locName}</td>
-                    <td style="padding: 8px 10px; color: #646970; text-align: right;">${row.qty_before}</td>
-                    <td style="padding: 8px 10px; font-weight: 700; color: ${qtyColor}; text-align: center; background: #f8f9fa;">${sign}${row.qty_change}</td>
-                    <td style="padding: 8px 10px; color: #2c3338; text-align: left; font-weight: 500;">${row.qty_after}</td>
-                    <td style="padding: 8px 10px; color: #50575e;">${formatReason(row.reason)}</td>
-                    <td style="padding: 8px 10px; color: #8c8f94; font-family: monospace; font-size: 12px;">${row.reference_id || '—'}</td>
-                    <td style="padding: 8px 10px; color: #50575e;">${performedBy}</td>
+                <tr style="border-bottom: 1px solid var(--palette-hex-f0f0f1); font-size: 13px;">
+                    <td style="padding: 8px 10px; color: var(--theme-text-secondary); white-space: nowrap;">${date}</td>
+                    <td style="padding: 8px 10px; color: var(--theme-text-primary); font-weight: 500;">${locName}</td>
+                    <td style="padding: 8px 10px; color: var(--theme-text-muted); text-align: right;">${row.qty_before}</td>
+                    <td style="padding: 8px 10px; font-weight: 700; color: ${qtyColor}; text-align: center; background: var(--theme-surface-alt);">${sign}${row.qty_change}</td>
+                    <td style="padding: 8px 10px; color: var(--theme-text-primary); text-align: left; font-weight: 500;">${row.qty_after}</td>
+                    <td style="padding: 8px 10px; color: var(--theme-text-primary); text-align: right; font-weight: 600;">${row.total_branch_stock ?? '—'}</td>
+                    <td style="padding: 8px 10px; color: var(--theme-text-secondary);">${formatReason(row.reason)}</td>
+                    <td style="padding: 8px 10px; color: var(--palette-hex-8c8f94); font-family: monospace; font-size: 12px;">${row.reference_id || '—'}</td>
+                    <td style="padding: 8px 10px; color: var(--theme-text-secondary);">${performedBy}</td>
                 </tr>
             `;
             }).join('');
 
+            body.removeAttribute('style');
+            body.classList.add('stock-history-modal-content');
             body.innerHTML = `
-            <div style="overflow-x: auto; max-height: 500px; overflow-y: auto;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
-                    <thead style="background: #f0f0f1; position: sticky; top: 0; z-index: 1;">
+            <div class="stock-history-table-scroll">
+                <table class="stock-history-table">
+                    <thead>
                         <tr>
-                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Date</th>
-                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Branch</th>
-                            <th style="padding: 10px; font-weight: 600; color: #2c3338; text-align: right;">Before</th>
-                            <th style="padding: 10px; font-weight: 600; color: #2c3338; text-align: center;">Change</th>
-                            <th style="padding: 10px; font-weight: 600; color: #2c3338; text-align: left;">After</th>
-                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Reason</th>
-                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Reference</th>
-                            <th style="padding: 10px; font-weight: 600; color: #2c3338;">Performed By</th>
+                            <th style="padding: 10px; font-weight: 600; color: var(--theme-text-primary);">Date</th>
+                            <th style="padding: 10px; font-weight: 600; color: var(--theme-text-primary);">Branch</th>
+                            <th style="padding: 10px; font-weight: 600; color: var(--theme-text-primary); text-align: right;">Before</th>
+                            <th style="padding: 10px; font-weight: 600; color: var(--theme-text-primary); text-align: center;">Change</th>
+                            <th style="padding: 10px; font-weight: 600; color: var(--theme-text-primary); text-align: left;">After</th>
+                            <th style="padding: 10px; font-weight: 600; color: var(--theme-text-primary); text-align: right; white-space: nowrap;">Total Branch Stock</th>
+                            <th style="padding: 10px; font-weight: 600; color: var(--theme-text-primary);">Reason</th>
+                            <th style="padding: 10px; font-weight: 600; color: var(--theme-text-primary);">Reference</th>
+                            <th style="padding: 10px; font-weight: 600; color: var(--theme-text-primary);">Performed By</th>
                         </tr>
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
             </div>
-            <p style="color: #646970; font-size: 11px; margin: 12px 0 0; text-align: right; font-style: italic;">
-                Showing ${res.data.length} record${res.data.length !== 1 ? 's' : ''} from the immutable ledger
-            </p>
+            <div class="stock-history-pagination">
+                <p>Showing page ${historyPage} of ${historyPages} · ${historyTotal} immutable ledger records</p>
+                <div class="stock-history-pagination-controls"><button id="historyPrevPage" class="btn btn-sm btn-secondary" ${historyPage <= 1 ? 'disabled' : ''}>Previous</button>
+                <button id="historyNextPage" class="btn btn-sm btn-secondary" ${historyPage >= historyPages ? 'disabled' : ''}>Next</button></div>
+            </div>
         `;
+            const modalBody = document.getElementById('historyModalBody');
+            modalBody?.querySelector('#historyPrevPage')?.addEventListener('click', () => {
+                if (historyPage > 1) this.showHistoryModal(productId, productName, historyPage - 1);
+            });
+            modalBody?.querySelector('#historyNextPage')?.addEventListener('click', () => {
+                if (historyPage < historyPages) this.showHistoryModal(productId, productName, historyPage + 1);
+            });
         } catch (e) {
             const body = document.getElementById('historyModalBody');
-            if (body) body.innerHTML = '<p style="color: #d63638; text-align: center; padding: 20px;">Failed to load history.</p>';
+            if (body) body.innerHTML = '<p style="color: var(--palette-hex-d63638); text-align: center; padding: 20px;">Failed to load history.</p>';
         }
     }
 
@@ -652,7 +682,7 @@ class InventoryTable {
         document.querySelectorAll('.transfer-popover-box').forEach(p => p.remove());
 
         const res = await API.getProductPendingTransfers(productId);
-        
+
         if (res.status !== 'success' || !res.data || res.data.length === 0) {
             Toast.error('No pending transfers found');
             return;
@@ -665,10 +695,10 @@ class InventoryTable {
         const popoverHtml = `
             <div id="${popoverId}" class="transfer-popover-box" style="
                 position: fixed;
-                background: white;
-                border: 1px solid #c3c4c7;
+                background: var(--theme-surface);
+                border: 1px solid var(--theme-border);
                 border-radius: 8px;
-                box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+                box-shadow: 0 4px 16px var(--palette-rgb-0-0-0-0p18);
                 z-index: 10000;
                 width: 360px;
                 max-height: 420px;
@@ -677,36 +707,36 @@ class InventoryTable {
                 font-size: 13px;
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
             ">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--theme-border-subtle);">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-truck-fast" style="color: #2271b1;"></i>
-                        <strong style="color: #2c3338; font-size: 13px;">Unapproved Transfers (${transfers.length})</strong>
+                        <i class="fa-solid fa-truck-fast" style="color: var(--palette-hex-2271b1);"></i>
+                        <strong style="color: var(--theme-text-primary); font-size: 13px;">Unapproved Transfers (${transfers.length})</strong>
                     </div>
-                    <button class="close-popover" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #6b7280; padding: 0 4px; line-height: 1;">&times;</button>
+                    <button class="close-popover" style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--theme-text-muted); padding: 0 4px; line-height: 1;">&times;</button>
                 </div>
-                <div style="margin-bottom: 10px; padding: 8px 10px; background: #f0f6fc; border-radius: 6px; border: 1px solid #c8e1ff; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: #555; font-size: 12px;">Total in Transit:</span>
-                    <strong style="font-size: 14px; color: #2271b1;">${totalQty} units</strong>
+                <div style="margin-bottom: 10px; padding: 8px 10px; background: var(--palette-hex-f0f6fc); border-radius: 6px; border: 1px solid var(--palette-hex-c8e1ff); display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--palette-hex-555); font-size: 12px;">Total in Transit:</span>
+                    <strong style="font-size: 14px; color: var(--palette-hex-2271b1);">${totalQty} units</strong>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                     ${transfers.map(t => `
-                        <div style="padding: 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e5e7eb;">
+                        <div style="padding: 10px; background: var(--theme-surface-alt); border-radius: 6px; border: 1px solid var(--theme-border-subtle);">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
-                                    <strong style="color: #2271b1; font-family: monospace; font-size: 12px;">${t.batch_id}</strong>
-                                    <button class="btn-copy-single-batch" data-batch="${t.batch_id}" title="Copy Batch ID" style="background: #ffffff; border: 1px solid #c3c4c7; border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer; color: #2271b1; display: inline-flex; align-items: center; gap: 3px;">
+                                    <strong style="color: var(--palette-hex-2271b1); font-family: monospace; font-size: 12px;">${t.batch_id}</strong>
+                                    <button class="btn-copy-single-batch" data-batch="${t.batch_id}" title="Copy Batch ID" style="background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 3px; padding: 2px 6px; font-size: 11px; cursor: pointer; color: var(--palette-hex-2271b1); display: inline-flex; align-items: center; gap: 3px;">
                                         <i class="fa-regular fa-copy"></i>
                                     </button>
                                 </div>
-                                <span style="font-size: 11px; color: #6b7280;">${new Date(t.created_at).toLocaleDateString()}</span>
+                                <span style="font-size: 11px; color: var(--theme-text-muted);">${new Date(t.created_at).toLocaleDateString()}</span>
                             </div>
-                            <div style="color: #50575e; font-size: 12px; margin-bottom: 4px;">
+                            <div style="color: var(--theme-text-secondary); font-size: 12px; margin-bottom: 4px;">
                                 <span>${t.from_location}</span>
-                                <i class="fa-solid fa-arrow-right" style="color: #8c8f94; margin: 0 4px; font-size: 10px;"></i>
+                                <i class="fa-solid fa-arrow-right" style="color: var(--palette-hex-8c8f94); margin: 0 4px; font-size: 10px;"></i>
                                 <span>${t.to_location}</span>
                             </div>
-                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #646970;">
-                                <span style="font-weight: 600; color: #2c3338;">Qty: ${t.qty}</span>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--theme-text-muted);">
+                                <span style="font-weight: 600; color: var(--theme-text-primary);">Qty: ${t.qty}</span>
                                 <span>By: ${t.initiated_by || 'System'}</span>
                             </div>
                         </div>

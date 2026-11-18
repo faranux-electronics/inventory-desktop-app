@@ -344,10 +344,10 @@ class PdfGenerator {
                     if (item && item.originalPrice && item.originalPrice !== item.price && !item.isMisc) {
                         const cell = dataHook.cell;
                         if (!cell) return;
-                        const rightEdge = (cell.x || 0) + (cell.width || 0) - 4; 
-                        const textY = (cell.y || 0) + (cell.height || 0) - 3; 
+                        const rightEdge = (cell.x || 0) + (cell.width || 0) - 4;
+                        const textY = (cell.y || 0) + (cell.height || 0) - 3;
                         doc.setFontSize(8);
-                        doc.setTextColor(220, 38, 38); 
+                        doc.setTextColor(220, 38, 38);
                         doc.text(`(was ${item.originalPrice.toLocaleString()})`, rightEdge, textY, { align: 'right' });
                         doc.setFontSize(10);
                     }
@@ -597,17 +597,17 @@ class PdfGenerator {
                 3: { halign: 'right', cellWidth: 35 },
                 4: { halign: 'right', fontStyle: 'bold', cellWidth: 35 }
             },
-            margin: { bottom: 35 }, 
+            margin: { bottom: 35 },
             didDrawCell: function(dataHook) {
                 if (dataHook.section === 'body' && dataHook.column.index === 3) {
                     const item = data.items[dataHook.row.index];
                     if (item && item.originalPrice && item.originalPrice !== item.price && !item.isMisc) {
                         const cell = dataHook.cell;
                         if (!cell) return;
-                        const rightEdge = (cell.x || 0) + (cell.width || 0) - 4; 
-                        const textY = (cell.y || 0) + (cell.height || 0) - 3; 
+                        const rightEdge = (cell.x || 0) + (cell.width || 0) - 4;
+                        const textY = (cell.y || 0) + (cell.height || 0) - 3;
                         doc.setFontSize(8);
-                        doc.setTextColor(220, 38, 38); 
+                        doc.setTextColor(220, 38, 38);
                         doc.text(`(was ${item.originalPrice.toLocaleString()})`, rightEdge, textY, { align: 'right' });
                         doc.setFontSize(10);
                     }
@@ -706,13 +706,12 @@ class PdfGenerator {
     }
 
     static async printReceiptPDF(data) {
-        const { ipcRenderer } = require('electron');
         const { doc, receiptId } = await this._buildReceiptDoc(data);
 
         doc.autoPrint(); // embeds the JS print action the browser's PDF viewer will run
         const arrayBuffer = doc.output('arraybuffer');
 
-        const result = await ipcRenderer.invoke('open-pdf-in-browser', {
+        const result = await globalThis.window?.faranuxDesktop?.openPdfInBrowser({
             buffer: arrayBuffer,
             filename: `Receipt_${receiptId}.pdf`
         });

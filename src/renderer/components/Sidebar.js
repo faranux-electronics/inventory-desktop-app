@@ -1,4 +1,3 @@
-const { ipcRenderer } = require('electron');
 const Modal = require('./Modal.js');
 const API = require("../services/api");
 const NAV_ITEMS = require('../config/navRegistry.js');
@@ -22,7 +21,7 @@ class Sidebar {
 
     async loadAppVersion() {
         try {
-            const version = await ipcRenderer.invoke('get-app-version');
+            const version = await globalThis.window?.faranuxDesktop?.getAppVersion?.();
             const versionEl = document.getElementById('version-display');
             if (versionEl) {
                 versionEl.textContent = `v${version}`;
@@ -102,7 +101,7 @@ class Sidebar {
             <div class="nav-item" data-view="${item.key}" title="${item.label}">
                 <i class="fa-solid ${item.icon}"></i>
                 <span class="nav-text">${item.label}</span>
-                ${item.badge ? `<span id="global-notification-badge" class="badge" style="display:none; margin-left: auto; background: var(--error-500, #ef4444); color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: bold;">0</span>` : ''}
+                ${item.badge ? `<span id="global-notification-badge" class="badge" style="display:none; margin-left: auto; background: var(--error-500, var(--palette-hex-ef4444)); color: var(--palette-name-white); border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: bold;">0</span>` : ''}
             </div>
         `).join('');
 
@@ -179,7 +178,7 @@ class Sidebar {
         });
         const profile = document.querySelector('.sidebar-profile');
         if (profile) {
-            profile.style.background = viewName === 'profile' ? 'rgba(255,255,255,0.05)' : '';
+            profile.style.background = viewName === 'profile' ? 'var(--palette-rgb-255-255-255-0p05)' : '';
         }
     }
 }

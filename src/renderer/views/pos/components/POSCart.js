@@ -156,7 +156,7 @@ class POSCart {
                 <div class="pos-price-edit-body">
                     <div class="pos-price-edit-product">
                         <strong>${item.name}</strong>
-                        ${item.sku ? `<div style="font-size:11px;color:#6b7280;">SKU: ${item.sku}</div>` : ''}
+                        ${item.sku ? `<div style="font-size:11px;color:var(--theme-text-muted);">SKU: ${item.sku}</div>` : ''}
                     </div>
                     <div class="pos-price-edit-info">
                         <div class="pos-price-edit-info-row">
@@ -281,9 +281,9 @@ class POSCart {
 
         if (!this._items.length) {
             el.innerHTML = `<div class="pos-cart-empty">
-                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(36, 59, 83, 0.3)" stroke-width="1.5" width="36" style="margin-bottom:8px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-rgb-36-59-83-0p3)" stroke-width="1.5" width="36" style="margin-bottom:8px;"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                 <div style="font-size:13px;">Cart is empty</div>
-                <div style="font-size:11px;color:rgba(36, 59, 83, 0.5);margin-top:2px;">Add products to get started</div>
+                <div style="font-size:11px;color:var(--palette-rgb-36-59-83-0p5);margin-top:2px;">Add products to get started</div>
             </div>`;
             return;
         }
@@ -307,8 +307,8 @@ class POSCart {
             const showTaxLabel = this._taxOn && this._taxRate > 0;
             const taxLabel = showTaxLabel
                 ? (this._taxOnItems
-                    ? `<span style="font-size:9px;color:#932013;"> (${this._taxRate}% on items, ${this._taxInclusive ? 'incl.' : 'excl.'})</span>`
-                    : `<span style="font-size:9px;color:#932013;"> (${this._taxRate}% on total, ${this._taxInclusive ? 'incl.' : 'excl.'})</span>`)
+                    ? `<span style="font-size:9px;color:var(--palette-hex-932013);"> (${this._taxRate}% on items, ${this._taxInclusive ? 'incl.' : 'excl.'})</span>`
+                    : `<span style="font-size:9px;color:var(--palette-hex-932013);"> (${this._taxRate}% on total, ${this._taxInclusive ? 'incl.' : 'excl.'})</span>`)
                 : '';
 
             const isMisc = item.isMisc;

@@ -1,0 +1,131 @@
+/* Access management view. */
+#content[data-view="access"] {
+    padding: 0;
+}
+
+#content[data-view="access"] .access-page-header {
+    margin: 0;
+}
+
+#content[data-view="access"] .access-content {
+    padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
+}
+
+#content[data-view="access"] .access-primary-tabs {
+    margin-bottom: var(--spacing-md);
+}
+
+#content[data-view="access"] .access-secondary-tabs {
+    margin-bottom: var(--spacing-md);
+}
+
+#content[data-view="access"] .access-user-search {
+    position: relative;
+    flex: 1 1 260px;
+    min-width: 220px;
+}
+
+#content[data-view="access"] .access-user-search > i {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 11px;
+    color: var(--theme-text-muted);
+    transform: translateY(-50%);
+}
+
+#content[data-view="access"] .access-search-input {
+    width: 100%;
+    padding-left: 34px;
+    border: 1px solid var(--theme-border);
+    background: var(--theme-surface);
+}
+
+#content[data-view="access"] .access-user-filter {
+    flex: 0 1 180px;
+    width: auto;
+    min-width: 150px;
+    margin: 0;
+    border: 1px solid var(--theme-border);
+    background: var(--theme-surface);
+}
+
+#content[data-view="access"] .access-add-user {
+    color: var(--primary-500);
+    border: 1px solid var(--primary-500);
+    background: var(--theme-surface);
+}
+
+#content[data-view="access"] .access-add-user:hover {
+    color: var(--primary-600);
+    background: var(--primary-50);
+}
+
+#content[data-view="access"] .access-clear-filters-btn {
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+
+#content[data-view="access"] #tab-panel-users,
+#content[data-view="access"] #tab-panel-navigation {
+    color: var(--theme-text-primary);
+}
+
+#content[data-view="access"] table {
+    background: var(--theme-surface);
+    color: var(--theme-text-primary);
+    border-color: var(--theme-border);
+}
+
+#content[data-view="access"] .access-users-table th {
+    font-weight: 400;
+}
+
+#content[data-view="access"] th {
+    background: var(--theme-surface-alt);
+    color: var(--theme-text-secondary);
+}
+
+#content[data-view="access"] .shared-pagination {
+    margin-top: 0;
+    border: 1px solid var(--theme-border);
+    border-top: 0;
+    border-radius: 0 0 4px 4px;
+    background: var(--theme-surface);
+}
+
+#content[data-view="access"] .shared-pagination-page-btn.active {
+    color: var(--palette-name-white);
+    background: var(--primary-500);
+    border-color: var(--primary-500);
+}
+
+#content[data-view="access"] .shared-pagination-size-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--theme-text-secondary);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+#content[data-view="access"] .shared-pagination-size {
+    width: auto;
+    min-width: 72px;
+    margin: 0;
+    border: 1px solid var(--theme-border);
+    background: var(--theme-surface);
+}
+
+#content[data-view="access"] #userSearch {
+    border: 1px solid var(--theme-border);
+}
+
+@media (max-width: 600px) {
+    #content[data-view="access"] .access-content {
+        padding-right: var(--spacing-md);
+        padding-left: var(--spacing-md);
+    }
+}

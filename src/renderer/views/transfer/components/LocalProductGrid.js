@@ -32,7 +32,7 @@ class LocalProductCardBuilder {
         const imgHtml = imgUrl
             ? `<img src="${esc(imgUrl)}" class="lpg-thumb lpg-zoomable" loading="lazy" decoding="async" alt="">`
             : `<div class="lpg-thumb lpg-thumb--empty">
-                   <svg viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" width="16">
+                   <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-hex-d1d5db)" stroke-width="1.5" width="16">
                        <rect x="3" y="3" width="18" height="18" rx="2"/>
                        <circle cx="8.5" cy="8.5" r="1.5"/>
                        <polyline points="21 15 16 10 5 21"/>
@@ -98,7 +98,7 @@ class LocalProductCardBuilder {
         if (onSale && regPrice > price) {
             priceHtml = `<div class="lpg-price">
                 <div>${price.toLocaleString()} <span class="lpg-currency">Frw</span></div>
-                <div style="font-size:10px;color:#9ca3af;text-decoration:line-through;margin-top:2px;font-weight:normal;">${regPrice.toLocaleString()} Frw</div>
+                <div style="font-size:10px;color:var(--palette-hex-9ca3af);text-decoration:line-through;margin-top:2px;font-weight:normal;">${regPrice.toLocaleString()} Frw</div>
                </div>`;
         } else if (price > 0) {
             priceHtml = `<div class="lpg-price">${price.toLocaleString()} <span class="lpg-currency">Frw</span></div>`;
@@ -109,7 +109,7 @@ class LocalProductCardBuilder {
         // ── Row 2: SKU + copy-SKU + category + barcode ─
         const catName = p.category || p.category_name || p.categories?.[0]?.name || '';
 
-        const copyIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        const copyIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
 
         const skuChip = p.sku
@@ -152,8 +152,8 @@ class ImageHoverZoom {
         this.overlay = document.createElement('div');
         this.overlay.style.cssText = [
             'position:fixed', 'display:none', 'z-index:99999',
-            'background:#fff', 'border:1px solid #e2e8f0', 'border-radius:8px',
-            'box-shadow:0 10px 25px rgba(0,0,0,.18)', 'padding:6px',
+            'background:var(--theme-surface)', 'border:1px solid var(--theme-border-subtle)', 'border-radius:8px',
+            'box-shadow:0 10px 25px var(--palette-rgb-0-0-0-0p18)', 'padding:6px',
             'pointer-events:none', 'transition:opacity .15s', 'opacity:0'
         ].join(';');
 
@@ -288,7 +288,7 @@ class LocalProductGrid {
         if (!append) {
             this._list.innerHTML = `
                 <div class="lpg-state">
-                    <svg class="lpg-spinner" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2689C4" stroke-width="2.5">
+                    <svg class="lpg-spinner" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="var(--palette-hex-2689c4)" stroke-width="2.5">
                         <circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/>
                     </svg>
                     <span>Loading products…</span>
@@ -306,7 +306,7 @@ class LocalProductGrid {
     showEmpty(msg = 'No products found. Check your filters or search query.') {
         this._list.innerHTML = `
             <div class="lpg-state">
-                <svg viewBox="0 0 24 24" fill="none" stroke="rgba(36,59,83,.25)" stroke-width="1.5" width="36">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-rgb-36-59-83-0p25)" stroke-width="1.5" width="36">
                     <rect x="3" y="3" width="18" height="18" rx="2"/>
                     <circle cx="8.5" cy="8.5" r="1.5"/>
                     <polyline points="21 15 16 10 5 21"/>
@@ -337,7 +337,7 @@ class LocalProductGrid {
             badge.style.cssText = [
                 'position:absolute', 'top:8px', 'right:12px', 'font-size:10px',
                 'font-weight:700', 'padding:4px 8px', 'border-radius:12px',
-                'background:rgba(38,137,196,.1)', 'color:#2689C4',
+                'background:var(--palette-rgb-38-137-196-0p1)', 'color:var(--palette-hex-2689c4)',
                 'display:flex', 'align-items:center', 'gap:5px',
                 'transition:opacity .4s', 'pointer-events:none', 'z-index:10'
             ].join(';');
@@ -346,10 +346,10 @@ class LocalProductGrid {
         }
 
         if (status === 'syncing') {
-            badge.innerHTML = `<svg class="lpg-spinner" viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="3" fill="none"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Syncing…`;
+            badge.innerHTML = `<svg class="lpg-spinner" viewBox="0 0 24 24" width="12" height="12" stroke="var(--palette-name-currentcolor)" stroke-width="3" fill="none"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg> Syncing…`;
             badge.style.opacity = '1';
         } else if (status === 'done') {
-            badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg> ${parseInt(count) || 0} products`;
+            badge.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="3" width="12" height="12"><polyline points="20 6 9 17 4 12"/></svg> ${parseInt(count) || 0} products`;
             badge.style.opacity = '1';
             setTimeout(() => {
                 badge.style.opacity = '0';

@@ -1,0 +1,58 @@
+/* Product inventory view. Shared table and pagination controls live in components.css. */
+.products-filters-strip {
+    background: var(--theme-surface-muted);
+    padding: 10px var(--spacing-xl);
+    margin: var(--spacing-md) calc(-1 * var(--spacing-xl)) calc(-1 * var(--spacing-md));
+    border-top: 1px solid var(--theme-border);
+    border-bottom: 1px solid var(--theme-border);
+}
+
+#content[data-view="products"] .table-container,
+#content[data-view="products"] .table-wrapper {
+    background: var(--theme-surface);
+    border: 1px solid var(--theme-border);
+    border-radius: 6px;
+}
+
+#content[data-view="products"] #paginationContainer {
+    color: var(--theme-text-secondary);
+}
+
+#content[data-view="products"] .deleted-on-site,
+#content[data-view="products"] [data-website-deleted="true"] {
+    color: var(--theme-danger-text);
+    background: var(--theme-danger-surface);
+}
+
+
+/* Match the Master Planner's full-width page and content gutters. */
+#content[data-view="products"]{width:100%;max-width:none;padding:0}
+#content[data-view="products"]>.products-page-header{width:100%;max-width:none;margin:0;padding-inline:var(--spacing-xl);box-sizing:border-box}
+#content[data-view="products"]>.wrap{width:100%;max-width:none;margin:0;padding:var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);box-sizing:border-box}
+#content[data-view="products"] .products-filters-strip{margin-inline:calc(-1 * var(--spacing-xl));padding-inline:var(--spacing-xl)}
+
+
+
+/* Keep sync progress out of the title/actions row so the page title can use its full width. */
+#content[data-view="products"] .products-sync-status-row{display:flex;justify-content:flex-end;}
+
+/* Responsive stock history modal */
+.stock-history-modal{width:min(1180px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:calc(100vh - 32px)}
+.stock-history-modal .modal-body{min-width:0;overflow:auto}
+#historyModalBody.stock-history-modal-content{display:block;width:100%;min-width:0;min-height:0;box-sizing:border-box}
+.stock-history-table-scroll{width:100%;max-height:min(500px,60vh);overflow:auto;overscroll-behavior:contain}
+.stock-history-table{width:100%;min-width:900px;border-collapse:collapse;font-size:13px;text-align:left;table-layout:auto}
+.stock-history-table th,.stock-history-table td{box-sizing:border-box;vertical-align:top}
+.stock-history-table thead{position:sticky;top:0;z-index:1;background:var(--theme-surface-muted)}
+.stock-history-pagination{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.stock-history-pagination p{margin:0;color:var(--theme-text-muted);font-size:11px;font-style:italic}
+.stock-history-pagination-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+@media(max-width:700px){
+    .stock-history-modal{width:calc(100vw - 16px);max-width:calc(100vw - 16px);max-height:calc(100vh - 16px)}
+    .stock-history-modal .modal-header,.stock-history-modal .modal-body,.stock-history-modal .modal-footer{padding:var(--spacing-md)}
+    .stock-history-modal .modal-title{font-size:var(--font-size-base);overflow-wrap:anywhere}
+    .stock-history-table-scroll{max-height:55vh}
+    .stock-history-table{min-width:820px;font-size:12px}
+    .stock-history-pagination{align-items:stretch;flex-direction:column}
+    .stock-history-pagination-controls{justify-content:flex-end}
+}

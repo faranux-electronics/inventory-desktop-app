@@ -1,0 +1,49 @@
+/* Branch management view. */
+#content[data-view="branches"] {
+    padding: 0;
+}
+
+#content[data-view="branches"] .branches-page-header {
+    margin: 0;
+}
+
+#content[data-view="branches"] .branches-content {
+    padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
+}
+
+#content[data-view="branches"] .branches-tabs {
+    margin-bottom: var(--spacing-md);
+}
+
+#content[data-view="branches"] .branches-add-btn {
+    color: var(--primary-500);
+    border: 1px solid var(--primary-500);
+    background: var(--theme-surface);
+}
+
+#content[data-view="branches"] .branches-add-btn:hover {
+    color: var(--primary-600);
+    background: var(--primary-50);
+}
+
+#content[data-view="branches"] #branchesContent {
+    color: var(--theme-text-primary);
+}
+
+#content[data-view="branches"] #branchesContent table {
+    background: var(--theme-surface);
+    color: var(--theme-text-primary);
+    border-color: var(--theme-border);
+}
+
+#content[data-view="branches"] #branchesContent th {
+    background: var(--theme-surface-alt);
+    color: var(--theme-text-secondary);
+}
+
+@media (max-width: 600px) {
+    #content[data-view="branches"] .branches-content {
+        padding-right: var(--spacing-md);
+        padding-left: var(--spacing-md);
+    }
+}

@@ -1,4 +1,6 @@
 const Toast = require('../../components/Toast.js');
+const PageHeader = require('../../components/PageHeader.js');
+const Button = require('../../components/Button.js');
 const API = require('../../services/api.js');
 
 function esc(str) {
@@ -12,6 +14,8 @@ class NotsView {
         this.loading = false;
         this.currentMainTab = 'notifications'; // 'notifications' | 'alerts'
         this.currentSubTab = 'unread'; // 'unread' | 'archived' (only for notifications tab)
+        this.notificationsPage = 1;
+        this.notificationsPageSize = 20;
         this.alertSettings = {
             isLoading: false,
             isTesting: false
@@ -22,8 +26,11 @@ class NotsView {
         // Reset to notifications tab when view is rendered
         this.currentMainTab = 'notifications';
         this.currentSubTab = 'unread';
-        
-        document.getElementById('content').innerHTML = this._layoutHTML();
+        this.notificationsPage = 1;
+
+        const content = document.getElementById('content');
+        content.dataset.view = 'nots';
+        content.innerHTML = this._layoutHTML();
         this._attachEvents();
         this.loadNotifications();
     }
@@ -31,23 +38,28 @@ class NotsView {
     _layoutHTML() {
         // Get the currently selected sound to set the dropdown correctly
         const currentSound = this.app.notifManager ? this.app.notifManager.selectedSound : 'message_notification.mp3';
-        
+
         // Check if user is admin
         const currentUser = this.app.state.getUser();
         const isAdmin = currentUser && currentUser.role === 'admin';
+        const soundControl = `
+            <label class="notifications-sound-control" for="soundSelect">
+                <i class="fa-solid fa-volume-high" aria-hidden="true"></i>
+                <span>Sound</span>
+                <select id="soundSelect" class="notifications-sound-select" aria-label="Notification sound">
+                    <option value="message_notification.mp3" ${currentSound === 'message_notification.mp3' ? 'selected' : ''}>Standard Message</option>
+                    <option value="slack_notification.mp3" ${currentSound === 'slack_notification.mp3' ? 'selected' : ''}>Slack Style</option>
+                    <option value="door_notification.mp3" ${currentSound === 'door_notification.mp3' ? 'selected' : ''}>Doorbell</option>
+                </select>
+            </label>`;
 
         return `
-        <div class="p-lg flex-1 overflow-y-auto bg-neutral-100" style="height: 100%;">
-            <div class="max-w-4xl mx-auto">
-                <div class="flex items-center justify-between mb-md">
-                    <h2 class="text-2xl font-bold text-neutral-900">
-                        <i class="fa-regular fa-bell mr-sm text-primary"></i> Notifications${isAdmin ? ' & Alerts' : ''}
-                    </h2>
-                </div>
-
+        <div class="flex-1 bg-neutral-100 notifications-layout">
+            ${PageHeader.html({title: `Notifications${isAdmin ? ' & Alerts' : ''}`, icon: 'fa-regular fa-bell', subtitle: 'Stay up to date with inventory and account activity.', actions: soundControl, className: 'page-header-surface notifications-page-header'})}
+            <div class="notifications-content">
                 <!-- Main Tabs: Notifications / Alert Settings (only show if admin and multiple tabs) -->
                 ${isAdmin ? `
-                <div class="flex gap-md border-b-2 border-neutral-300 mb-md mt-lg">
+                <div class="flex gap-md border-b-2 border-neutral-300 mb-md">
                     <button id="mainTabNotifications" class="main-tab-btn px-md py-sm font-semibold border-b-2 transition-colors" data-main-tab="notifications">
                         <i class="fa-solid fa-bell mr-xs"></i> Notifications
                     </button>
@@ -59,15 +71,7 @@ class NotsView {
 
                 <!-- Notifications Panel -->
                 <div id="panelNotifications" style="display: ${!isAdmin || this.currentMainTab === 'notifications' ? 'block' : 'none'};">
-                    <div class="flex items-center justify-between mb-md ${!isAdmin ? 'mt-lg' : ''}">
-                        <div class="flex items-center gap-sm bg-white border border-neutral-200 rounded px-sm py-xs shadow-sm">
-                            <label for="soundSelect" class="text-sm text-neutral-700 m-0"><i class="fa-solid fa-volume-high text-muted"></i> Sound:</label>
-                            <select id="soundSelect" class="form-input form-input-sm border-none bg-transparent m-0 p-0 shadow-none text-sm w-auto cursor-pointer focus:ring-0">
-                                <option value="message_notification.mp3" ${currentSound === 'message_notification.mp3' ? 'selected' : ''}>Standard Message</option>
-                                <option value="slack_notification.mp3" ${currentSound === 'slack_notification.mp3' ? 'selected' : ''}>Slack Style</option>
-                                <option value="door_notification.mp3" ${currentSound === 'door_notification.mp3' ? 'selected' : ''}>Doorbell</option>
-                            </select>
-                        </div>
+                    <div class="flex items-center justify-between mb-md">
                         <button id="btnMarkAllRead" class="btn btn-secondary" style="display: none;">
                             <i class="fa-solid fa-check-double"></i> Mark All Read
                         </button>
@@ -88,6 +92,7 @@ class NotsView {
                             <p>Loading notifications...</p>
                         </div>
                     </div>
+                    <div id="notificationsPagination" class="notifications-pagination"></div>
                 </div>
 
                 <!-- Alert Settings Panel (only included if admin) -->
@@ -127,36 +132,20 @@ class NotsView {
                             <label class="form-label" style="font-weight: 600;">
                                 <i class="fa-solid fa-link"></i> Google Chat Webhook URL
                             </label>
-                            <div style="position: relative;">
-                                <input type="password" id="webhookUrlInput" class="form-input w-full"
-                                       placeholder="https://chat.googleapis.com/v1/spaces/..."
-                                       style="padding-right: 120px;">
-                                <div id="webhookUrlMasked" class="text-muted" style="
-                                    position: absolute;
-                                    right: 12px;
-                                    top: 50%;
-                                    transform: translateY(-50%);
-                                    font-size: 12px;
-                                    background: #f0f0f1;
-                                    padding: 4px 8px;
-                                    border-radius: 4px;
-                                    display: none;
-                                "></div>
+                            <div class="webhook-url-entry">
+                                <div class="webhook-url-input-wrap">
+                                    <input type="password" id="webhookUrlInput" class="form-input webhook-url-input"
+                                           placeholder="https://chat.googleapis.com/v1/spaces/..."
+                                           style="padding-right: 120px;">
+                                    <div id="webhookUrlMasked" class="webhook-url-masked text-muted" style="display: none;"></div>
+                                </div>
+                                <div id="webhookActions" class="webhook-action-buttons" style="display: none;">
+                                    ${Button.html({text: 'Replace', icon: 'fa-solid fa-rotate', type: 'button', id: 'replaceWebhookBtn', variant: 'outline', size: 'md'})}
+                                    ${Button.html({text: 'Clear', icon: 'fa-solid fa-trash', type: 'button', id: 'clearWebhookBtn', variant: 'outline', size: 'md', className: 'webhook-clear-btn'})}
+                                </div>
                             </div>
                             <div class="form-help text-muted" style="font-size: 12px; margin-top: 4px;">
                                 Format: https://chat.googleapis.com/v1/spaces/...?key=...&token=...
-                            </div>
-                        </div>
-
-                        <!-- Webhook Actions -->
-                        <div class="form-group mb-md" id="webhookActions" style="display: none;">
-                            <div style="display: flex; gap: 8px;">
-                                <button type="button" id="replaceWebhookBtn" class="btn btn-sm" style="background: white; border: 1px solid #c3c4c7;">
-                                    <i class="fa-solid fa-rotate"></i> Replace
-                                </button>
-                                <button type="button" id="clearWebhookBtn" class="btn btn-sm" style="background: #fef7f7; border: 1px solid #dc3232; color: #dc3232;">
-                                    <i class="fa-solid fa-trash"></i> Clear
-                                </button>
                             </div>
                         </div>
 
@@ -182,12 +171,8 @@ class NotsView {
 
                         <!-- Action Buttons -->
                         <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                            <button type="button" id="saveSettingsBtn" class="btn btn-primary">
-                                <i class="fa-solid fa-save"></i> Save Settings
-                            </button>
-                            <button type="button" id="testMessageBtn" class="btn" style="background: white; border: 1px solid #2271b1; color: #2271b1;">
-                                <i class="fa-solid fa-paper-plane"></i> Send Test Message
-                            </button>
+                            ${Button.html({text: 'Save Settings', icon: 'fa-solid fa-floppy-disk', type: 'button', id: 'saveSettingsBtn', variant: 'primary'})}
+                            ${Button.html({text: 'Send Test Message', icon: 'fa-solid fa-paper-plane', type: 'button', id: 'testMessageBtn', variant: 'outline', className: 'notifications-test-message-btn'})}
                         </div>
                     </form>
 
@@ -223,6 +208,7 @@ class NotsView {
         const badgeUnread = document.getElementById('badgeUnread');
 
         if (!listEl) return;
+        const paginationEl = document.getElementById('notificationsPagination');
 
         const isArchivedTab = this.currentSubTab === 'archived';
 
@@ -237,7 +223,8 @@ class NotsView {
         if (badgeUnread) badgeUnread.innerText = unreadCount;
 
         if (displayList.length === 0) {
-            btnAll.style.display = 'none';
+            if (btnAll) btnAll.style.display = 'none';
+            if (paginationEl) paginationEl.innerHTML = '';
             const emptyMessage = isArchivedTab ? "No archived messages." : "You're all caught up!";
             const emptySubMessage = isArchivedTab ? "Read notifications will appear here." : "There are no new notifications to review.";
             const emptyIcon = isArchivedTab ? "fa-folder-open" : "fa-bell-slash";
@@ -253,9 +240,24 @@ class NotsView {
         }
 
         // Only show "Mark All Read" on the Unread tab
-        btnAll.style.display = isArchivedTab ? 'none' : 'inline-flex';
+        if (btnAll) btnAll.style.display = isArchivedTab ? 'none' : 'inline-flex';
 
-        listEl.innerHTML = displayList.map(n => this._buildNotificationItem(n)).join('');
+        const pageCount = Math.max(1, Math.ceil(displayList.length / this.notificationsPageSize));
+        this.notificationsPage = Math.min(Math.max(1, this.notificationsPage), pageCount);
+        const pageStart = (this.notificationsPage - 1) * this.notificationsPageSize;
+        const pageItems = displayList.slice(pageStart, pageStart + this.notificationsPageSize);
+
+        listEl.innerHTML = pageItems.map(n => this._buildNotificationItem(n)).join('');
+        if (paginationEl) {
+            paginationEl.innerHTML = this._paginationHTML(displayList.length, pageCount, pageStart + 1, Math.min(pageStart + this.notificationsPageSize, displayList.length));
+            paginationEl.querySelectorAll('.notifications-page-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (btn.disabled) return;
+                    this.notificationsPage = Number(btn.dataset.page);
+                    this._renderList();
+                });
+            });
+        }
 
         listEl.querySelectorAll('.btn-mark-read').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -283,6 +285,27 @@ class NotsView {
         });
     }
 
+    _paginationHTML(total, pages, start, end) {
+        if (pages <= 1) return '';
+
+        const first = Math.max(1, Math.min(this.notificationsPage - 2, pages - 4));
+        const last = Math.min(pages, first + 4);
+        let buttons = '';
+        if (first > 1) {
+            buttons += `<button type="button" class="notifications-page-btn" data-page="1">1</button>`;
+            if (first > 2) buttons += '<span class="notifications-page-ellipsis">...</span>';
+        }
+        for (let page = first; page <= last; page++) {
+            buttons += `<button type="button" class="notifications-page-btn${page === this.notificationsPage ? ' active' : ''}" data-page="${page}"${page === this.notificationsPage ? ' aria-current="page"' : ''}>${page}</button>`;
+        }
+        if (last < pages) {
+            if (last < pages - 1) buttons += '<span class="notifications-page-ellipsis">...</span>';
+            buttons += `<button type="button" class="notifications-page-btn" data-page="${pages}">${pages}</button>`;
+        }
+
+        return `<div class="notifications-pagination-summary">Showing ${start}-${end} of ${total} notifications</div><div class="notifications-pagination-controls"><button type="button" class="notifications-page-btn" data-page="${this.notificationsPage - 1}"${this.notificationsPage <= 1 ? ' disabled' : ''}><i class="fa-solid fa-chevron-left"></i> Previous</button>${buttons}<button type="button" class="notifications-page-btn" data-page="${this.notificationsPage + 1}"${this.notificationsPage >= pages ? ' disabled' : ''}>Next <i class="fa-solid fa-chevron-right"></i></button></div>`;
+    }
+
     _buildNotificationItem(n) {
         const timeStr = this._timeSince(new Date(n.created_at));
 
@@ -294,19 +317,19 @@ class NotsView {
 
         if (n.type === 'transfer_pending') {
             icon = '<i class="fa-solid fa-clock-rotate-left"></i>';
-            bgStyle = 'background: var(--warning-50, #fffde7); color: var(--warning-700, #fbc02d); border: 1px solid var(--warning-500, #ffd600)';
+            bgStyle = 'background: var(--warning-50, var(--theme-warning-surface)); color: var(--warning-700, var(--palette-hex-fbc02d)); border: 1px solid var(--warning-500, var(--palette-hex-ffd600))';
         } else if (n.type === 'transfer_approved') {
             icon = '<i class="fa-solid fa-check-double"></i>';
-            bgStyle = 'background: var(--success-50, #f0fdf4); color: var(--success-700, #15803d); border: 1px solid #bbf7d0';
+            bgStyle = 'background: var(--success-50, var(--theme-success-surface)); color: var(--success-700, var(--palette-hex-15803d)); border: 1px solid var(--palette-hex-bbf7d0)';
         } else if (n.type === 'transfer_rejected' || n.type === 'transfer_request_rejected') {
             icon = '<i class="fa-solid fa-xmark"></i>';
-            bgStyle = 'background: var(--error-50, #fef2f2); color: var(--error-700, #b71c1c); border: 1px solid #fecaca';
+            bgStyle = 'background: var(--error-50, var(--theme-danger-surface)); color: var(--error-700, var(--palette-hex-b71c1c)); border: 1px solid var(--palette-hex-fecaca)';
         } else if (n.type === 'transfer_reverted' || n.type === 'transfer_canceled' || n.type === 'transfer_request_canceled') {
             icon = '<i class="fa-solid fa-rotate-left"></i>';
-            bgStyle = 'background: var(--neutral-100, #f3f4f6); color: var(--neutral-600, #4b5563); border: 1px solid #e5e7eb';
+            bgStyle = 'background: var(--neutral-100, var(--theme-surface-muted)); color: var(--neutral-600, var(--theme-text-secondary)); border: 1px solid var(--theme-border-subtle)';
         } else if (n.type === 'transfer_request') {
             icon = '<i class="fa-solid fa-hand-holding-hand"></i>';
-            bgStyle = 'background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;';
+            bgStyle = 'background: var(--palette-hex-eef2ff); color: var(--palette-hex-4338ca); border: 1px solid var(--palette-hex-c7d2fe);';
         }
 
         const circleStyle = `width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; ${bgStyle}`;
@@ -379,9 +402,9 @@ class NotsView {
                     // Update main tab styles
                     document.querySelectorAll('.main-tab-btn').forEach(b => {
                         if (b === btn) {
-                            b.style.cssText = 'padding: 0.75rem 1.5rem; border: none; background: transparent; cursor: pointer; font-weight: 500; color: var(--primary-600); border-bottom: 2px solid var(--primary-600); margin-bottom: -2px;';
+                            b.style.cssText = 'padding: 0.75rem 1.5rem; border: none; background: var(--palette-name-transparent); cursor: pointer; font-weight: 500; color: var(--primary-600); border-bottom: 2px solid var(--primary-600); margin-bottom: -2px;';
                         } else {
-                            b.style.cssText = 'padding: 0.75rem 1.5rem; border: none; background: transparent; cursor: pointer; font-weight: 500; color: var(--neutral-600); border-bottom: 2px solid transparent; margin-bottom: -2px;';
+                            b.style.cssText = 'padding: 0.75rem 1.5rem; border: none; background: var(--palette-name-transparent); cursor: pointer; font-weight: 500; color: var(--neutral-600); border-bottom: 2px solid var(--palette-name-transparent); margin-bottom: -2px;';
                         }
                     });
 
@@ -419,13 +442,14 @@ class NotsView {
                 e.preventDefault(); // Prevent any default button behavior
                 const subTab = btn.dataset.subTab;
                 this.currentSubTab = subTab;
+                this.notificationsPage = 1;
 
                 // Update sub tab styles
                 document.querySelectorAll('.sub-tab-btn').forEach(b => {
                     if (b === btn) {
                         b.style.cssText = 'padding: 8px 16px; border: none; background: none; border-bottom: 2px solid var(--primary-500); color: var(--primary-500); font-weight: 600; cursor: pointer;';
                     } else {
-                        b.style.cssText = 'padding: 8px 16px; border: none; background: none; border-bottom: 2px solid transparent; color: var(--neutral-600); font-weight: 600; cursor: pointer;';
+                        b.style.cssText = 'padding: 8px 16px; border: none; background: none; border-bottom: 2px solid var(--palette-name-transparent); color: var(--neutral-600); font-weight: 600; cursor: pointer;';
                     }
                 });
 
@@ -479,13 +503,13 @@ class NotsView {
     _updateMainTabStyles() {
         const mainTabButtons = document.querySelectorAll('.main-tab-btn');
         if (mainTabButtons.length === 0) return; // No tabs to style (non-admin)
-        
+
         mainTabButtons.forEach(btn => {
             const isActive = btn.dataset.mainTab === this.currentMainTab;
             if (isActive) {
-                btn.style.cssText = 'padding: 0.75rem 1.5rem; border: none; background: transparent; cursor: pointer; font-weight: 500; color: var(--primary-600); border-bottom: 2px solid var(--primary-600); margin-bottom: -2px;';
+                btn.style.cssText = 'padding: 0.75rem 1.5rem; border: none; background: var(--palette-name-transparent); cursor: pointer; font-weight: 500; color: var(--primary-600); border-bottom: 2px solid var(--primary-600); margin-bottom: -2px;';
             } else {
-                btn.style.cssText = 'padding: 0.75rem 1.5rem; border: none; background: transparent; cursor: pointer; font-weight: 500; color: var(--neutral-600); border-bottom: 2px solid transparent; margin-bottom: -2px;';
+                btn.style.cssText = 'padding: 0.75rem 1.5rem; border: none; background: var(--palette-name-transparent); cursor: pointer; font-weight: 500; color: var(--neutral-600); border-bottom: 2px solid var(--palette-name-transparent); margin-bottom: -2px;';
             }
         });
     }
@@ -496,7 +520,7 @@ class NotsView {
             if (isActive) {
                 btn.style.cssText = 'padding: 8px 16px; border: none; background: none; border-bottom: 2px solid var(--primary-500); color: var(--primary-500); font-weight: 600; cursor: pointer;';
             } else {
-                btn.style.cssText = 'padding: 8px 16px; border: none; background: none; border-bottom: 2px solid transparent; color: var(--neutral-600); font-weight: 600; cursor: pointer;';
+                btn.style.cssText = 'padding: 8px 16px; border: none; background: none; border-bottom: 2px solid var(--palette-name-transparent); color: var(--neutral-600); font-weight: 600; cursor: pointer;';
             }
         });
     }
@@ -556,11 +580,13 @@ class NotsView {
                 if (res.has_webhook && res.webhook_masked) {
                     webhookUrlInput.style.display = 'none';
                     webhookUrlMasked.style.display = 'block';
+                    webhookUrlMasked.classList.add('is-visible');
                     webhookUrlMasked.textContent = res.webhook_masked;
-                    webhookActions.style.display = 'block';
+                    webhookActions.style.display = 'flex';
                 } else {
                     webhookUrlInput.style.display = 'block';
                     webhookUrlMasked.style.display = 'none';
+                    webhookUrlMasked.classList.remove('is-visible');
                     webhookActions.style.display = 'none';
                 }
 
@@ -626,6 +652,7 @@ class NotsView {
             webhookUrlInput.value = '';
             webhookUrlInput.focus();
             webhookUrlMasked.style.display = 'none';
+            webhookUrlMasked.classList.remove('is-visible');
             webhookActions.style.display = 'none';
         });
 
@@ -634,6 +661,7 @@ class NotsView {
             webhookUrlInput.style.display = 'block';
             webhookUrlInput.value = '';
             webhookUrlMasked.style.display = 'none';
+            webhookUrlMasked.classList.remove('is-visible');
             webhookActions.style.display = 'none';
             Toast.info('Webhook will be cleared when you save');
         });
@@ -758,9 +786,9 @@ class NotsView {
             testResult.style.display = 'block';
 
             if (res.ok) {
-                testResult.style.background = '#d4edda';
-                testResult.style.border = '1px solid #c3e6cb';
-                testResult.style.color = '#155724';
+                testResult.style.background = 'var(--theme-success-surface)';
+                testResult.style.border = '1px solid var(--theme-success-border)';
+                testResult.style.color = 'var(--theme-success-text)';
                 testResult.innerHTML = `
                     <strong><i class="fa-solid fa-check-circle"></i> Test Successful</strong><br>
                     HTTP Status: ${res.http_status}<br>
@@ -768,9 +796,9 @@ class NotsView {
                 `;
                 Toast.success('Test message sent successfully');
             } else {
-                testResult.style.background = '#f8d7da';
-                testResult.style.border = '1px solid #f5c6cb';
-                testResult.style.color = '#721c24';
+                testResult.style.background = 'var(--theme-danger-surface)';
+                testResult.style.border = '1px solid var(--theme-danger-border)';
+                testResult.style.color = 'var(--theme-danger-text)';
                 testResult.innerHTML = `
                     <strong><i class="fa-solid fa-exclamation-circle"></i> Test Failed</strong><br>
                     HTTP Status: ${res.http_status}<br>
@@ -781,9 +809,9 @@ class NotsView {
         } catch (err) {
             console.error('Failed to send test message:', err);
             testResult.style.display = 'block';
-            testResult.style.background = '#f8d7da';
-            testResult.style.border = '1px solid #f5c6cb';
-            testResult.style.color = '#721c24';
+            testResult.style.background = 'var(--theme-danger-surface)';
+            testResult.style.border = '1px solid var(--theme-danger-border)';
+            testResult.style.color = 'var(--theme-danger-text)';
             testResult.innerHTML = `
                 <strong><i class="fa-solid fa-exclamation-circle"></i> Test Failed</strong><br>
                 Error: ${err.message || 'Network error'}

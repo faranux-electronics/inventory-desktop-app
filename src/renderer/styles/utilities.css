@@ -53,7 +53,7 @@
 .text-neutral-900 { color: var(--neutral-900); }
 
 /* --- Backgrounds --- */
-.bg-white { background: white; }
+.bg-white { background: var(--theme-surface); }
 .bg-neutral-50 { background: var(--neutral-50); }
 .bg-neutral-100 { background: var(--neutral-100); }
 

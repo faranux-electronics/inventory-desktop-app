@@ -1,6 +1,8 @@
 const Toast = require('../../components/Toast.js');
 const Modal = require('../../components/Modal.js');
 const API = require('../../services/api.js');
+const PageHeader = require('../../components/PageHeader.js');
+const Button = require('../../components/Button.js');
 
 class BranchesView {
     constructor(app) {
@@ -24,30 +26,29 @@ class BranchesView {
 
     render() {
         const content = document.getElementById('content');
+        content.dataset.view = 'branches';
 
         content.innerHTML = `
-            <div class="page-header mb-md">
-                <div class="header-row mb-sm" style="display: flex; justify-content: flex-start; align-items: center; gap: 15px;">
-                    <h1 class="page-title text-neutral-800 font-normal" style="font-size: 23px; margin: 0;">Branches</h1>
-                    <button class="btn btn-sm" id="addBranchBtn" style="border: 1px solid #2271b1; color: #2271b1; background: white; padding: 4px 12px; font-weight: 500; border-radius: 3px;">
-                        Add New
-                    </button>
-                    <button class="btn btn-sm btn-primary hidden" id="savePriorityBtn" style="padding: 4px 12px; border-radius: 3px;">
-                        <i class="fa-solid fa-floppy-disk"></i> Save Priority Order
-                    </button>
-                </div>
+            ${PageHeader.html({
+                title: 'Branches',
+                icon: 'fa-solid fa-code-branch',
+                subtitle: 'Manage branch locations and fulfillment priority.',
+                actions: `${Button.html({text: 'Add New', icon: 'fa-solid fa-plus', id: 'addBranchBtn', variant: 'outline', size: 'md', className: 'branches-add-btn'})}${Button.html({text: 'Save Priority Order', icon: 'fa-solid fa-floppy-disk', id: 'savePriorityBtn', variant: 'primary', size: 'md', hidden: true})}`,
+                className: 'page-header-surface branches-page-header'
+            })}
 
-                <div class="tabs" style="border-bottom: 1px solid #c3c4c7;">
-                    <button class="tab-btn ${this.currentTab === 'active' ? 'active' : ''}" data-tab="active" style="padding: 8px 16px; font-weight: 500; font-size: 13px;">
+            <div class="branches-content">
+                <div class="tabs branches-tabs">
+                    <button class="tab-btn ${this.currentTab === 'active' ? 'active' : ''}" data-tab="active">
                         Active (Priority Ordered)
                     </button>
-                    <button class="tab-btn ${this.currentTab === 'trash' ? 'active' : ''}" data-tab="trash" style="padding: 8px 16px; font-weight: 500; font-size: 13px;">
+                    <button class="tab-btn ${this.currentTab === 'trash' ? 'active' : ''}" data-tab="trash">
                         Trash
                     </button>
                 </div>
-            </div>
 
-            <div id="branchesContent" style="margin-top: 15px;"></div>
+                <div id="branchesContent"></div>
+            </div>
         `;
 
         this.attachEvents();
@@ -82,7 +83,7 @@ class BranchesView {
     async loadBranches() {
         const container = document.getElementById('branchesContent');
         if (!container) return;
-        container.innerHTML = '<div style="padding: 40px; text-align: center; color: #646970;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+        container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--theme-text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
 
         try {
             if (this.currentTab === 'active') {
@@ -92,7 +93,7 @@ class BranchesView {
             }
         } catch (e) {
             console.error(e);
-            container.innerHTML = '<div style="padding: 40px; text-align: center; color: #d63638;">Failed to load branches</div>';
+            container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--palette-hex-d63638);">Failed to load branches</div>';
         }
     }
 
@@ -104,41 +105,41 @@ class BranchesView {
             const branches = res.data || [];
 
             if (branches.length === 0) {
-                container.innerHTML = '<div style="padding: 40px; text-align: center; background: white; border: 1px solid #c3c4c7; color: #646970;">No branches found</div>';
+                container.innerHTML = '<div style="padding: 40px; text-align: center; background: var(--theme-surface); border: 1px solid var(--theme-border); color: var(--theme-text-muted);">No branches found</div>';
                 return;
             }
 
             const html = `
-                <div style="background: white; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-                    <div style="padding: 8px 16px; background: #fffbe5; border-bottom: 1px solid #c3c4c7; font-size: 12px; color: #666;">
+                <div style="background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px var(--palette-rgb-0-0-0-0p02);">
+                    <div style="padding: 8px 16px; background: var(--palette-hex-fffbe5); border-bottom: 1px solid var(--theme-border); font-size: 12px; color: var(--palette-hex-666);">
                         <i class="fa-solid fa-circle-info text-info-500"></i> <b>Drag and drop</b> rows to reorder fulfillment priority. Top branch is fulfilled first.
                     </div>
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
-                        <thead style="background: #f8f9fa; border-bottom: 1px solid #c3c4c7;">
+                        <thead style="background: var(--theme-surface-alt); border-bottom: 1px solid var(--theme-border);">
                             <tr>
-                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600; width: 60px;">Priority</th>
-                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600; width: 80px;">ID</th>
-                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600;">Name</th>
+                                <th style="padding: 10px 16px; color: var(--theme-text-primary); font-weight: 600; width: 60px;">Priority</th>
+                                <th style="padding: 10px 16px; color: var(--theme-text-primary); font-weight: 600; width: 80px;">ID</th>
+                                <th style="padding: 10px 16px; color: var(--theme-text-primary); font-weight: 600;">Name</th>
                             </tr>
                         </thead>
                         <tbody id="sortableBranchesList">
                             ${branches.map((b, index) => `
-                                <tr class="hover:bg-neutral-50 branch-row" draggable="true" data-id="${b.id}" style="border-bottom: 1px solid #f0f0f1; cursor: grab;">
-                                    <td style="padding: 12px 16px; color: #888; text-align: center;">
-                                        <i class="fa-solid fa-grip-vertical" style="color: #ccc; margin-right: 5px;"></i>
-                                        <span class="priority-badge" style="background: ${index === 0 ? '#d1fae5' : '#e2e8f0'}; color: ${index === 0 ? '#065f46' : '#475569'}; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">
+                                <tr class="hover:bg-neutral-50 branch-row" draggable="true" data-id="${b.id}" style="border-bottom: 1px solid var(--palette-hex-f0f0f1); cursor: grab;">
+                                    <td style="padding: 12px 16px; color: var(--palette-hex-888); text-align: center;">
+                                        <i class="fa-solid fa-grip-vertical" style="color: var(--palette-hex-ccc); margin-right: 5px;"></i>
+                                        <span class="priority-badge" style="background: ${index === 0 ? 'var(--palette-hex-d1fae5)' : 'var(--palette-hex-e2e8f0)'}; color: ${index === 0 ? 'var(--palette-hex-065f46)' : 'var(--palette-hex-475569)'}; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 11px;">
                                             ${index + 1}
                                         </span>
                                     </td>
-                                    <td style="padding: 12px 16px; color: #50575e; font-family: monospace;">#${b.id}</td>
+                                    <td style="padding: 12px 16px; color: var(--theme-text-secondary); font-family: monospace;">#${b.id}</td>
                                     <td style="padding: 12px 16px; vertical-align: top;">
-                                        <div style="font-weight: 600; color: #2271b1; font-size: 14px; margin-bottom: 4px;">
+                                        <div style="font-weight: 600; color: var(--palette-hex-2271b1); font-size: 14px; margin-bottom: 4px;">
                                             ${b.name}
                                         </div>
                                         <div class="row-actions" style="font-size: 12px;">
-                                            <button class="btn-edit" style="background: none; border: none; padding: 0; color: #2271b1; cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Edit</button>
-                                            <span style="color: #a7aaad; margin: 0 4px;">|</span>
-                                            <button class="btn-delete" style="background: none; border: none; padding: 0; color: #b32d2e; cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Trash</button>
+                                            <button class="btn-edit" style="background: none; border: none; padding: 0; color: var(--palette-hex-2271b1); cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Edit</button>
+                                            <span style="color: var(--palette-hex-a7aaad); margin: 0 4px;">|</span>
+                                            <button class="btn-delete" style="background: none; border: none; padding: 0; color: var(--palette-hex-b32d2e); cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Trash</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -152,7 +153,7 @@ class BranchesView {
             this.attachItemEvents();
             this.attachDragAndDropEvents(); // Attach the D&D logic
         } else {
-            container.innerHTML = `<div style="padding: 40px; text-align: center; color: #d63638;">${res.message}</div>`;
+            container.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--palette-hex-d63638);">${res.message}</div>`;
         }
     }
 
@@ -165,31 +166,31 @@ class BranchesView {
             const branches = res.data || [];
 
             if (branches.length === 0) {
-                container.innerHTML = '<div style="padding: 40px; text-align: center; background: white; border: 1px solid #c3c4c7; color: #646970;">Trash is empty</div>';
+                container.innerHTML = '<div style="padding: 40px; text-align: center; background: var(--theme-surface); border: 1px solid var(--theme-border); color: var(--theme-text-muted);">Trash is empty</div>';
                 return;
             }
 
             const html = `
-                <div style="background: white; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
+                <div style="background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px var(--palette-rgb-0-0-0-0p02);">
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
-                        <thead style="background: #f8f9fa; border-bottom: 1px solid #c3c4c7;">
+                        <thead style="background: var(--theme-surface-alt); border-bottom: 1px solid var(--theme-border);">
                             <tr>
-                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600; width: 80px;">ID</th>
-                                <th style="padding: 10px 16px; color: #2c3338; font-weight: 600;">Name</th>
+                                <th style="padding: 10px 16px; color: var(--theme-text-primary); font-weight: 600; width: 80px;">ID</th>
+                                <th style="padding: 10px 16px; color: var(--theme-text-primary); font-weight: 600;">Name</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${branches.map(b => `
-                                <tr style="border-bottom: 1px solid #f0f0f1; background: #fafafa;">
-                                    <td style="padding: 12px 16px; color: #a7aaad; font-family: monospace;">#${b.id}</td>
+                                <tr style="border-bottom: 1px solid var(--palette-hex-f0f0f1); background: var(--theme-surface-muted);">
+                                    <td style="padding: 12px 16px; color: var(--palette-hex-a7aaad); font-family: monospace;">#${b.id}</td>
                                     <td style="padding: 12px 16px; vertical-align: top;">
-                                        <div style="font-weight: 600; color: #50575e; font-size: 14px; margin-bottom: 4px; text-decoration: line-through;">
+                                        <div style="font-weight: 600; color: var(--theme-text-secondary); font-size: 14px; margin-bottom: 4px; text-decoration: line-through;">
                                             ${b.name}
                                         </div>
                                         <div class="row-actions" style="font-size: 12px;">
-                                            <button class="btn-restore" style="background: none; border: none; padding: 0; color: #2271b1; cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Restore</button>
-                                            <span style="color: #a7aaad; margin: 0 4px;">|</span>
-                                            <button class="btn-permanent-delete" style="background: none; border: none; padding: 0; color: #b32d2e; cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Delete Permanently</button>
+                                            <button class="btn-restore" style="background: none; border: none; padding: 0; color: var(--palette-hex-2271b1); cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Restore</button>
+                                            <span style="color: var(--palette-hex-a7aaad); margin: 0 4px;">|</span>
+                                            <button class="btn-permanent-delete" style="background: none; border: none; padding: 0; color: var(--palette-hex-b32d2e); cursor: pointer; text-decoration: none;" data-id="${b.id}" data-name="${b.name.replace(/"/g, '&quot;')}">Delete Permanently</button>
                                         </div>
                                     </td>
                                 </tr>
@@ -202,7 +203,7 @@ class BranchesView {
             container.innerHTML = html;
             this.attachTrashEvents();
         } else {
-            container.innerHTML = `<div style="padding: 40px; text-align: center; color: #d63638;">${res.message}</div>`;
+            container.innerHTML = `<div style="padding: 40px; text-align: center; color: var(--palette-hex-d63638);">${res.message}</div>`;
         }
     }
 
@@ -263,22 +264,22 @@ class BranchesView {
                 const offset = bounding.y + (bounding.height / 2);
 
                 if (e.clientY - offset > 0) {
-                    row.style.borderBottom = "2px solid #2271b1";
+                    row.style.borderBottom = "2px solid var(--palette-hex-2271b1)";
                     row.style.borderTop = "";
                 } else {
-                    row.style.borderTop = "2px solid #2271b1";
+                    row.style.borderTop = "2px solid var(--palette-hex-2271b1)";
                     row.style.borderBottom = "";
                 }
             });
 
             row.addEventListener('dragleave', () => {
-                row.style.borderBottom = "1px solid #f0f0f1";
+                row.style.borderBottom = "1px solid var(--palette-hex-f0f0f1)";
                 row.style.borderTop = "";
             });
 
             row.addEventListener('drop', (e) => {
                 e.preventDefault();
-                row.style.borderBottom = "1px solid #f0f0f1";
+                row.style.borderBottom = "1px solid var(--palette-hex-f0f0f1)";
                 row.style.borderTop = "";
 
                 if (this.draggedRow !== row) {
@@ -307,11 +308,11 @@ class BranchesView {
 
             // Highlight the primary branch (index 0)
             if (index === 0) {
-                badge.style.background = '#d1fae5';
-                badge.style.color = '#065f46';
+                badge.style.background = 'var(--theme-success-surface)';
+                badge.style.color = 'var(--theme-success-text)';
             } else {
-                badge.style.background = '#e2e8f0';
-                badge.style.color = '#475569';
+                badge.style.background = 'var(--theme-surface-muted)';
+                badge.style.color = 'var(--theme-text-secondary)';
             }
         });
     }

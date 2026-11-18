@@ -59,6 +59,7 @@ class TransfersView {
     }
 
     render() {
+        document.getElementById('content').dataset.view = 'transfers';
         this._savedStagingItems = this.stagingPanel?.getItems() || [];
         this.destroy();
 
@@ -100,18 +101,18 @@ class TransfersView {
         <div class="trv-root" id="trvRoot">
             <div class="trv-nav-bar" id="trvTabBar">
                 <button class="trv-nav-tab ${isNew ? 'active' : ''}" data-tab="new_transfer">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="13"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     New Transfer
                 </button>
                 <div class="trv-nav-sep"></div>
                 <button class="trv-nav-tab ${this.currentTab === 'pending_incoming' ? 'active' : ''}" data-tab="pending_incoming">Incoming</button>
                 <button class="trv-nav-tab ${this.currentTab === 'pending_outgoing' ? 'active' : ''}" data-tab="pending_outgoing">Outgoing</button>
                 <button class="trv-nav-tab ${this.currentTab === 'history' ? 'active' : ''}" data-tab="history">History</button>
-                
+
                 ${canViewBalance ? `
                 <div class="trv-nav-sep"></div>
                 <button class="trv-nav-tab ${isBalance ? 'active' : ''}" data-tab="balance">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><path d="M3 3v18h18"/><path d="M7 15l4-4 4 4 5-6"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="13"><path d="M3 3v18h18"/><path d="M7 15l4-4 4 4 5-6"/></svg>
                     Balance Stock
                 </button>
                 ` : ''}
@@ -140,7 +141,7 @@ class TransfersView {
             <div class="trv-panel trv-panel--table" id="trvPanelTable" style="${isTable ? '' : 'display:none;'}">
                 <div class="trv-table-toolbar">
                     <div class="trv-search-wrap">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" class="trv-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="13" class="trv-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" id="trvSearch" class="trv-filter-input trv-search-input" placeholder="Search batch or product…" value="${esc(this.filters.search)}">
                     </div>
                     <input type="date" id="trvDateStart" class="trv-filter-input" value="${esc(this.filters.start)}">
@@ -163,7 +164,7 @@ class TransfersView {
                 </div>
                 <div id="trvSurplusBanner" class="trv-surplus-banner" style="display:none; padding: 0 0 0 12px; margin: 10px 20px 0 20px; align-items: stretch; justify-content: space-between; border-radius: 6px; overflow: hidden;">
                     <div style="display: flex; align-items: center; gap: 6px; padding: 6px 0;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                         <span style="font-size: 13px;"><strong id="trvSurplusBannerCount">0</strong> transfers with discrepancies detected.</span>
                     </div>
                     <button class="trv-btn trv-btn-primary" id="trvCheckDiscrepanciesBtn" style="white-space: nowrap; padding: 6px 16px; font-size: 12px; border-radius: 0; border: none; height: auto; display: flex; align-items: center; justify-content: center; margin: 0;">Check Discrepancies</button>
@@ -619,7 +620,7 @@ class TransfersView {
     async loadTransfers() {
         const tbody = document.getElementById('transfersTableBody');
         tbody.innerHTML = `<div class="trv-empty-row">
-            <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
+            <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="20" height="20">
                 <circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/>
             </svg>
             Loading\u2026
@@ -644,9 +645,9 @@ class TransfersView {
             wantTransfers
                 ? API.getTransfers(type, dir, this.filters.page, this.filters.search, '', this.filters.start, this.filters.end, '')
                 : Promise.resolve({ status: 'success', data: [], pagination: { total: 0, page: 1, pages: 1 } }),
-            (wantRequests && this.filters.page === 1)
-                ? API.getTransferRequests(type, dir, 1, this.filters.search, '', this.filters.start, this.filters.end)
-                : Promise.resolve({ status: 'success', data: [] })
+            wantRequests
+                ? API.getTransferRequests(type, dir, this.filters.page, this.filters.search, '', this.filters.start, this.filters.end)
+                : Promise.resolve({ status: 'success', data: [], pagination: { total: 0, page: this.filters.page, pages: 1 } })
         ]);
 
         if (res.status === 'success') {
@@ -688,7 +689,7 @@ class TransfersView {
                 // Clone to replace listeners
                 const newBanner = banner.cloneNode(true);
                 banner.parentNode.replaceChild(newBanner, banner);
-                
+
                 const btn = newBanner.querySelector('#trvCheckDiscrepanciesBtn');
                 if (btn) {
                     btn.addEventListener('click', (e) => {
@@ -718,9 +719,13 @@ class TransfersView {
 
             this.tableComponent.render(merged);
 
+            const transferPagination = res.pagination || { total: 0, page: this.filters.page, pages: 1 };
+            const requestPagination = reqRes.pagination || { total: 0, page: this.filters.page, pages: 1 };
             const paginationSource = recordType === 'request'
-                ? (reqRes.pagination || { total: requests.length, page: 1, pages: 1 })
-                : (res.pagination || { total: 0, page: 1, pages: 1 });
+                ? requestPagination
+                : recordType === 'transfer'
+                    ? transferPagination
+                    : { page: this.filters.page, pages: Math.max(transferPagination.pages || 1, requestPagination.pages || 1), total: (transferPagination.total || 0) + (requestPagination.total || 0) };
             this._renderPagination(paginationSource);
         } else {
             tbody.innerHTML = `<div class="trv-empty-row" style="color:var(--error-500);">${esc(res.message)}</div>`;

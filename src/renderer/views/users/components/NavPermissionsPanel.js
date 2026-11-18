@@ -44,7 +44,7 @@ class NavPermissionsPanel {
         const configurableItems = NAV_ITEMS.filter(i => !i.locked);
 
         const headerCols = ROLES.map(r =>
-            `<th style="padding: 10px 16px; text-align: center; color: #2271b1; font-size: 12px; text-transform: uppercase; letter-spacing: .04em;">${r}</th>`
+            `<th style="padding: 10px 16px; text-align: center; color: var(--palette-hex-2271b1); font-size: 12px; text-transform: uppercase; letter-spacing: .04em;">${r}</th>`
         ).join('');
 
         const rows = configurableItems.map(item => {
@@ -53,19 +53,19 @@ class NavPermissionsPanel {
                 return `
                     <td style="padding: 10px 16px; text-align: center;">
                         <label class="nav-perm-toggle" style="display: inline-flex; align-items: center; cursor: pointer;">
-                            <input type="checkbox" class="nav-perm-cb" 
-                                data-role="${role}" data-key="${item.key}" 
+                            <input type="checkbox" class="nav-perm-cb"
+                                data-role="${role}" data-key="${item.key}"
                                 ${checked}
-                                style="width: 16px; height: 16px; accent-color: #2271b1; cursor: pointer;">
+                                style="width: 16px; height: 16px; accent-color: var(--palette-hex-2271b1); cursor: pointer;">
                         </label>
                     </td>`;
             }).join('');
 
             return `
-                <tr style="border-bottom: 1px solid #f0f0f1;">
+                <tr style="border-bottom: 1px solid var(--palette-hex-f0f0f1);">
                     <td style="padding: 10px 16px;">
-                        <span style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #2c3338;">
-                            <i class="fa-solid ${item.icon}" style="width: 16px; color: #8c8f94;"></i>
+                        <span style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--theme-text-primary);">
+                            <i class="fa-solid ${item.icon}" style="width: 16px; color: var(--palette-hex-8c8f94);"></i>
                             ${item.label}
                         </span>
                     </td>
@@ -74,17 +74,17 @@ class NavPermissionsPanel {
         }).join('');
 
         return `
-            <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: #856404;">
+            <div style="background: var(--palette-hex-fff3cd); border: 1px solid var(--palette-hex-ffc107); border-radius: 4px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: var(--palette-hex-856404);">
                 <i class="fa-solid fa-circle-info"></i>
                 Changes apply immediately after saving. Users must reload the app to see updated navigation.
                 <b>Locked items</b> (e.g. Notifications) are always visible and cannot be configured here.
             </div>
 
-            <div style="background: white; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden;">
+            <div style="background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 4px; overflow: hidden;">
                 <table style="width: 100%; border-collapse: collapse;">
-                    <thead style="background: #f8f9fa; border-bottom: 1px solid #c3c4c7;">
+                    <thead style="background: var(--theme-surface-alt); border-bottom: 1px solid var(--theme-border);">
                         <tr>
-                            <th style="padding: 10px 16px; text-align: left; color: #2c3338; font-size: 13px; font-weight: 600;">Navigation Item</th>
+                            <th style="padding: 10px 16px; text-align: left; color: var(--theme-text-primary); font-size: 13px; font-weight: 600;">Navigation Item</th>
                             ${headerCols}
                         </tr>
                     </thead>

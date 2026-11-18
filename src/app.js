@@ -1,31 +1,32 @@
 // Main Application Entry Point
-const { ipcRenderer } = require('electron');
-const Sidebar = require('./src/renderer/components/Sidebar.js');
-const Toast = require('./src/renderer/components/Toast.js');
-const State = require('./src/renderer/services/state.js');
-const API = require('./src/renderer/services/api.js');
-const Modal = require('./src/renderer/components/Modal.js');
-const NotificationManager = require('./src/renderer/services/NotificationManager.js');
-const initUpdater = require('./src/updater.js');
+const Sidebar = require('./renderer/components/Sidebar.js');
+const Toast = require('./renderer/components/Toast.js');
+const State = require('./renderer/services/state.js');
+const API = require('./renderer/services/api.js');
+const Modal = require('./renderer/components/Modal.js');
+const NotificationManager = require('./renderer/services/NotificationManager.js');
+const initUpdater = require('./updater.js');
+const Theme = require('./renderer/services/Theme.js');
 
 // Views
-const LoginView = require('./src/renderer/views/auth/Loginview.js');
-const ProductsView = require('./src/renderer/views//products/ProductsView.js');
-const BranchesView = require('./src/renderer/views/branches/Branchesview.js');
-const TransfersView = require('./src/renderer/views/transfer/Transfersview.js');
-const ProfileView = require('./src/renderer/views/profile/ProfileView.js');
-const ImportView = require('./src/renderer/views/import/ImportView.js');
-const PosView = require('./src/renderer/views/pos/POSView.js');
-const LogsView = require("./src/renderer/views/logger/LogsView.js");
-const NotsView = require('./src/renderer/views/notifications/NotsView.js');
-const AccessView = require('./src/renderer/views/users/AccessView');
-const MpsView = require('./src/renderer/views/mps/MpsView.js');
-const NAV_ITEMS = require('./src/renderer/config/navRegistry.js');
+const LoginView = require('./renderer/views/auth/Loginview.js');
+const ProductsView = require('./renderer/views/products/ProductsView.js');
+const BranchesView = require('./renderer/views/branches/Branchesview.js');
+const TransfersView = require('./renderer/views/transfer/Transfersview.js');
+const ProfileView = require('./renderer/views/profile/ProfileView.js');
+const ImportView = require('./renderer/views/import/ImportView.js');
+const PosView = require('./renderer/views/pos/POSView.js');
+const LogsView = require("./renderer/views/logger/LogsView.js");
+const NotsView = require('./renderer/views/notifications/NotsView.js');
+const AccessView = require('./renderer/views/users/AccessView');
+const MpsView = require('./renderer/views/mps/MpsView.js');
+const NAV_ITEMS = require('./renderer/config/navRegistry.js');
 
 class App {
     constructor() {
         this.state = State;
         this.notifManager = null;
+        this.authRedirectInProgress = false;
 
         this.sidebar = new Sidebar(
             (view) => this.navigate(view),
@@ -50,6 +51,7 @@ class App {
     }
 
     async init() {
+        Theme.apply();
         const user = this.state.getUser();
         if (user) {
             await this.renderApp(user);
@@ -60,6 +62,7 @@ class App {
     }
 
     async renderApp(user) {
+        this.views.products?._bgSync?.start();
         const app = document.getElementById('app');
         app.innerHTML = `
       ${this.sidebar.render(user)}
@@ -72,6 +75,7 @@ class App {
         this.sidebar.loadAppVersion();
 
         const navRes = await API.getNavPermissions();
+        if (!this.state.getUser()) return;
         if (navRes.status === 'success') {
             this.state.setNavPermissions(navRes.data);
             // Re-render sidebar with permissions
@@ -99,8 +103,10 @@ class App {
     async navigate(viewName) {
         const view = this.views[viewName];
         if (!view) return;
+        const previousView = this.currentView;
         this.currentView = view;
         if (viewName === 'login') {
+            if (previousView && previousView !== view && typeof previousView.suspend === 'function') previousView.suspend();
             document.getElementById('app').innerHTML = '';
             view.render();
         } else {
@@ -130,20 +136,31 @@ class App {
                 await this.ensureNavPermissionsLoaded();
             }
 
+            if (previousView && previousView !== view && typeof previousView.suspend === 'function') previousView.suspend();
             view.render();
         }
     }
 
-    async handleLogout() {
+    async handleAuthenticationRequired(message) {
+        if (this.authRedirectInProgress) return;
+        this.authRedirectInProgress = true;
+        this.views.products?._bgSync?.stop();
         this.state.logout();
-
         if (this.notifManager) {
             this.notifManager.stopPolling();
             this.notifManager = null;
         }
-
         await this.navigate('login');
-        Toast.info('Logged out successfully');
+        if (typeof Toast.warning === 'function') Toast.warning(message);
+        else Toast.info(message);
+    }
+
+    resetAuthenticationFailure() {
+        this.authRedirectInProgress = false;
+    }
+
+    async handleLogout() {
+        await this.handleAuthenticationRequired('Logged out successfully');
     }
 }
 

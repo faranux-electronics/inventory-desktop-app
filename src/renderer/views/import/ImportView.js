@@ -1,5 +1,7 @@
 const Toast = require('../../components/Toast.js');
 const API = require('../../services/api.js');
+const PageHeader = require('../../components/PageHeader.js');
+const Tabs = require('../../components/Tabs.js');
 const ImportForm = require('./components/ImportForm.js');
 const ImportHistory = require('./components/ImportHistory.js');
 
@@ -14,21 +16,20 @@ class ImportView {
 
     render() {
         const content = document.getElementById('content');
+        content.dataset.view = 'import';
 
         content.innerHTML = `
-            <div class="page-header mb-md">
-                <div class="header-row mb-sm">
-                    <h1 class="page-title text-neutral-800 font-normal">Import Stock</h1>
-                </div>
-                
-                <div class="tabs" style="border-bottom: 1px solid #c3c4c7;">
-                    <button class="tab-btn active" id="mainTabNew" style="padding: 8px 16px; font-weight: 600;">New Import</button>
-                    <button class="tab-btn" id="mainTabHistory" style="padding: 8px 16px; font-weight: 600;"><i class="fa-solid fa-clock-rotate-left"></i> Import History</button>
-                </div>
-            </div>
+            ${PageHeader.html({title: 'Import Stock', icon: 'fa-solid fa-file-import', subtitle: 'Import stock quantities and review previous imports.', className: 'page-header-surface import-page-header'})}
 
-            <div id="viewNewImport"></div>
-            <div id="viewHistory" class="hidden"></div>
+            <div class="import-content">
+                ${Tabs.html({id: 'importTabs', className: 'import-tabs', activeId: 'new', tabs: [
+                    {key: 'new', elementId: 'mainTabNew', label: 'New Import'},
+                    {key: 'history', elementId: 'mainTabHistory', label: 'Import History', icon: 'fa-solid fa-clock-rotate-left'}
+                ]})}
+
+                <div id="viewNewImport"></div>
+                <div id="viewHistory" class="hidden"></div>
+            </div>
         `;
 
         this.formComponent.render(document.getElementById('viewNewImport'));
@@ -57,19 +58,11 @@ class ImportView {
     }
 
     attachEvents() {
-        document.getElementById('mainTabNew').addEventListener('click', (e) => {
-            e.target.classList.add('active');
-            document.getElementById('mainTabHistory').classList.remove('active');
-            document.getElementById('viewNewImport').classList.remove('hidden');
-            document.getElementById('viewHistory').classList.add('hidden');
-        });
-
-        document.getElementById('mainTabHistory').addEventListener('click', (e) => {
-            e.target.classList.add('active');
-            document.getElementById('mainTabNew').classList.remove('active');
-            document.getElementById('viewHistory').classList.remove('hidden');
-            document.getElementById('viewNewImport').classList.add('hidden');
-            this.historyComponent.loadHistory();
+        Tabs.bind(document.getElementById('importTabs'), tab => {
+            const showHistory = tab === 'history';
+            document.getElementById('viewHistory').classList.toggle('hidden', !showHistory);
+            document.getElementById('viewNewImport').classList.toggle('hidden', showHistory);
+            if (showHistory) this.historyComponent.loadHistory();
         });
     }
 }

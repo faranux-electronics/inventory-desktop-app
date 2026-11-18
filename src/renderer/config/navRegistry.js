@@ -41,7 +41,7 @@ const NAV_ITEMS = [
         defaultRoles: ['admin'],
     },
     {
-        key: 'access',             
+        key: 'access',
         label: 'Access Management',
         icon: 'fa-users-gear',
         defaultRoles: ['admin'],

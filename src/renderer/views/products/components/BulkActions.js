@@ -15,17 +15,17 @@ class BulkActions {
                 align-items: center;
                 flex-wrap: wrap;
                 gap: 10px;
-                background: #f0f6fc;
-                border: 1px solid #c8e1ff;
+                background: var(--palette-hex-f0f6fc);
+                border: 1px solid var(--palette-hex-c8e1ff);
                 border-radius: 6px;
                 padding: 6px 12px;
                 margin-top: 8px;
                 font-size: 13px;
             ">
-                <span id="selectionCount" style="font-weight: 600; color: #2271b1;">0 items selected</span>
+                <span id="selectionCount" style="font-weight: 600; color: var(--palette-hex-2271b1);">0 items selected</span>
                 <button class="btn btn-sm" id="exportSelectedBtn" style="
-                    background: #2271b1;
-                    color: white;
+                    background: var(--palette-hex-2271b1);
+                    color: var(--palette-name-white);
                     border: none;
                     padding: 4px 12px;
                     border-radius: 4px;
@@ -39,9 +39,9 @@ class BulkActions {
                     <i class="fa-solid fa-file-csv"></i> Export Selected (CSV)
                 </button>
                 <button class="btn btn-sm btn-secondary" id="clearSelectionBtn" style="
-                    background: #ffffff;
-                    border: 1px solid #c3c4c7;
-                    color: #50575e;
+                    background: var(--theme-surface);
+                    border: 1px solid var(--theme-border);
+                    color: var(--theme-text-secondary);
                     padding: 4px 10px;
                     border-radius: 4px;
                     font-size: 12px;

@@ -1,88 +1,43 @@
-/**
- * Button - Reusable button component with multiple variants
- * 
- * Variants:
- * - 'primary': Solid gradient background (default)
- * - 'outlined': Outlined with border, white background
- * - 'ghost': Transparent background, minimal styling
- * 
- * Sizes:
- * - 'sm': Small (default)
- * - 'md': Medium
- * - 'lg': Large
- */
+const VARIANTS = new Set(['primary', 'secondary', 'danger', 'ghost', 'outline', 'google']);
+const SIZES = new Set(['sm', 'md', 'lg']);
+
+function escapeAttribute(value) {
+    return String(value ?? '').replace(/[&"<>']/g, char => ({
+        '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;', "'": '&#39;'
+    })[char]);
+}
+
+function escapeText(value) {
+    return String(value ?? '').replace(/[&<>]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[char]);
+}
+
 class Button {
-    static create({ 
-        text = '', 
-        icon = '', 
-        variant = 'primary', 
-        size = 'sm', 
-        id = '', 
-        className = '', 
-        title = '',
-        disabled = false,
-        onClick = null 
+    /** Return markup for view templates; icon is a Font Awesome class name. */
+    static html({
+        text = '', icon = '', variant = 'primary', size = 'md', id = '',
+        className = '', title = '', ariaLabel = '', ariaControls = '', ariaExpanded, type = 'button', disabled = false,
+        hidden = false, dataAttributes = {}
     } = {}) {
-        const sizeStyles = {
-            sm: 'padding: 6px 10px; font-size: 11px;',
-            md: 'padding: 8px 14px; font-size: 12px;',
-            lg: 'padding: 10px 16px; font-size: 13px;'
-        };
+        const safeVariant = VARIANTS.has(variant) ? variant : 'primary';
+        const safeSize = SIZES.has(size) ? size : 'md';
+        const safeType = ['button', 'submit', 'reset'].includes(type) ? type : 'button';
+        const classes = ['btn', `btn-${safeVariant}`, `btn-${safeSize}`, className, hidden ? 'hidden' : '']
+            .filter(Boolean).join(' ');
+        const iconMarkup = icon ? `<i class="${escapeAttribute(icon)}" aria-hidden="true"></i>` : '';
+        const dataMarkup = Object.entries(dataAttributes)
+            .filter(([name]) => /^data-[a-z0-9_-]+$/i.test(name))
+            .map(([name, value]) => ` ${name}="${escapeAttribute(value)}"`).join('');
 
-        const variantStyles = {
-            primary: `
-                background: linear-gradient(135deg, #243B53 0%, #1E3A5F 100%);
-                color: #FFFFFF;
-                border: none;
-                box-shadow: 0 2px 6px rgba(36, 59, 83, 0.25);
-            `,
-            outlined: `
-                background: #FFFFFF;
-                color: #243B53;
-                border: 1px solid #E2E8F0;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-            `,
-            ghost: `
-                background: transparent;
-                color: #243B53;
-                border: 1px solid transparent;
-                box-shadow: none;
-            `
-        };
+        return `<button type="${safeType}" class="${escapeAttribute(classes)}"${id ? ` id="${escapeAttribute(id)}"` : ''}${title ? ` title="${escapeAttribute(title)}"` : ''}${ariaLabel ? ` aria-label="${escapeAttribute(ariaLabel)}"` : ''}${ariaControls ? ` aria-controls="${escapeAttribute(ariaControls)}"` : ''}${ariaExpanded !== undefined ? ` aria-expanded="${ariaExpanded ? 'true' : 'false'}"` : ''}${disabled ? ' disabled' : ''}${dataMarkup}>${iconMarkup}${escapeText(text)}</button>`;
+    }
 
-        const disabledStyle = disabled ? 'opacity: 0.5; cursor: not-allowed;' : 'cursor: pointer;';
-
-        const baseStyle = `
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            border-radius: 7px;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-            transition: all 0.15s ease;
-            white-space: nowrap;
-            ${sizeStyles[size] || sizeStyles.sm}
-            ${variantStyles[variant] || variantStyles.primary}
-            ${disabledStyle}
-        `;
-
-        const extraClasses = className ? ` ${className}` : '';
-        const idAttr = id ? ` id="${id}"` : '';
-        const titleAttr = title ? ` title="${title}"` : '';
-        const disabledAttr = disabled ? ' disabled' : '';
-
-        const buttonHtml = `
-            <button${idAttr}${titleAttr}${disabledAttr} 
-                class="btn-component${extraClasses}" 
-                style="${baseStyle}"
-                ${onClick ? `onclick="${onClick}"` : ''}>
-                ${icon}
-                ${text}
-            </button>
-        `;
-
-        return buttonHtml;
+    /** Create a native button for imperative view/component code. */
+    static create(options = {}) {
+        const template = document.createElement('template');
+        template.innerHTML = Button.html(options).trim();
+        const button = template.content.firstElementChild;
+        if (typeof options.onClick === 'function') button.addEventListener('click', options.onClick);
+        return button;
     }
 }
 

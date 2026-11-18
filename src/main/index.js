@@ -5,16 +5,24 @@ const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
 
 app.setAppUserModelId('Faranux ERP');
-require('dotenv').config({ path: path.join(app.getAppPath(), '.env') });
-
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const API_URL_ENDPOINT = app.isPackaged ? process.env.API_URL : 'http://localhost:8000/index.php';
-
-autoUpdater.setFeedURL({
-    provider: 'github',
-    owner: 'faranux-electronics',
-    repo: 'inventory-desktop-app'
-});
+const fs = require('fs');
+const localEnvPath = path.join(app.getAppPath(), '.env');
+let runtimeConfig = {};
+if (app.isPackaged) {
+    runtimeConfig = JSON.parse(fs.readFileSync(path.join(app.getAppPath(), 'app-config.json'), 'utf8'));
+} else if (fs.existsSync(localEnvPath)) {
+    const localEnv = require('dotenv').parse(fs.readFileSync(localEnvPath));
+    runtimeConfig = { GOOGLE_CLIENT_ID: localEnv.GOOGLE_CLIENT_ID };
+}
+const GOOGLE_CLIENT_ID = runtimeConfig.GOOGLE_CLIENT_ID || '';
+const API_URL_ENDPOINT = app.isPackaged ? runtimeConfig.API_URL : 'http://localhost:8000/index.php';
+if (app.isPackaged) {
+    let apiUrl;
+    try { apiUrl = new URL(API_URL_ENDPOINT); } catch (_) { throw new Error('Packaged API_URL must be an absolute HTTPS URL'); }
+    if (apiUrl.protocol !== 'https:' || apiUrl.username || apiUrl.password) {
+        throw new Error('Packaged API_URL must use HTTPS and contain no embedded credentials');
+    }
+}
 
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
@@ -27,11 +35,13 @@ log.info('App starting...');
 
 let authServer = null;
 let authTimeout = null;
+let authCleanupPromise = null;
+let authLoginInProgress = false;
+let rejectActiveGoogleLogin = null;
 let tray = null;
 let isQuitting = false;
 let mainWindow = null;
 
-const fs = require('fs');
 const os = require('os');
 
 let pdfServer = null;
@@ -54,25 +64,19 @@ function cleanupAuthServer() {
         authTimeout = null;
     }
 
-    if (authServer) {
-        return new Promise((resolve) => {
-            // Forcefully drop any hanging browser connections to free port 4200 instantly
-            if (authServer.closeAllConnections) {
-                authServer.closeAllConnections();
-            }
+    if (authCleanupPromise) return authCleanupPromise;
 
-            authServer.close(() => {
-                authServer = null;
-                resolve();
-            });
-            // Force close after 1 second if not responding
-            setTimeout(() => {
-                if (authServer) authServer = null;
-                resolve();
-            }, 1000);
-        });
-    }
-    return Promise.resolve();
+    const server = authServer;
+    authServer = null;
+    if (!server || !server.listening) return Promise.resolve();
+
+    if (server.closeAllConnections) server.closeAllConnections();
+    authCleanupPromise = new Promise(resolve => {
+        server.close(() => resolve());
+    }).finally(() => {
+        authCleanupPromise = null;
+    });
+    return authCleanupPromise;
 }
 
 function createWindow() {
@@ -84,8 +88,11 @@ function createWindow() {
         show: !isAutostart,
         icon: path.join(__dirname, '../assets/logo1.png'),
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
+            preload: path.join(__dirname, 'preload.js'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+            webSecurity: true,
         }
     });
 
@@ -93,20 +100,21 @@ function createWindow() {
 
     mainWindow.loadFile('index.html');
 
-    // Intercept external links and open in default browser
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-            shell.openExternal(url);
-            return { action: 'deny' };
-        }
-        return { action: 'allow' };
+        try {
+            const target = new URL(url);
+            if (target.protocol === 'https:') shell.openExternal(target.href);
+        } catch (_) {}
+        return { action: 'deny' };
     });
 
-    // Handle navigation attempts
     mainWindow.webContents.on('will-navigate', (event, url) => {
-        if (url !== mainWindow.webContents.getURL() && (url.startsWith('http://') || url.startsWith('https://'))) {
+        try {
+            const target = new URL(url);
+            const current = new URL(mainWindow.webContents.getURL());
+            if (target.protocol !== 'file:' || target.pathname !== current.pathname) event.preventDefault();
+        } catch (_) {
             event.preventDefault();
-            shell.openExternal(url);
         }
     });
 
@@ -130,15 +138,14 @@ function createWindow() {
     return mainWindow;
 }
 
-// Ignore certificate errors during development
-app.commandLine.appendSwitch('ignore-certificate-errors');
-app.commandLine.appendSwitch('ignore-certificate-errors-spki-list');
-app.commandLine.appendSwitch('ignore-certificate-revocation-list');
-app.commandLine.appendSwitch('allow-insecure-localhost');
-app.commandLine.appendSwitch('allow-running-insecure-content');
-app.commandLine.appendSwitch('allow-popups');
-app.commandLine.appendSwitch('allow-popups-to-escape-sandbox');
-app.commandLine.appendSwitch('enable-features', 'NetworkService,SharedArrayBuffer');
+function isTrustedMainFrame(event) {
+    return Boolean(mainWindow && event?.sender === mainWindow.webContents &&
+        event?.senderFrame === mainWindow.webContents.mainFrame);
+}
+
+function assertTrustedMainFrame(event) {
+    if (!isTrustedMainFrame(event)) throw new Error('Untrusted IPC sender');
+}
 
 // Request a single instance lock
 const gotTheLock = app.requestSingleInstanceLock();
@@ -308,31 +315,12 @@ if (!gotTheLock) {
             else mainWindow.show();
         });
 
-        // Handle bringing window to front when notification is clicked
-        ipcMain.on('show-window', () => {
-            if (mainWindow) {
-                if (mainWindow.isMinimized()) mainWindow.restore();
-                mainWindow.show();
-                mainWindow.focus();
-            }
-        });
-
-        // IPC handler for opening URLs in external browser manually
-        ipcMain.on('open-external', (event, url) => {
-            if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-                shell.openExternal(url);
-            }
-        });
-
-        // Handle native OS notifications with proper ASAR icon extraction
-        ipcMain.on('show-os-notification', (event, { title, body }) => {
+        ipcMain.on('show-os-notification', (event, payload = {}) => {
+            if (!isTrustedMainFrame(event)) return;
+            const title = typeof payload.title === 'string' ? payload.title.slice(0, 120) : 'Faranux ERP';
+            const body = typeof payload.body === 'string' ? payload.body.slice(0, 500) : '';
             const iconPath = path.join(__dirname, '../assets/logo_nots.png');
-
-            const notification = new Notification({
-                title: title,
-                body: body,
-                icon: iconPath // Electron handles the .asar extraction automatically!
-            });
+            const notification = new Notification({ title, body, icon: iconPath });
 
             // When the user clicks the notification, bring the app to the front
             notification.on('click', () => {
@@ -393,12 +381,14 @@ if (!gotTheLock) {
             }
         });
 
-        ipcMain.on('download-update', () => {
+        ipcMain.on('download-update', (event) => {
+            if (!isTrustedMainFrame(event)) return;
             log.info('User chose to download update');
             autoUpdater.downloadUpdate();
         });
 
-        ipcMain.on('quit-and-install', () => {
+        ipcMain.on('quit-and-install', (event) => {
+            if (!isTrustedMainFrame(event)) return;
             log.info('User chose to quit and install');
             isQuitting = true;
             autoUpdater.quitAndInstall();
@@ -433,20 +423,28 @@ process.on('SIGTERM', async () => {
     app.exit(0);
 });
 
-ipcMain.handle('get-app-version', () => {
+ipcMain.handle('get-app-version', (event) => {
+    assertTrustedMainFrame(event);
     return app.getVersion();
 });
 
-ipcMain.handle('get-api-url', () => {
-    // This sends the variable you already defined at the top of index.js
+ipcMain.handle('get-api-url', (event) => {
+    assertTrustedMainFrame(event);
     return API_URL_ENDPOINT;
 });
 
 // Google Login handler
-ipcMain.handle('login-google', async () => {
-    await cleanupAuthServer();
+ipcMain.handle('login-google', async (event) => {
+    assertTrustedMainFrame(event);
+    if (authLoginInProgress) {
+        throw new Error('Google sign-in is already in progress. Finish or cancel the open sign-in window.');
+    }
+    authLoginInProgress = true;
 
-    return new Promise((resolve, reject) => {
+    try {
+        await cleanupAuthServer();
+        return await new Promise((resolve, reject) => {
+        rejectActiveGoogleLogin = reject;
         if (!GOOGLE_CLIENT_ID) {
             reject(new Error("Google Client ID not configured in .env"));
             return;
@@ -550,25 +548,32 @@ ipcMain.handle('login-google', async () => {
 
         authServer.on('error', async (err) => {
             await cleanupAuthServer();
-            reject(new Error("Server error: " + err.message));
+            if (err.code === 'EADDRINUSE') {
+                reject(new Error('Server error (EADDRINUSE): Google sign-in port 4200 is already in use. Close the other sign-in session and try again.'));
+            } else {
+                reject(new Error("Server error: " + err.message));
+            }
         });
 
-        authServer.listen(4200, '127.0.0.1', (err) => {
-            if (err) {
-                cleanupAuthServer();
-                reject(err);
-                return;
-            }
-
+        authServer.listen(4200, '127.0.0.1', () => {
             const redirectUri = 'http://127.0.0.1:4200/callback';
             const scope = encodeURIComponent('email profile openid');
             const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?response_type=token id_token&client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&scope=${scope}&nonce=${Date.now()}`;
             shell.openExternal(authUrl);
         });
-    });
+        });
+    } finally {
+        authLoginInProgress = false;
+        rejectActiveGoogleLogin = null;
+    }
 });
 
-ipcMain.handle('open-pdf-in-browser', async (event, { buffer, filename }) => {
+ipcMain.handle('open-pdf-in-browser', async (event, payload = {}) => {
+    assertTrustedMainFrame(event);
+    const { buffer, filename } = payload;
+    if (!(buffer instanceof ArrayBuffer) || buffer.byteLength > 25 * 1024 * 1024 || typeof filename !== 'string') {
+        throw new Error('Invalid PDF request');
+    }
     try {
         closePdfServer(); // close any previous ephemeral server first
 
@@ -613,7 +618,11 @@ ipcMain.handle('open-pdf-in-browser', async (event, { buffer, filename }) => {
 });
 
 // Handler to manually cancel Google login
-ipcMain.handle('cancel-google-login', async () => {
+ipcMain.handle('cancel-google-login', async (event) => {
+    assertTrustedMainFrame(event);
+    const rejectLogin = rejectActiveGoogleLogin;
+    rejectActiveGoogleLogin = null;
     await cleanupAuthServer();
+    if (rejectLogin) rejectLogin(new Error('Google login cancelled'));
     return { status: 'cancelled' };
 });

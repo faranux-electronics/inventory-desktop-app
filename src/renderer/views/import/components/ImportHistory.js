@@ -1,78 +1,136 @@
 const Toast = require('../../../components/Toast.js');
 const API = require('../../../services/api.js');
+const Modal = require('../../../components/Modal.js');
+const Button = require('../../../components/Button.js');
+const Input = require('../../../components/Input.js');
+const Table = require('../../../components/Table.js');
+const FilterBar = require('../../../components/FilterBar.js');
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+}
 
 class ImportHistory {
     constructor(parentView) {
         this.parent = parentView;
         this.historyLogs = [];
+        this.defaultDateRange = null;
     }
 
     render(container) {
+        const endDate = new Date();
+        const startDate = new Date(endDate);
+        startDate.setMonth(startDate.getMonth() - 3);
+        const toDateInput = date => {
+            const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+            return local.toISOString().slice(0, 10);
+        };
+        this.defaultDateRange = {start: toDateInput(startDate), end: toDateInput(endDate)};
         container.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-                <h3 style="font-size: 14px; font-weight: 600; margin: 0; color: #1d2327;">Recent Imports</h3>
-                
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <input type="date" id="historyStartDate" class="form-input" style="padding: 4px 8px; font-size: 12px; height: 30px;" title="Start Date">
-                    <span style="color: #a7aaad; font-size: 12px;">to</span>
-                    <input type="date" id="historyEndDate" class="form-input" style="padding: 4px 8px; font-size: 12px; height: 30px;" title="End Date">
-                    
-                    <button class="btn btn-sm btn-secondary" id="filterHistoryBtn" style="height: 30px; display: flex; align-items: center;">
-                        <i class="fa-solid fa-filter mr-xs"></i> Filter
-                    </button>
-                    
-                    <div style="width: 1px; height: 20px; background: #c3c4c7; margin: 0 4px;"></div>
-                    
-                    <button class="btn btn-sm" id="exportHistoryBtn" style="background: white; border: 1px solid #2271b1; color: #2271b1; padding: 4px 12px; font-weight: 500; height: 30px; display: flex; align-items: center;">
-                        <i class="fa-solid fa-file-csv mr-xs"></i> Export Page
-                    </button>
+                <div>
+                    <h3 style="font-size: 14px; font-weight: 600; margin: 0; color: var(--theme-text-primary);">Recent Imports</h3>
+                    <small class="text-muted" id="historyRangeLabel">Showing imports from the last three months</small>
                 </div>
+
+                ${FilterBar.html({className: 'import-history-filter-bar', ariaLabel: 'Filter import history', content: `
+                    ${Input.html({type: 'date', id: 'historyStartDate', value: this.defaultDateRange.start, className: 'import-history-filter-control', ariaLabel: 'Start date'})}
+                    <span style="color: var(--palette-hex-a7aaad); font-size: 12px;">to</span>
+                    ${Input.html({type: 'date', id: 'historyEndDate', value: this.defaultDateRange.end, className: 'import-history-filter-control', ariaLabel: 'End date'})}
+
+                    ${Button.html({id: 'filterHistoryBtn', text: 'Filter', icon: 'fa-solid fa-filter', variant: 'primary', size: 'md'})}
+                    ${Button.html({id: 'exportHistoryBtn', text: 'Export Page', icon: 'fa-solid fa-file-csv', variant: 'outline', size: 'md'})}
+                `})}
             </div>
-            
-            <div style="background: white; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden;">
-                <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                    <thead style="background: #f8f9fa; border-bottom: 1px solid #c3c4c7;">
-                        <tr>
-                            <th style="padding: 12px 16px; color: #2c3338; font-weight: 500;">Date & Time</th>
-                            <th style="padding: 12px 16px; color: #2c3338; font-weight: 500;">Performed By</th>
-                            <th style="padding: 12px 16px; color: #2c3338; font-weight: 500;">Import Details</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyTableBody">
-                        <tr><td colspan="3" class="text-center p-lg text-muted">Loading history...</td></tr>
-                    </tbody>
-                </table>
-                <div id="historyPagination" style="background: #f8f9fa; border-top: 1px solid #c3c4c7;"></div>
-            </div>
+
+            ${Table.html({
+                headers: [
+                    {label: 'Performed By', width: '24%'},
+                    {label: 'Mode', width: '15%'},
+                    {label: 'Items', width: '10%'},
+                    {label: 'Date & Time', width: '26%'},
+                    {label: 'Actions', width: '25%', className: 'text-right'}
+                ],
+                body: '<tr><td colspan="5" class="text-center p-lg text-muted">Loading history...</td></tr>',
+                bodyId: 'historyTableBody',
+                className: 'import-history-list-table',
+                wrapperClass: 'import-history-table-wrapper',
+                ariaLabel: 'Import history'
+            })}
+            <div id="historyPagination"></div>
         `;
         this.attachEvents(container);
     }
 
     attachEvents(container) {
-        container.querySelector('#filterHistoryBtn').addEventListener('click', () => this.loadHistory(1));
+        container.querySelector('#filterHistoryBtn').addEventListener('click', () => {
+            this.updateRangeLabel();
+            this.loadHistory(1);
+        });
         container.querySelector('#exportHistoryBtn').addEventListener('click', () => this.exportHistoryCSV());
+    }
+
+    updateRangeLabel() {
+        const label = document.getElementById('historyRangeLabel');
+        if (!label) return;
+        const start = document.getElementById('historyStartDate')?.value || '';
+        const end = document.getElementById('historyEndDate')?.value || '';
+        const formatDate = value => {
+            if (!value) return '';
+            const [year, month, day] = value.split('-').map(Number);
+            return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+        };
+
+        if (start && end) label.textContent = `Showing imports from ${formatDate(start)} to ${formatDate(end)}`;
+        else if (start) label.textContent = `Showing imports from ${formatDate(start)} onward`;
+        else if (end) label.textContent = `Showing imports through ${formatDate(end)}`;
+        else label.textContent = 'Showing imports from all dates';
     }
 
     async loadHistory(page = 1) {
         const tbody = document.getElementById('historyTableBody');
         const paginationContainer = document.getElementById('historyPagination');
+        if (!tbody || !paginationContainer) return;
 
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center p-lg text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Fetching records...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center p-lg text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Fetching records...</td></tr>';
 
         const startDate = document.getElementById('historyStartDate').value;
         let endDate = document.getElementById('historyEndDate').value;
+        const selectedEndDate = endDate;
+        const isDefaultRange = startDate === this.defaultDateRange?.start && selectedEndDate === this.defaultDateRange?.end;
         if (endDate) endDate += ' 23:59:59';
 
         try {
-            const res = await API.getAuditLogs('STOCK_IMPORT', page, startDate, endDate);
+            const res = await API.getStockImportLogs(page, startDate, endDate);
 
             if (res.status === 'success') {
                 let logs = Array.isArray(res.data) ? res.data : (res.data.data || []);
-                logs = logs.filter(log => log.action === 'STOCK_IMPORT');
+                let showingLatestFallback = false;
+                if (logs.length === 0 && page === 1 && isDefaultRange) {
+                    const latestRes = await API.getStockImportLogs(1);
+                    if (latestRes.status === 'success') {
+                        const latestLogs = Array.isArray(latestRes.data) ? latestRes.data : (latestRes.data?.data || []);
+                        if (latestLogs.length > 0) {
+                            logs = [latestLogs[0]];
+                            showingLatestFallback = true;
+                        }
+                    }
+                }
                 this.historyLogs = logs;
 
+                const rangeLabel = document.getElementById('historyRangeLabel');
+                if (rangeLabel && showingLatestFallback) {
+                    rangeLabel.textContent = 'No imports in the last three months; showing the latest import.';
+                } else if (rangeLabel && isDefaultRange) {
+                    rangeLabel.textContent = 'Showing imports from the last three months';
+                }
+
                 if (logs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="3" class="text-center p-lg text-muted" style="background: #f9f9f9;">No import history found for this period.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center p-lg text-muted" style="background: var(--palette-hex-f9f9f9);">No import history found for this period.</td></tr>';
                     paginationContainer.innerHTML = '';
                     return;
                 }
@@ -82,72 +140,87 @@ class ImportHistory {
                     locMap[String(l.id)] = l.name;
                 });
 
-                tbody.innerHTML = logs.map(log => {
-                    const date = new Date(log.created_at).toLocaleString(undefined, {
-                        year: 'numeric', month: 'short', day: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                    });
+                tbody.innerHTML = logs.map((log, logIndex) => {
+                    const date = new Date(log.created_at).toLocaleString();
 
-                    let detailsHtml = log.details || '';
-
+                    const detailsText = String(log.details || '');
+                    let affectedItems = [];
+                    let importMode = '';
                     if (log.metadata) {
                         try {
                             const meta = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
-                            if (meta && meta.imported_items && meta.imported_items.length > 0) {
-                                const itemCount = meta.imported_items.length;
-                                detailsHtml += `
-                                <div style="margin-top: 10px;">
-                                    <details style="background: white; border: 1px solid #e5e7eb; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
-                                        <summary style="padding: 8px 12px; background: #f8f9fa; cursor: pointer; font-weight: 600; color: #2271b1; font-size: 12px; border-bottom: 1px solid #e5e7eb; outline: none; user-select: none;">
-                                            <i class="fa-solid fa-table-list mr-xs"></i> View ${itemCount} affected item${itemCount !== 1 ? 's' : ''}
-                                        </summary>
-                                        <div style="max-height: 250px; overflow-y: auto;">
-                                            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                                                <thead style="background: white; position: sticky; top: 0; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                                                    <tr>
-                                                        <th style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; color: #50575e; font-weight: 600;">SKU</th>
-                                                        <th style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; color: #50575e; font-weight: 600;">Branch</th>
-                                                        <th style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #50575e; font-weight: 600;">Before</th>
-                                                        <th style="padding: 6px 10px; border-bottom: 1px solid #e5e7eb; text-align: right; color: #50575e; font-weight: 600;">After</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    ${meta.imported_items.map(item => {
-                                    const bName = locMap[String(item.branch)] || 'Unknown Branch';
-                                    return `
-                                                        <tr class="hover:bg-neutral-50">
-                                                            <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; font-family: monospace; font-weight: 600; color: #2c3338;">${item.sku}</td>
-                                                            <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; color: #50575e;">${bName} [${item.branch}]</td>
-                                                            <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; text-align: right; color: #8c8f94;">${item.old}</td>
-                                                            <td style="padding: 6px 10px; border-bottom: 1px solid #f0f0f1; text-align: right; color: #00a32a; font-weight: 600;">${item.new}</td>
-                                                        </tr>
-                                                        `;
-                                }).join('')}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </details>
-                                </div>`;
-                            }
-                        } catch (e) {
-                        }
+                            affectedItems = Array.isArray(meta?.imported_items) ? meta.imported_items : [];
+                            importMode = meta?.mode || '';
+                        } catch (e) {}
                     }
+                    if (!importMode) importMode = log.details?.match(/\bMode:\s*(add|replace)\b/i)?.[1] || '';
+                    const normalizedMode = String(importMode).toLowerCase();
+                    const modeLabel = normalizedMode === 'replace' ? 'Replace'
+                        : normalizedMode === 'add' ? 'Add' : 'Unknown';
+                    let importSource = '';
+                    try {
+                        const meta = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
+                        importSource = meta?.source === 'MPS purchase order receipt' ? 'MPS' : '';
+                    } catch (e) {}
+                    const modeClass = normalizedMode === 'replace' ? 'import-history-mode--replace'
+                        : normalizedMode === 'add' ? 'import-history-mode--add' : 'import-history-mode--unknown';
+                    const affectedItemsButton = affectedItems.length
+                        ? Button.html({
+                            text: '',
+                            icon: 'fa-solid fa-table-list',
+                            variant: 'outline',
+                            size: 'md',
+                            className: 'import-affected-items-button',
+                            title: `View ${affectedItems.length} affected item${affectedItems.length !== 1 ? 's' : ''}`,
+                            ariaLabel: `View ${affectedItems.length} affected item${affectedItems.length !== 1 ? 's' : ''}`,
+                            dataAttributes: {'data-import-items-index': logIndex}
+                        })
+                        : '<span class="text-muted">No item details</span>';
+                    const exportItemsButton = affectedItems.length
+                        ? Button.html({
+                            text: '',
+                            icon: 'fa-solid fa-file-csv',
+                            variant: 'outline',
+                            size: 'md',
+                            className: 'import-affected-items-export-button',
+                            title: `Export ${affectedItems.length} affected item${affectedItems.length !== 1 ? 's' : ''}`,
+                            ariaLabel: `Export ${affectedItems.length} affected item${affectedItems.length !== 1 ? 's' : ''}`,
+                            dataAttributes: {'data-import-export-index': logIndex}
+                        })
+                        : '';
 
                     return `
-                        <tr class="hover:bg-neutral-50" style="border-bottom: 1px solid #f0f0f1; font-size: 13px;">
-                            <td style="padding: 12px 16px; color: #50575e; white-space: nowrap; vertical-align: top;">${date}</td>
-                            <td style="padding: 12px 16px; font-weight: 500; color: #2271b1; white-space: nowrap; vertical-align: top;">
-                                <i class="fa-solid fa-user-shield text-xs mr-xs"></i> ${log.user_name || 'System User'}
+                        <tr>
+                            <td class="import-history-user" data-label="Performed By">
+                                ${escapeHtml(log.user_name || 'System User')}
                             </td>
-                            <td style="padding: 12px 16px; color: #2c3338; vertical-align: top;">
-                            <span style="background: #f0f6fb; color: #2271b1; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; margin-right: 8px; border: 1px solid #c7dff3; display: inline-block; margin-bottom: 6px;">
-                                ${log.action}
-                            </span>
-                                <div>${detailsHtml}</div>
-                            </td>
+                            <td data-label="Mode"><span class="import-history-mode ${modeClass}"${importSource ? ` title="${escapeHtml(importSource)}"` : ''}>${escapeHtml(importSource ? `${importSource} - ${modeLabel}` : modeLabel)}</span></td>
+                            <td class="import-history-item-count" data-label="Items">${affectedItems.length}</td>
+                            <td class="import-history-date" data-label="Date & Time">${escapeHtml(date)}</td>
+                            <td class="import-history-actions text-right" data-label="Actions"><div class="import-history-row-actions">${affectedItemsButton}${exportItemsButton}</div></td>
                         </tr>
                     `;
                 }).join('');
+
+                tbody.querySelectorAll('[data-import-items-index]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const log = this.historyLogs[Number(button.dataset.importItemsIndex)];
+                        if (log) this.openAffectedItems(log);
+                    });
+                });
+                tbody.querySelectorAll('[data-import-export-index]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const log = this.historyLogs[Number(button.dataset.importExportIndex)];
+                        if (!log) return;
+                        try {
+                            const meta = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
+                            const items = Array.isArray(meta?.imported_items) ? meta.imported_items : [];
+                            this.exportAffectedItemsCSV(log, items);
+                        } catch (error) {
+                            Toast.error('Could not read the affected item details.');
+                        }
+                    });
+                });
 
                 if (res.pagination && res.pagination.pages > 1) {
                     const p = res.pagination;
@@ -155,8 +228,8 @@ class ImportHistory {
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px;">
                             <span class="text-sm text-muted">Showing page <b>${p.page}</b> of <b>${p.pages}</b> (Total records: ${p.total})</span>
                             <div style="display: flex; gap: 8px;">
-                                <button class="btn btn-sm btn-ghost btn-hist-page" data-page="${p.page - 1}" ${p.page <= 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i> Previous</button>
-                                <button class="btn btn-sm btn-ghost btn-hist-page" data-page="${p.page + 1}" ${p.page >= p.pages ? 'disabled' : ''}>Next <i class="fa-solid fa-chevron-right"></i></button>
+                                ${Button.html({text: 'Previous', icon: 'fa-solid fa-chevron-left', variant: 'outline', size: 'sm', className: 'btn-hist-page', disabled: p.page <= 1, dataAttributes: {'data-page': p.page - 1}})}
+                                ${Button.html({text: 'Next', icon: 'fa-solid fa-chevron-right', variant: 'outline', size: 'sm', className: 'btn-hist-page', disabled: p.page >= p.pages, dataAttributes: {'data-page': p.page + 1}})}
                             </div>
                         </div>
                     `;
@@ -170,15 +243,142 @@ class ImportHistory {
                     paginationContainer.innerHTML = '';
                 }
             } else {
-                tbody.innerHTML = `<tr><td colspan="3" class="text-center p-lg text-error">${res.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center p-lg text-error">${res.message}</td></tr>`;
             }
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center p-lg text-error">Failed to load history</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center p-lg text-error">Failed to load history</td></tr>';
         }
     }
 
-    exportHistoryCSV() {
-        if (!this.historyLogs || this.historyLogs.length === 0) {
+    openAffectedItems(log) {
+        let meta;
+        try {
+            meta = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
+        } catch (error) {
+            return Toast.error('Could not read the affected item details.');
+        }
+        const items = Array.isArray(meta?.imported_items) ? meta.imported_items : [];
+        if (!items.length) return Toast.error('No affected items are available for this import.');
+        const mode = this.getImportMode(log, meta);
+        const sourceLabel = meta?.source === 'MPS purchase order receipt' ? 'MPS purchase order receipt' : '';
+        const quantityLabel = mode === 'replace' ? 'Replaced Qty' : mode === 'add' ? 'Added Qty' : 'Stock Change';
+
+        Modal.open({
+            title: `Affected Items - ${items.length}`,
+            size: 'xl',
+            confirmText: 'Close',
+            cancelText: null,
+            body: `
+                <div class="import-affected-items-toolbar">
+                    <span class="text-muted">${escapeHtml(sourceLabel || (mode === 'replace' ? 'Replace' : mode === 'add' ? 'Add' : 'Unknown') + ' mode')} - ${escapeHtml(log.action || 'Stock import')} - ${escapeHtml(new Date(log.created_at).toLocaleString())}</span>
+                    ${Button.html({id: 'exportAffectedItemsBtn', text: 'Export Affected Items', icon: 'fa-solid fa-file-csv', variant: 'outline', size: 'md'})}
+                </div>
+                <div class="import-affected-items-table-scroll">
+                    <table class="import-affected-items-table">
+                        <thead><tr><th>SKU</th><th>Branch</th><th class="import-affected-number">Stock Before</th><th class="import-affected-number">${quantityLabel}</th><th class="import-affected-number">Stock After</th></tr></thead>
+                        <tbody id="affectedItemsTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="affectedItemsPagination" class="import-history-pagination"></div>
+            `
+        });
+        this.renderAffectedItemsPage(items, 1, mode);
+        document.getElementById('exportAffectedItemsBtn')?.addEventListener('click', () => this.exportAffectedItemsCSV(log, items, mode));
+    }
+
+    getImportMode(log, metadata = null) {
+        let meta = metadata;
+        if (!meta) {
+            try {
+                meta = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
+            } catch (error) {
+                meta = null;
+            }
+        }
+        const recordedMode = meta?.mode || String(log.details || '').match(/\bMode:\s*(add|replace)\b/i)?.[1] || '';
+        const normalizedMode = String(recordedMode).toLowerCase();
+        return normalizedMode === 'add' || normalizedMode === 'replace' ? normalizedMode : 'unknown';
+    }
+
+    renderAffectedItemsPage(items, page, mode = 'unknown') {
+        const pageSize = 25;
+        const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+        const safePage = Math.min(Math.max(1, page), pageCount);
+        const tbody = document.getElementById('affectedItemsTableBody');
+        const pagination = document.getElementById('affectedItemsPagination');
+        if (!tbody || !pagination) return;
+
+        const locations = new Map((this.parent.locationsCache || []).map(location => [String(location.id), location.name]));
+        tbody.innerHTML = items.slice((safePage - 1) * pageSize, safePage * pageSize).map(item => {
+            const branch = String(item.branch ?? '');
+            const branchName = locations.get(branch) || 'Unknown Branch';
+            const before = Number(item.old);
+            const after = Number(item.new);
+            const quantity = mode === 'replace' ? after : after - before;
+            return `<tr>
+                <td>${escapeHtml(item.sku)}</td>
+                <td>${escapeHtml(branchName)} [${escapeHtml(branch)}]</td>
+                <td class="import-affected-number">${escapeHtml(before.toLocaleString())}</td>
+                <td class="import-affected-number import-affected-change import-affected-change--${mode}">${escapeHtml(Number.isFinite(quantity) ? quantity.toLocaleString() : '')}</td>
+                <td class="import-affected-number">${escapeHtml(after.toLocaleString())}</td>
+            </tr>`;
+        }).join('');
+
+        if (pageCount > 1) {
+            pagination.innerHTML = `<div class="import-affected-items-page-controls">
+                <span class="text-sm text-muted">Page <b>${safePage}</b> of <b>${pageCount}</b> - ${items.length} items</span>
+                <div>
+                    ${Button.html({text: 'Previous', icon: 'fa-solid fa-chevron-left', variant: 'outline', size: 'sm', className: 'affected-items-page-btn', disabled: safePage <= 1, dataAttributes: {'data-page': safePage - 1}})}
+                    ${Button.html({text: 'Next', icon: 'fa-solid fa-chevron-right', variant: 'outline', size: 'sm', className: 'affected-items-page-btn', disabled: safePage >= pageCount, dataAttributes: {'data-page': safePage + 1}})}
+                </div>
+            </div>`;
+            pagination.querySelectorAll('.affected-items-page-btn').forEach(button => {
+                button.addEventListener('click', () => this.renderAffectedItemsPage(items, Number(button.dataset.page), mode));
+            });
+        } else {
+            pagination.innerHTML = `<div class="import-affected-items-page-controls"><span class="text-sm text-muted">${items.length} items</span></div>`;
+        }
+    }
+
+    exportAffectedItemsCSV(log, items, mode = this.getImportMode(log)) {
+        const locMap = new Map((this.parent.locationsCache || []).map(location => [String(location.id), location.name]));
+        const quote = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+        const quantityLabel = mode === 'replace' ? 'Replaced Quantity' : mode === 'add' ? 'Added Quantity' : 'Stock Change';
+        const rows = [
+            ['Date', 'User', 'Action', 'Mode', 'SKU', 'Branch Name', 'Branch ID', 'Stock Before', quantityLabel, 'Stock After'],
+            ...items.map(item => {
+                const before = Number(item.old);
+                const after = Number(item.new);
+                const quantity = mode === 'replace' ? after : after - before;
+                return [
+                    log.created_at,
+                    log.user_name || 'System User',
+                    log.action,
+                    mode === 'replace' ? 'Replace' : mode === 'add' ? 'Add' : 'Unknown',
+                    item.sku,
+                    locMap.get(String(item.branch)) || 'Unknown Branch',
+                    item.branch,
+                    item.old,
+                    Number.isFinite(quantity) ? quantity : '',
+                    item.new
+                ];
+            })
+        ];
+        this.downloadCSV(rows.map(row => row.map(quote).join(',')).join('\n'), `Import_Affected_Items_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`);
+    }
+
+    downloadCSV(csvContent, filename) {
+        const blob = new Blob(['\uFEFF', csvContent], {type: 'text/csv;charset=utf-8;'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    exportHistoryCSV(logs = this.historyLogs) {
+        if (!logs || logs.length === 0) {
             return Toast.error("No history to export.");
         }
 
@@ -187,42 +387,47 @@ class ImportHistory {
             locMap[String(l.id)] = l.name;
         });
 
-        let csvContent = "Date,User,Action,SKU,Branch Name,Branch ID,Stock Before,Stock After\n";
+        const quote = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+        const rows = [[
+            'Date', 'User', 'Action', 'Mode', 'SKU', 'Branch Name', 'Branch ID',
+            'Stock Before', 'Added / Replaced Quantity', 'Stock After'
+        ]];
 
-        this.historyLogs.forEach(log => {
-            const date = log.created_at;
-            const user = (log.user_name || 'System User').replace(/"/g, '""');
-            const action = log.action;
+        logs.forEach(log => {
+            let meta = null;
+            try {
+                meta = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
+            } catch (e) {}
+            const items = Array.isArray(meta?.imported_items) ? meta.imported_items : [];
+            const mode = this.getImportMode(log, meta);
+            const modeLabel = mode === 'replace' ? 'Replace' : mode === 'add' ? 'Add' : 'Unknown';
 
-            let hasItems = false;
-            if (log.metadata) {
-                try {
-                    const meta = typeof log.metadata === 'string' ? JSON.parse(log.metadata) : log.metadata;
-                    if (meta && meta.imported_items && meta.imported_items.length > 0) {
-                        hasItems = true;
-                        meta.imported_items.forEach(item => {
-                            const cleanSku = `"${item.sku.replace(/"/g, '""')}"`;
-                            const bName = locMap[String(item.branch)] || 'Unknown';
-                            csvContent += `"${date}","${user}","${action}",${cleanSku},"${bName}",${item.branch},${item.old},${item.new}\n`;
-                        });
-                    }
-                } catch (e) {
-                }
+            if (!items.length) {
+                rows.push([log.created_at, log.user_name || 'System User', log.action, modeLabel, 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A']);
+                return;
             }
 
-            if (!hasItems) {
-                csvContent += `"${date}","${user}","${action}","N/A","N/A","N/A","N/A","N/A"\n`;
-            }
+            items.forEach(item => {
+                const before = Number(item.old);
+                const after = Number(item.new);
+                const quantity = mode === 'replace' ? after : after - before;
+                rows.push([
+                    log.created_at,
+                    log.user_name || 'System User',
+                    log.action,
+                    modeLabel,
+                    item.sku,
+                    locMap[String(item.branch)] || 'Unknown',
+                    item.branch,
+                    item.old,
+                    Number.isFinite(quantity) ? quantity : '',
+                    item.new
+                ]);
+            });
         });
 
-        const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `Stock_Import_History_${dateStr}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        const csvContent = rows.map(row => row.map(quote).join(',')).join('\r\n');
+        this.downloadCSV(csvContent, `Stock_Import_History_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`);
     }
 }
 

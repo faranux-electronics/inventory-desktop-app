@@ -5,12 +5,13 @@ class ProductsFilters {
         this.products = products;
         this.state = products.state;
         this.categories = [];
+        this.locationOptions = '';
         this.searchDebounceTimer = null;
     }
 
     async render() {
-        await this.loadCategories();
-        await this.loadLocations();
+        const categoriesReady = this.loadCategories();
+        const locationsReady = this.loadLocations();
 
         const statusContainer = document.getElementById('statusFilterContainer');
         const filtersContainer = document.getElementById('filtersContainer');
@@ -23,17 +24,18 @@ class ProductsFilters {
                 { id: 'publish', label: 'Published' },
                 { id: 'draft', label: 'Drafts' },
                 { id: 'pending', label: 'Pending' },
-                { id: 'private', label: 'Private' }
+                { id: 'private', label: 'Private' },
+                { id: 'deleted', label: 'Deleted on site' }
             ];
 
             statusContainer.innerHTML = `
-                <ul class="subsubsub" style="list-style: none; padding: 0; margin: 0 0 10px 0; font-size: 13px; color: #646970; display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+                <ul class="subsubsub" style="list-style: none; padding: 0; margin: 0 0 10px 0; font-size: 13px; color: var(--theme-text-muted); display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
                     ${statuses.map((s, index) => `
                         <li style="display: inline-flex; align-items: center; margin: 0;">
-                            <a href="#" class="status-link ${f.status === s.id ? 'current' : ''}" data-status="${s.id}" 
-                               style="text-decoration: none; color: ${f.status === s.id ? '#000' : '#2271b1'}; font-weight: ${f.status === s.id ? '600' : '400'}; padding: 2px 4px;">
+                            <a href="#" class="status-link ${f.status === s.id ? 'current' : ''}" data-status="${s.id}"
+                               style="text-decoration: none; color: ${f.status === s.id ? 'var(--palette-hex-000)' : 'var(--palette-hex-2271b1)'}; font-weight: ${f.status === s.id ? '600' : '400'}; padding: 2px 4px;">
                                 ${s.label}
-                            </a> ${index < statuses.length - 1 ? '<span style="color: #c3c4c7; margin: 0 4px;">|</span>' : ''}
+                            </a> ${index < statuses.length - 1 ? '<span style="color: var(--palette-hex-c3c4c7); margin: 0 4px;">|</span>' : ''}
                         </li>
                     `).join('')}
                 </ul>
@@ -56,7 +58,7 @@ class ProductsFilters {
                             <option value="">Select a category</option>
                             ${categoryOptions}
                         </select>
-                        
+
                         <select id="locationFilter" class="filter-dropdown" title="Filter by location">
                             <option value="">All Locations</option>
                             ${this.locationOptions}
@@ -98,24 +100,24 @@ class ProductsFilters {
                     .filter-dropdown {
                         font-size: 13px;
                         padding: 4px 8px;
-                        border: 1px solid #8c8f94;
+                        border: 1px solid var(--palette-hex-8c8f94);
                         border-radius: 4px;
-                        background: white;
+                        background: var(--theme-surface);
                         height: 32px;
                         min-width: 140px;
                         max-width: 220px;
                         flex: 1 1 140px;
-                        color: #2c3338;
+                        color: var(--theme-text-primary);
                         outline: none;
                     }
                     .filter-dropdown:focus {
-                        border-color: #2271b1;
-                        box-shadow: 0 0 0 1px #2271b1;
+                        border-color: var(--palette-hex-2271b1);
+                        box-shadow: 0 0 0 1px var(--palette-hex-2271b1);
                     }
                     .btn-filter-submit {
-                        background: #f6f7f7;
-                        border: 1px solid #2271b1;
-                        color: #2271b1;
+                        background: var(--theme-surface-muted);
+                        border: 1px solid var(--palette-hex-2271b1);
+                        color: var(--palette-hex-2271b1);
                         padding: 4px 12px;
                         height: 32px;
                         border-radius: 4px;
@@ -124,7 +126,7 @@ class ProductsFilters {
                         flex: 0 0 auto;
                     }
                     .btn-filter-submit:hover {
-                        background: #f0f6fc;
+                        background: var(--palette-hex-f0f6fc);
                     }
                     .products-search-box {
                         display: flex;
@@ -135,7 +137,7 @@ class ProductsFilters {
                     .filter-search-input {
                         font-size: 13px;
                         padding: 4px 8px;
-                        border: 1px solid #8c8f94;
+                        border: 1px solid var(--palette-hex-8c8f94);
                         border-radius: 4px;
                         height: 32px;
                         flex: 1 1 auto;
@@ -143,13 +145,13 @@ class ProductsFilters {
                         outline: none;
                     }
                     .filter-search-input:focus {
-                        border-color: #2271b1;
-                        box-shadow: 0 0 0 1px #2271b1;
+                        border-color: var(--palette-hex-2271b1);
+                        box-shadow: 0 0 0 1px var(--palette-hex-2271b1);
                     }
                     .btn-search-submit {
-                        background: #f6f7f7;
-                        border: 1px solid #8c8f94;
-                        color: #2c3338;
+                        background: var(--theme-surface-muted);
+                        border: 1px solid var(--palette-hex-8c8f94);
+                        color: var(--theme-text-primary);
                         padding: 4px 12px;
                         height: 32px;
                         border-radius: 4px;
@@ -157,7 +159,7 @@ class ProductsFilters {
                         flex: 0 0 auto;
                     }
                     .btn-search-submit:hover {
-                        background: #f0f0f1;
+                        background: var(--theme-surface-muted);
                     }
                     @media (max-width: 960px) {
                         .products-filter-bar {
@@ -186,6 +188,30 @@ class ProductsFilters {
         }
 
         this.attachEvents();
+        Promise.all([categoriesReady, locationsReady]).then(() => this.refreshLoadedFilterOptions(f)).catch(error => {
+            console.error('Failed to finish loading product filters', error);
+        });
+    }
+
+    refreshLoadedFilterOptions(filters) {
+        const categorySelect = document.getElementById('categoryFilter');
+        if (categorySelect) {
+            const selected = categorySelect.value || filters.category || '';
+            const options = this.categories.map(category => {
+                const parts = category.split('>');
+                const indent = '&nbsp;'.repeat((parts.length - 1) * 4);
+                return `<option value="${category}">${indent}${parts[parts.length - 1].trim()}</option>`;
+            }).join('');
+            categorySelect.innerHTML = `<option value="">Select a category</option>${options}`;
+            categorySelect.value = selected;
+        }
+
+        const locationSelect = document.getElementById('locationFilter');
+        if (locationSelect) {
+            const selected = locationSelect.value || filters.location_id || '';
+            locationSelect.innerHTML = `<option value="">All Locations</option>${this.locationOptions || ''}`;
+            locationSelect.value = selected;
+        }
     }
 
     async loadCategories(force = false) {
@@ -230,7 +256,7 @@ class ProductsFilters {
                 document.querySelectorAll('.status-link').forEach(l => {
                     const isCurrent = l.dataset.status === newStatus;
                     l.classList.toggle('current', isCurrent);
-                    l.style.color = isCurrent ? '#000' : '#2271b1';
+                    l.style.color = isCurrent ? 'var(--palette-hex-000)' : 'var(--palette-hex-2271b1)';
                     l.style.fontWeight = isCurrent ? '600' : '400';
                 });
 

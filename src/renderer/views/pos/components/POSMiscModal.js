@@ -14,13 +14,13 @@ class POSMiscModal {
         }
         this.modalEl.style.display = 'flex';
         requestAnimationFrame(() => this.modalEl.classList.add('pos-misc-overlay--in'));
-        
+
         // Focus on name input
         setTimeout(() => {
             const nameInput = this.modalEl.querySelector('#posMiscName');
             if (nameInput) nameInput.focus();
         }, 100);
-        
+
         // Add Escape key handler
         this._escapeHandler = (e) => {
             if (e.key === 'Escape') {
@@ -37,7 +37,7 @@ class POSMiscModal {
             this.modalEl.style.display = 'none';
             this._resetForm();
         }, 250);
-        
+
         // Remove Escape key handler
         if (this._escapeHandler) {
             document.removeEventListener('keydown', this._escapeHandler);
@@ -58,7 +58,7 @@ class POSMiscModal {
         const priceInput = this.modalEl.querySelector('#posMiscPrice');
         const qtyInput = this.modalEl.querySelector('#posMiscQty');
         const notesInput = this.modalEl.querySelector('#posMiscNotes');
-        
+
         if (nameInput) nameInput.value = '';
         if (priceInput) priceInput.value = '';
         if (qtyInput) qtyInput.value = '1';
@@ -121,18 +121,18 @@ class POSMiscModal {
         <div id="posMiscModalOverlay" class="pos-misc-overlay" style="display:none;">
             <div class="pos-misc-modal">
                 <div class="pos-misc-header">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="20" height="20">
                         <circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     <span>Add Miscellaneous Item</span>
                     <button id="posMiscCloseBtn" class="pos-misc-close">×</button>
                 </div>
-                
+
                 <div class="pos-misc-body">
                     <div class="pos-misc-field-group">
                         <label class="pos-misc-label">Item Name *</label>
                         <input type="text" id="posMiscName" class="pos-misc-input" placeholder="e.g., Service fee, Custom item..." autocomplete="off">
                     </div>
-                    
+
                     <div class="pos-misc-row">
                         <div class="pos-misc-field-group">
                             <label class="pos-misc-label">Price (Frw) *</label>
@@ -143,17 +143,17 @@ class POSMiscModal {
                             <input type="number" id="posMiscQty" class="pos-misc-input" value="1" min="1" step="1">
                         </div>
                     </div>
-                    
+
                     <div class="pos-misc-field-group">
                         <label class="pos-misc-label">Notes (optional)</label>
                         <textarea id="posMiscNotes" class="pos-misc-input pos-misc-textarea" placeholder="Additional details..." rows="2"></textarea>
                     </div>
                 </div>
-                
+
                 <div class="pos-misc-footer">
                     <button id="posMiscCancelBtn" class="pos-misc-btn pos-misc-btn--cancel">Cancel</button>
                     <button id="posMiscConfirmBtn" class="pos-misc-btn pos-misc-btn--confirm">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="16" height="16">
                             <polyline points="20 6 9 17 4 12"/>
                         </svg>
                         Add to Cart

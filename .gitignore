@@ -53,7 +53,6 @@ temp/
 .env.production.local
 
 # Build and package files
-package-lock.json
 coverage/
 .nyc_output/
 
@@ -78,3 +77,5 @@ coverage/
 .tox/
 .junie/
 todo.md
+/app-config.json
+/src/app.bundle.js

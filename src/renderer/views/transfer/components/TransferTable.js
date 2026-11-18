@@ -42,7 +42,7 @@ class TransferTable {
 
         // Direction icon
         let dirIcon = `<span class="trv-dir-neutral">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="14">
                 <line x1="5" y1="12" x2="19" y2="12"/>
             </svg></span>`;
 
@@ -52,20 +52,20 @@ class TransferTable {
 
         if (this.parent.currentTab === 'pending_incoming') {
             dirIcon = `<span class="trv-dir-incoming" title="Incoming">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
             </span>`;
         } else if (this.parent.currentTab === 'pending_outgoing') {
             dirIcon = `<span class="trv-dir-outgoing" title="Outgoing">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 19V5M19 12l-7-7-7 7"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><path d="M12 19V5M19 12l-7-7-7 7"/></svg>
             </span>`;
         } else if (uBranch) {
             if (uBranch === toLoc) {
                 dirIcon = `<span class="trv-dir-incoming" title="Incoming">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
                 </span>`;
             } else if (uBranch === fromLoc) {
                 dirIcon = `<span class="trv-dir-outgoing" title="Outgoing">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 19V5M19 12l-7-7-7 7"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><path d="M12 19V5M19 12l-7-7-7 7"/></svg>
                 </span>`;
             }
         }
@@ -79,17 +79,17 @@ class TransferTable {
             const surplusQty = parseInt(t.total_surplus_qty) || 0;
             const diff = (parseInt(t.total_received_qty) || 0) - (parseInt(t.total_qty) || 0);
             const shortageQty = diff < 0 ? Math.abs(diff) : 0;
-            
+
             let discParts = [];
             const isResolved = parseInt(t.discrepancy_resolved) === 1;
 
             if (surplusQty > 0) {
                 if (!isResolved) hasSurplus = true;
-                
+
                 if (isResolved) {
-                    discParts.push(`<span class="trv-disc--surplus" style="opacity: 0.5; text-decoration: line-through; color: #7c3aed; font-weight: 700;" title="Resolved">+${surplusQty}</span>`);
+                    discParts.push(`<span class="trv-disc--surplus" style="opacity: 0.5; text-decoration: line-through; color: var(--palette-hex-7c3aed); font-weight: 700;" title="Resolved">+${surplusQty}</span>`);
                 } else {
-                    discParts.push(`<span class="trv-disc--surplus" style="color: #7c3aed; font-weight: 700;" title="Surplus">+${surplusQty}</span>`);
+                    discParts.push(`<span class="trv-disc--surplus" style="color: var(--palette-hex-7c3aed); font-weight: 700;" title="Surplus">+${surplusQty}</span>`);
                     hasUnresolvedDiscrepancy = true;
                 }
             }
@@ -110,7 +110,7 @@ class TransferTable {
                 discHtml = `<div style="display:flex; align-items:center; justify-content:center; gap:6px;">${discParts.join('')}</div>`;
             } else {
                 discHtml = `<span class="trv-disc--ok">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>
                 </span>`;
             }
         }
@@ -121,11 +121,11 @@ class TransferTable {
 
         let stIcon = '';
         if (st === 'completed') {
-            stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>';
+            stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>';
         } else if (st === 'pending') {
-            stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+            stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
         } else {
-            stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+            stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
         }
 
         // The div centers the icon perfectly under the header
@@ -136,7 +136,7 @@ class TransferTable {
         if (t.status === 'pending') {
             if ((isAdmin || uBranch === toLoc) && uBranch !== fromLoc) {
                 actions += `<button class="trv-action-btn trv-action-btn--primary btn-review" data-id="${esc(t.batch_id)}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="11"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     Review
                 </button>`;
             }
@@ -145,15 +145,15 @@ class TransferTable {
             }
         } else {
             actions += `<button class="trv-action-btn trv-action-btn--ghost btn-view" data-id="${esc(t.batch_id)}" title="View details">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>`;
             actions += `<button class="trv-action-btn trv-action-btn--ghost btn-print" data-id="${esc(t.batch_id)}" title="Print PDF">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="12"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             </button>`;
 
             if (isAdmin && st === 'completed') {
                 actions += `<button class="trv-action-btn trv-action-btn--danger btn-revert" data-id="${esc(t.batch_id)}" title="Revert Transfer (Admin Only)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12"><path d="M3 11V9a4 4 0 0 1 4-4h14M8 2l-5 5 5 5M21 13v2a4 4 0 0 1-4 4H3M16 22l5-5-5-5"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="12"><path d="M3 11V9a4 4 0 0 1 4-4h14M8 2l-5 5 5 5M21 13v2a4 4 0 0 1-4 4H3M16 22l5-5-5-5"/></svg>
                 </button>`;
             }
             // the Resolve button if needed (compact SVG style)
@@ -161,7 +161,7 @@ class TransferTable {
             const canResolve = userRole === 'admin' || userRole === 'manager';
             if (hasUnresolvedDiscrepancy && canResolve && (isAdmin || uBranch === fromLoc)) {
                 actions += `<button class="trv-action-btn trv-action-btn--primary btn-resolve" data-id="${esc(t.batch_id)}" title="Mark Discrepancy as Resolved" style="padding: 0 8px;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="13"><polyline points="20 6 9 17 4 12"/></svg>
                 </button>`;
             }
         }
@@ -175,7 +175,7 @@ class TransferTable {
         <div class="trv-row ${rowClass}" data-batch="${batchId}">
             <div class="trv-row-main">
                 <button class="trv-expand-btn expand-toggle" data-batch="${batchId}" title="Expand details">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" id="icon-${domId}"><polyline points="9 18 15 12 9 6"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="10" id="icon-${domId}"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
                 <span class="trv-batch-id btn-view" data-id="${batchId}" title="${batchId}">#${batchId}</span>
                 <span class="trv-date" title="${esc(new Date(t.created_at).toLocaleString())}">${esc(timeAgo)}</span>
@@ -183,7 +183,7 @@ class TransferTable {
                 <span class="trv-branch" title="${esc(t.from_location)}">${esc(t.from_location)}</span>
                 <span class="trv-branch" title="${esc(t.to_location)}">${esc(t.to_location)}</span>
                 <span class="trv-items-cell" title="${parseInt(t.item_count) || 0} items (${parseInt(t.total_qty) || 0} qty)">
-                    ${parseInt(t.item_count) || 0} items 
+                    ${parseInt(t.item_count) || 0} items
                     <span class="trv-items-qty">(${parseInt(t.total_qty) || 0} qty)</span>
                 </span>
                 <span class="trv-disc-cell">${discHtml}</span>
@@ -192,8 +192,8 @@ class TransferTable {
             </div>
             <div class="trv-expand-panel" id="expanded-${domId}">
                 <div id="expanded-content-${domId}">
-                    <div style="color:#9ca3af;font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0;">
-                        <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg>
+                    <div style="color:var(--palette-hex-9ca3af);font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0;">
+                        <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg>
                         Fetching items…
                     </div>
                 </div>
@@ -212,21 +212,21 @@ class TransferTable {
         const iRequested = uBranch === toLoc;      // I can cancel this
 
         const dirIcon = iAmBeingAsked
-            ? `<span class="trv-dir-incoming" title="Request received"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>`
-            : `<span class="trv-dir-outgoing" title="Request sent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>`;
+            ? `<span class="trv-dir-incoming" title="Request received"><svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>`
+            : `<span class="trv-dir-outgoing" title="Request sent"><svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>`;
 
         const st = esc((t.status || '').toLowerCase());
         const stLabel = 'Requested: ' + esc(t.status.charAt(0).toUpperCase() + t.status.slice(1));
-        let stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
-        if (st === 'fulfilled') stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>';
-        else if (st === 'rejected' || st === 'canceled') stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        let stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+        if (st === 'fulfilled') stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="3" width="13"><polyline points="20 6 9 17 4 12"/></svg>';
+        else if (st === 'rejected' || st === 'canceled') stIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="13"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
         const statusHtml = `<div style="display:flex; justify-content:center; width:100%;"><span class="trv-status-icon trv-status-icon--${st === 'pending' ? 'pending' : (st === 'fulfilled' ? 'completed' : 'rejected')}" title="${stLabel}">${stIcon}</span></div>`;
 
         let actions = '';
         if (t.status === 'pending') {
             if (isAdmin || iAmBeingAsked) {
                 actions += `<button class="trv-action-btn trv-action-btn--primary btn-fulfill-req" data-id="${esc(t.batch_id)}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="11"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                     Fulfill
                 </button>`;
                 actions += `<button class="trv-action-btn trv-action-btn--danger btn-reject-req" data-id="${esc(t.batch_id)}">Reject</button>`;
@@ -235,7 +235,7 @@ class TransferTable {
             }
         } else {
             actions += `<button class="trv-action-btn trv-action-btn--ghost btn-view-req" data-id="${esc(t.batch_id)}" title="View details">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>`;
         }
 
@@ -247,7 +247,7 @@ class TransferTable {
         <div class="trv-row trv-row--request" data-batch="${batchId}">
             <div class="trv-row-main">
                 <button class="trv-expand-btn expand-toggle-req" data-batch="${batchId}" title="Expand details">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" id="icon-${domId}"><polyline points="9 18 15 12 9 6"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="10" id="icon-${domId}"><polyline points="9 18 15 12 9 6"/></svg>
                 </button>
                 <span class="trv-batch-id btn-view-req" data-id="${batchId}" title="${batchId}">#${batchId} <span style="font-size:10px;color:var(--neutral-400);font-weight:600;">REQUEST</span></span>
                 <span class="trv-date" title="${esc(new Date(t.created_at).toLocaleString())}">${esc(timeAgo)}</span>
@@ -264,8 +264,8 @@ class TransferTable {
             </div>
             <div class="trv-expand-panel" id="expanded-${domId}">
                 <div id="expanded-content-${domId}">
-                    <div style="color:#9ca3af;font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0;">
-                        <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg>
+                    <div style="color:var(--palette-hex-9ca3af);font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0;">
+                        <svg class="lpg-spinner" viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2.5" width="14"><circle cx="12" cy="12" r="10" stroke-dasharray="31.4" stroke-dashoffset="10"/></svg>
                         Fetching items…
                     </div>
                 </div>
@@ -292,7 +292,7 @@ class TransferTable {
                     <span class="trv-expand-meta-label">Requested by</span>
                     <strong>${esc(data.requested_by)}</strong>
                     <span class="trv-expand-meta-time">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" style="vertical-align:-1px;margin-right:2px;opacity:.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="11" style="vertical-align:-1px;margin-right:2px;opacity:.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         ${initStr}
                     </span>
                 </div>
@@ -394,7 +394,7 @@ class TransferTable {
                     title: 'Resolve Discrepancy',
                     body: `
                         <p style="margin-bottom: 12px; font-size: 14px;">Are you sure you want to mark the discrepancy for <strong>${esc(batchId)}</strong> as resolved?</p>
-                        <div style="color: #9a3412; background: #fff7ed; padding: 12px; border-radius: 6px; border: 1px solid #fed7aa; font-size: 13px;">
+                        <div style="color: var(--palette-hex-9a3412); background: var(--theme-warning-surface); padding: 12px; border-radius: 6px; border: 1px solid var(--palette-hex-fed7aa); font-size: 13px;">
                             <i class="fa-solid fa-triangle-exclamation" style="margin-right: 4px;"></i>
                             Make sure you have adjusted the stock manually if any items were physically found.
                         </div>
@@ -456,18 +456,18 @@ class TransferTable {
 
     handleRevert(batchId) {
         const bodyHtml = `
-            <div style="margin-bottom: 15px; color: var(--error-600); background: #fef2f2; padding: 12px; border-radius: 6px; border: 1px solid #fecaca; font-size: 13px;">
+            <div style="margin-bottom: 15px; color: var(--error-600); background: var(--theme-danger-surface); padding: 12px; border-radius: 6px; border: 1px solid var(--palette-hex-fecaca); font-size: 13px;">
                 <strong>Warning:</strong> You are about to forcefully revert <b>${batchId}</b>.<br><br>
                 This will immediately pull the received stock back out of the destination branch and refund the original amount to the sender branch. This action will be permanently logged.
             </div>
             <div class="form-group">
-                <label style="display:block; margin-bottom:5px; font-size: 13px; font-weight: 600;">Reason for Reverting <span style="color:red">*</span></label>
-                <textarea id="revert-reason" class="form-control" rows="3" placeholder="Enter administrative reason for this revert..." style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; padding: 8px; font-family: inherit;"></textarea>
+                <label style="display:block; margin-bottom:5px; font-size: 13px; font-weight: 600;">Reason for Reverting <span style="color:var(--palette-name-red)">*</span></label>
+                <textarea id="revert-reason" class="form-control" rows="3" placeholder="Enter administrative reason for this revert..." style="width: 100%; border: 1px solid var(--theme-border); border-radius: 4px; padding: 8px; font-family: inherit;"></textarea>
             </div>
         `;
 
         Modal.open({
-            title: '<span style="color: var(--error-600); display: flex; align-items: center; gap: 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Revert Completed Transfer</span>',
+            title: '<span style="color: var(--error-600); display: flex; align-items: center; gap: 8px;"><svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Revert Completed Transfer</span>',
             body: bodyHtml,
             confirmText: 'Confirm Revert',
             confirmClass: 'btn-danger', // Uses your custom red button styling
@@ -505,7 +505,7 @@ class TransferTable {
                     <span class="trv-expand-meta-label">Initiated by</span>
                     <strong>${esc(data.initiated_by)}</strong>
                     <span class="trv-expand-meta-time">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" style="vertical-align:-1px;margin-right:2px;opacity:.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="11" style="vertical-align:-1px;margin-right:2px;opacity:.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         ${initStr}
                     </span>
                 </div>`;
@@ -517,7 +517,7 @@ class TransferTable {
                     <span class="trv-expand-meta-label">${esc(verb)}</span>
                     <strong>${esc(data.approved_by)}</strong>
                     ${approvedStr ? `<span class="trv-expand-meta-time">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" style="vertical-align:-1px;margin-right:2px;opacity:.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="11" style="vertical-align:-1px;margin-right:2px;opacity:.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         ${approvedStr}
                     </span>` : ''}
                 </div>`;
@@ -528,7 +528,7 @@ class TransferTable {
             const isCanceled = i.status === 'canceled';
 
             // Row background for canceled items
-            const rowStyle = isCanceled ? 'background-color: rgba(0,0,0,0.02);' : '';
+            const rowStyle = isCanceled ? 'background-color: var(--palette-rgb-0-0-0-0p02);' : '';
             // Strikethrough and opacity ONLY for the product details cells
             const canceledCellStyle = isCanceled ? 'opacity: 0.5; text-decoration: line-through;' : '';
             // Dim the notes slightly, but NO strikethrough
@@ -563,7 +563,7 @@ class TransferTable {
             ${metaHTML}
             <div class="trv-expand-header">
                 <span class="trv-expand-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" style="vertical-align:-1px;margin-right:4px;opacity:.6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 2 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--palette-name-currentcolor)" stroke-width="2" width="12" style="vertical-align:-1px;margin-right:4px;opacity:.6"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 2 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                     Transfer Items
                 </span>
                 <span class="trv-product-count">${items.length} product${items.length !== 1 ? 's' : ''}</span>

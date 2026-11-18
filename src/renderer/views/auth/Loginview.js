@@ -1,6 +1,7 @@
 const Toast = require('../../components/Toast.js');
-const { ipcRenderer } = require('electron');
 const API = require('../../services/api.js');
+const Button = require('../../components/Button.js');
+const Input = require('../../components/Input.js');
 
 class LoginView {
     constructor(app) {
@@ -16,50 +17,37 @@ class LoginView {
         const appContainer = document.getElementById('app');
         appContainer.innerHTML = `
       <div class="login-container">
+        <aside class="login-visual" aria-label="Arduino Uno inventory illustration">
+          <img class="login-arduino-image" src="src/assets/unsplash-arduino.jpg" alt="Photograph of a real Arduino Uno board with its Arduino and UNO markings">
+          <div class="login-image-overlay">
+            <div class="login-onboarding-copy">
+              <h2>Welcome back!</h2>
+              <p>Your products, branch stock, transfers, and sales are all ready in one place.</p>
+            </div>
+          </div>
+        </aside>
+        <main class="login-panel">
         <div class="login-card" id="loginCard">
           <div class="text-center mb-lg">
-            <div class="login-icon">
-              <i class="fa-solid fa-box-open"></i>
-            </div>
-            <h2 class="login-title">Faranux ERP</h2>
+            <img class="login-brand-logo" src="src/assets/brand-mark.svg" alt="Faranux ERP logo">
+            <h2 class="login-title">FARANUX ERP</h2>
             <p class="text-muted text-sm">Sign in to continue</p>
           </div>
 
           <form id="loginForm">
-            <div class="form-group">
-              <label class="form-label">Email Address</label>
-              <div class="form-input-icon">
-                <i class="fa-solid fa-envelope"></i>
-                <input type="email" id="loginEmail" class="form-input" placeholder="you@example.com" required autofocus>
-              </div>
-            </div>
+            ${Input.field({ label: 'Email Address', type: 'email', id: 'loginEmail', placeholder: 'you@example.com', icon: 'fa-solid fa-envelope', autocomplete: 'username', required: true, autofocus: true })}
+            ${Input.field({ label: 'Password', type: 'password', id: 'loginPassword', placeholder: 'Enter your password', icon: 'fa-solid fa-lock', autocomplete: 'current-password', required: true })}
 
-            <div class="form-group">
-              <label class="form-label">Password</label>
-              <div class="form-input-icon">
-                <i class="fa-solid fa-lock"></i>
-                <input type="password" id="loginPassword" class="form-input" placeholder="Enter your password" required>
-              </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-full btn-lg" id="loginBtn">
-              <i class="fa-solid fa-right-to-bracket"></i>
-              Sign In
-            </button>
+            ${Button.html({ text: 'Sign In', icon: 'fa-solid fa-right-to-bracket', variant: 'primary', size: 'lg', id: 'loginBtn', type: 'submit', className: 'w-full' })}
           </form>
 
           <div class="login-divider">
             <span>Or continue with</span>
           </div>
 
-          <button id="googleLoginBtn" class="btn btn-google">
-            <i class="fa-brands fa-google"></i>
-            Sign in with Google
-          </button>
-          
-          <button id="cancelGoogleBtn" class="btn btn-ghost w-full mt-sm" style="display: none;">
-            Cancel
-          </button>
+          ${Button.html({ text: 'Sign in with Google', icon: 'fa-brands fa-google', variant: 'google', size: 'md', id: 'googleLoginBtn' })}
+
+          ${Button.html({ text: 'Cancel', variant: 'ghost', size: 'md', id: 'cancelGoogleBtn', className: 'w-full mt-sm', hidden: true })}
 
           <!-- App Version (added here) -->
           <div class="text-center mt-lg pt-md border-t border-neutral-200">
@@ -68,6 +56,7 @@ class LoginView {
             </span>
           </div>
         </div>
+        </main>
       </div>
     `;
 
@@ -84,7 +73,7 @@ class LoginView {
                 <i class="fa-solid fa-clock-rotate-left text-warning-500" style="font-size: 3rem; margin-bottom: 1rem; display:block;"></i>
                 <h2 class="font-bold text-xl mb-sm">Approval Pending</h2>
                 <p class="text-neutral-600 mb-lg">Your account has been created but requires Administrator approval before you can access the system.</p>
-                
+
                 <div class="bg-neutral-50 p-md rounded mb-lg border border-neutral-200">
                     <p class="text-sm font-semibold">Please contact your Admin to approve your email.</p>
                 </div>
@@ -92,7 +81,7 @@ class LoginView {
                 <button id="checkStatusBtn" class="btn btn-primary w-full mb-md">
                     <i class="fa-solid fa-rotate-right"></i> Check Approval Status
                 </button>
-                
+
                 <button id="backToLoginBtn" class="btn btn-ghost w-full">
                     Back to Login
                 </button>
@@ -128,6 +117,7 @@ class LoginView {
                 const res = await API.login(email, password);
 
                 if (res.status === 'success') {
+                    this.app.resetAuthenticationFailure?.();
                     this.app.state.setUser(res.user);
                     this.app.renderApp(res.user);
                     this.app.navigate('pos');
@@ -156,7 +146,7 @@ class LoginView {
 
             // Notify main process to cleanup server
             try {
-                await ipcRenderer.invoke('cancel-google-login');
+                await globalThis.window?.faranuxDesktop?.cancelGoogleLogin?.();
             } catch (e) {
                 console.error('Error cancelling login:', e);
             }
@@ -168,7 +158,7 @@ class LoginView {
                 btn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in with Google';
             }
             if (cancel) {
-                cancel.style.display = 'none';
+                cancel.classList.add('hidden');
             }
             Toast.info('Login cancelled');
         });
@@ -180,7 +170,7 @@ class LoginView {
     // NEW METHOD - Fetch and display version
     async loadAppVersion() {
         try {
-            const version = await ipcRenderer.invoke('get-app-version');
+            const version = await globalThis.window?.faranuxDesktop?.getAppVersion?.();
             const versionEl = document.getElementById('version-display');
             if (versionEl) {
                 versionEl.textContent = `v${version}`;
@@ -194,6 +184,8 @@ class LoginView {
     }
 
     async handleGoogleLogin() {
+        if (this.googleLoginInProgress) return;
+
         const googleBtn = document.getElementById('googleLoginBtn');
         const cancelBtn = document.getElementById('cancelGoogleBtn');
 
@@ -203,12 +195,12 @@ class LoginView {
 
         // Show cancel button
         if (cancelBtn) {
-            cancelBtn.style.display = 'block';
+            cancelBtn.classList.remove('hidden');
         }
 
         try {
             // Get token from Main process
-            const token = await ipcRenderer.invoke('login-google');
+            const token = await globalThis.window?.faranuxDesktop?.loginGoogle?.();
 
             // Check if user cancelled
             if (!this.googleLoginInProgress) {
@@ -219,6 +211,7 @@ class LoginView {
             const res = await API.googleLogin(token);
 
             if (res.status === 'success') {
+                this.app.resetAuthenticationFailure?.();
                 this.app.state.setUser(res.user);
                 this.app.renderApp(res.user);
                 this.app.navigate('pos');
@@ -241,7 +234,7 @@ class LoginView {
                 if (error.message.includes('timeout')) {
                     Toast.error('Login timed out. Please try again.');
                 } else if (error.message.includes('EADDRINUSE')) {
-                    Toast.error('Login server busy. Please wait a moment and try again.');
+                    Toast.error('Port 4200 is already in use. Close any other Google sign-in window and try again.');
                 } else if (error.message.includes('Server error')) {
                     Toast.error('Authentication server error. Please try again.');
                 } else {
@@ -260,7 +253,7 @@ class LoginView {
                 btn.innerHTML = '<i class="fa-brands fa-google"></i> Sign in with Google';
             }
             if (cancel) {
-                cancel.style.display = 'none';
+                cancel.classList.add('hidden');
             }
         }
     }
