@@ -57,11 +57,22 @@ jobs:
             sha=$(gh api "repos/$repo/commits/main" --jq .sha)
             gh api "repos/$repo/git/refs" -f ref="refs/tags/$tag" -f sha="$sha"
           fi
-      - name: Build and publish to public releases repo
+      - name: Build Windows installer
+        run: npm run prepare:app-config && npm run build:renderer && npx electron-builder --win --publish never
+
+      - name: Publish release to public updates repo
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: npm run publish
-
+        shell: bash
+        run: |
+          repo="faranux-electronics/faranux-erp-app"
+          tag="${GITHUB_REF_NAME}"
+          assets=(dist/*.exe dist/latest.yml dist/*.blockmap)
+          if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
+            gh release upload "$tag" "${assets[@]}" --repo "$repo" --clobber
+          else
+            gh release create "$tag" "${assets[@]}" --repo "$repo" --title "Faranux ERP $tag" --notes "Faranux ERP desktop release $tag."
+          fi
       # Bridge release: existing installations still check inventory-desktop-app.
       # Keep this step and the old repo public until all deployed apps receive this update.
       - name: Publish transition release to existing update feed

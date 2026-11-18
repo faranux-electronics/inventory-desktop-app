@@ -52,7 +52,7 @@ The application includes several reusable vanilla JS UI components (located in `
 
 - Source code is maintained in [inventory-desktop-app](https://github.com/faranux-electronics/inventory-desktop-app).
 - Installers and auto-update files are published in [faranux-erp-app](https://github.com/faranux-electronics/faranux-erp-app/releases). This repository is public so installed apps can check for updates without storing a GitHub credential in the app.
-- Releases are created by pushing a version tag such as `v1.4.5`. The GitHub Actions workflow builds the installer and publishes the release files to `faranux-erp-app`.
+- Releases are created by pushing a version tag such as `v1.4.5`. The GitHub Actions workflow builds the installer and uploads the release files to `faranux-erp-app`.
 
 ### Required GitHub Actions secrets
 
