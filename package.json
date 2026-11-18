@@ -28,6 +28,7 @@
   },
   "build": {
     "appId": "com.faranux.inventorymis",
+    "artifactName": "Faranux-ERP-Setup-${version}.${ext}",
     "productName": "Faranux ERP",
     "files": [
       "**/*",
