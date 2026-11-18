@@ -362,8 +362,8 @@ module.exports = {
             return {status: 'error', message: e.message || 'Workbook request failed.'};
         }
     },
-    mpsPreviewWorkbook: (file, kind, options = {}) => API.mpsWorkbook('mps_preview_workbook', file, kind, options),
-    mpsImportWorkbook: (file, kind, options = {}) => API.mpsWorkbook('mps_import_workbook', file, kind, options),
+    mpsPreviewWorkbook: (file, kind, options = {}) => module.exports.mpsWorkbook('mps_preview_workbook', file, kind, options),
+    mpsImportWorkbook: (file, kind, options = {}) => module.exports.mpsWorkbook('mps_import_workbook', file, kind, options),
     mpsSetPurchaseOrderStatus: (id, status) => request('mps_set_purchase_order_status', 'POST', {id, status}),
     mpsReceivePurchaseOrder: (id, received = {}, locationId = null) =>
         request('mps_receive_purchase_order', 'POST', {id, received, location_id: locationId}),
